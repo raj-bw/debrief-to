@@ -6,7 +6,7 @@ export const revalidate = 1800;
 const SOURCES = [
   { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"],                                                                                                       color: "#2D6A4F", tag: "Environment & Policy", category: "Environment" },
   { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"],                          color: "#7B2D8E", tag: "Ontario Politics",     category: "Politics" },
-  { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"],                                                                                                    color: "#0F2E4A", tag: "Urban Issues",         category: "Urban" },
+  { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"],                                                                                                    color: "#0F2E4A", tag: "Urban Issues",         category: "Toronto" },
   { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/"],                                                                                                          color: "#D4872C", tag: "Current Affairs",      category: "Current Affairs" },
   { name: "Newmarket Today", urls: ["https://www.newmarkettoday.ca/local/feed", "https://www.newmarkettoday.ca/feed/local-news.xml", "https://www.newmarkettoday.ca/rss"],  color: "#1A73E8", tag: "Local News",           category: "Local" },
   { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"],                                                                                                           color: "#3A9B7A", tag: "Local News",           category: "Local" },
@@ -14,7 +14,6 @@ const SOURCES = [
   { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets" },
   { name: "Globe & Mail",    urls: ["https://www.theglobeandmail.com/arc/outboundfeeds/rss/category/canada/"],                                                              color: "#1C1C1C", tag: "Major Outlet",         category: "Major Outlets" },
   { name: "Toronto Sun",     urls: ["https://torontosun.com/category/news/local-news/feed/", "https://torontosun.com/feed/"],                                               color: "#DA1A32", tag: "Major Outlet",         category: "Major Outlets" },
-  { name: "blogTO",          urls: ["https://feeds.feedburner.com/blogTO", "https://www.blogto.com/feed/", "https://www.blogto.com/rss/"],                                  color: "#7A756E", tag: "City Life",            category: "City Life" },
 ];
 
 const parser = new Parser({
@@ -63,14 +62,20 @@ function extractImage(item) {
   return null;
 }
 
+// Newmarket Today syndicates national/world wire stories — only keep local content
+const NEWMARKET_LOCAL_PATHS = ["/local-news/", "/columns/", "/adopt-me/", "/local-sports/", "/local-entertainment/"];
+function isLocalNewmarket(link) {
+  return NEWMARKET_LOCAL_PATHS.some((p) => link.includes(p));
+}
+
 async function fetchSource(src) {
   let lastErr = null;
   for (const url of src.urls) {
     try {
       const feed = await parser.parseURL(url);
-      return (feed.items || []).slice(0, 20).map((item) => {
-      const raw = item.contentSnippet || item.content || item.description || "";
-      const description = stripHtml(raw).slice(0, 320);
+      let articles = (feed.items || []).slice(0, 40).map((item) => {
+        const raw = item.contentSnippet || item.content || item.description || "";
+        const description = stripHtml(raw).slice(0, 320);
         return {
           title: stripHtml(item.title || ""),
           link: item.link || "",
@@ -82,6 +87,11 @@ async function fetchSource(src) {
           image: extractImage(item),
         };
       });
+      // Filter Newmarket Today to local-only articles
+      if (src.name === "Newmarket Today") {
+        articles = articles.filter((a) => isLocalNewmarket(a.link));
+      }
+      return articles.slice(0, 20);
     } catch (err) {
       lastErr = err;
       console.warn(`[debrief.to] ${src.name} ${url} -> ${err.message}`);

@@ -6,35 +6,29 @@ const RSS_SOURCES = [
   { name: "The Narwhal", color: "#2D6A4F", tag: "Environment & Policy", category: "Environment" },
   // Politics
   { name: "The Trillium", color: "#7B2D8E", tag: "Ontario Politics", category: "Politics" },
-  // Urban
-  { name: "Spacing Toronto", color: "#0F2E4A", tag: "Urban Issues", category: "Urban" },
+  // Toronto
+  { name: "Spacing Toronto", color: "#0F2E4A", tag: "Urban Issues", category: "Toronto" },
   // Current Affairs
   { name: "The Walrus", color: "#D4872C", tag: "Current Affairs", category: "Current Affairs" },
-  // Local
-  { name: "Newmarket Today", color: "#1A73E8", tag: "Local News", category: "Local" },
-  { name: "thelocal.to", color: "#3A9B7A", tag: "Local News", category: "Local" },
+  // Newmarket
+  { name: "Newmarket Today", color: "#1A73E8", tag: "Local News", category: "Newmarket" },
+  { name: "thelocal.to", color: "#3A9B7A", tag: "Local News", category: "Newmarket" },
   // Major Outlets
   { name: "CBC Toronto", color: "#E03C31", tag: "Major Outlet", category: "Major Outlets" },
   { name: "Toronto Star", color: "#003DA5", tag: "Major Outlet", category: "Major Outlets" },
   { name: "Globe & Mail", color: "#1C1C1C", tag: "Major Outlet", category: "Major Outlets" },
   { name: "Toronto Sun", color: "#DA1A32", tag: "Major Outlet", category: "Major Outlets" },
-  // City Life
-  { name: "blogTO", color: "#7A756E", tag: "City Life", category: "City Life" },
 ];
 
 const SOURCE_CATEGORIES = [
   // Location-based
-  { label: "Local", icon: "\u{1F4CD}", sources: ["Newmarket Today", "thelocal.to"], group: "location" },
-  { label: "Toronto", icon: "\u{1F3D9}", sources: ["CBC Toronto", "Toronto Star", "Toronto Sun", "blogTO"], group: "location" },
+  { label: "Newmarket", icon: "\u{1F4CD}", sources: ["Newmarket Today", "thelocal.to"], group: "location" },
+  { label: "Toronto", icon: "\u{1F3D9}", sources: ["CBC Toronto", "Toronto Star", "Toronto Sun", "Spacing Toronto"], group: "location" },
   { label: "Ontario", icon: "\u{1F341}", sources: ["The Trillium", "Globe & Mail", "The Walrus"], group: "location" },
   // Topic-based
   { label: "Environment", icon: "\u{1F33F}", sources: ["The Narwhal"], group: "topic" },
   { label: "Politics", icon: "\u{1F3DB}", sources: ["The Trillium"], group: "topic" },
-  { label: "Urban", icon: "\u{1F3D7}", sources: ["Spacing Toronto"], group: "topic" },
-  { label: "City Life", icon: "\u{2615}", sources: ["blogTO"], group: "topic" },
 ];
-
-const MOCK_ARTICLES = [];
 
 const TIME_OPTIONS = ["Today", "This Week", "This Month"];
 
