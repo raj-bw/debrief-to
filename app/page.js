@@ -10,6 +10,9 @@ const RSS_SOURCES = [
   { name: "Spacing Toronto", color: "#0F2E4A", tag: "Urban Issues", category: "Toronto" },
   // Current Affairs
   { name: "The Walrus", color: "#D4872C", tag: "Current Affairs", category: "Current Affairs" },
+  // Investigative
+  { name: "Canadaland", color: "#C62828", tag: "Investigative", category: "Investigative" },
+  { name: "The Breach", color: "#1565C0", tag: "Investigative", category: "Investigative" },
   // Newmarket
   { name: "Newmarket Today", color: "#1A73E8", tag: "Local News", category: "Newmarket" },
   { name: "thelocal.to", color: "#3A9B7A", tag: "Local News", category: "Newmarket" },
@@ -28,6 +31,7 @@ const SOURCE_CATEGORIES = [
   // Topic-based
   { label: "Environment", icon: "\u{1F33F}", sources: ["The Narwhal"], group: "topic" },
   { label: "Politics", icon: "\u{1F3DB}", sources: ["The Trillium"], group: "topic" },
+  { label: "Investigative", icon: "\u{1F50D}", sources: ["The Narwhal", "The Trillium", "Canadaland", "The Breach"], group: "topic" },
 ];
 
 const TIME_OPTIONS = ["Today", "This Week", "This Month"];
