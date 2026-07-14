@@ -60,17 +60,15 @@ function timeAgo(dateString) {
 }
 
 function filterByTime(articles, timeFilter) {
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfWeek = new Date(startOfToday);
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  return articles.filter((a) => {
-    const d = new Date(a.pubDate);
-    if (timeFilter === "Today") return d >= startOfToday;
-    if (timeFilter === "This Week") return d >= startOfWeek;
-    return d >= startOfMonth;
-  });
+  // Rolling windows (not calendar boundaries) so the feed is never empty just
+  // because it's early in a new day/week/month. "Today" = last 24h, etc.
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  const cutoff =
+    timeFilter === "Today" ? now - DAY :
+    timeFilter === "This Week" ? now - 7 * DAY :
+    now - 30 * DAY;
+  return articles.filter((a) => new Date(a.pubDate).getTime() >= cutoff);
 }
 
 function formatDateHeading(dateStr) {
@@ -469,6 +467,11 @@ export default function Home() {
           <div style={{ textAlign: "center", padding: "64px 24px", background: t.cardBg, borderRadius: 10, border: `1px solid ${t.cardBorder}`, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <p style={{ fontSize: 18, fontFamily: "'Georgia', serif", fontWeight: 600, color: t.text }}>No articles found</p>
             <p style={{ fontSize: 14, color: t.textSec, marginTop: 6 }}>Try a different time range, search term, or filter.</p>
+            {timeFilter !== "This Month" && (
+              <button onClick={() => setTimeFilter("This Month")} style={{ marginTop: 18, padding: "9px 18px", borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "1.5px solid #2D6A4F" }}>
+                Show this month
+              </button>
+            )}
           </div>
         ) : (
           <div style={gridStyle}>
