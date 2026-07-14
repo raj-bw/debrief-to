@@ -93,6 +93,125 @@ function groupByDate(articles) {
     .map(([dateKey, arts]) => ({ label: formatDateHeading(dateKey), articles: arts }));
 }
 
+/* ---- About Page ---- */
+function AboutPage({ onBack, darkMode }) {
+  const dm = darkMode;
+  const c = {
+    bg: dm ? "#1A1A1A" : "#FAF8F5",
+    headerBg: dm ? "#222" : "#FFF",
+    cardBg: dm ? "#2A2A2A" : "#FFF",
+    border: dm ? "#333" : "#E8E5E0",
+    cardBorder: dm ? "#3A3A3A" : "#E8E5E0",
+    text: dm ? "#E8E5E0" : "#2C2C2C",
+    title: dm ? "#F0EDE8" : "#1A1A1A",
+    body: dm ? "#C8C4BE" : "#3C3A37",
+    muted: dm ? "#8A857E" : "#8A857E",
+    accent: "#2D6A4F",
+  };
+  const Section = ({ heading, children }) => (
+    <section style={{ marginBottom: 34 }}>
+      {heading && (
+        <h3 style={{ fontFamily: "'Georgia', serif", fontSize: 20, fontWeight: 700, color: c.title, margin: "0 0 12px" }}>{heading}</h3>
+      )}
+      {children}
+    </section>
+  );
+  const P = ({ children }) => (
+    <p style={{ fontSize: 15.5, lineHeight: 1.7, color: c.body, margin: "0 0 14px" }}>{children}</p>
+  );
+  return (
+    <div style={{ fontFamily: "inherit", minHeight: "100vh", background: c.bg, color: c.text }}>
+      <header style={{ background: c.headerBg, borderBottom: `1px solid ${c.border}`, position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 820, margin: "0 auto", padding: "20px 24px", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={onBack} style={{ background: "none", border: `1.5px solid ${dm ? "#444" : "#E0DCD7"}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontFamily: "inherit", cursor: "pointer", color: c.text, display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Feed
+          </button>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              About
+            </h2>
+          </div>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 820, margin: "0 auto", padding: "44px 24px 80px" }}>
+        {/* Hero */}
+        <div style={{ marginBottom: 40 }}>
+          <h1 style={{ fontFamily: "'Georgia', serif", fontSize: 34, fontWeight: 700, lineHeight: 1.2, letterSpacing: "-0.5px", margin: "0 0 12px", color: c.title }}>
+            All of Toronto&rsquo;s news, in one calm place.
+          </h1>
+          <p style={{ fontSize: 18, lineHeight: 1.6, color: c.body, margin: 0 }}>
+            Debrief.TO gathers headlines from local, independent, and major publications across the GTA
+            &mdash; so you can catch up on what matters without opening a dozen tabs.
+          </p>
+        </div>
+
+        <Section heading="Why we built this">
+          <P>
+            Local news is more fragmented than ever. The stories that shape your neighbourhood &mdash;
+            a new transit line, a council vote, an investigation into who really owns your street &mdash;
+            are scattered across major outlets, scrappy independents, and newsletters you&rsquo;ve never heard of.
+          </P>
+          <P>
+            Debrief.TO is the friend who reads all of it and gives you the highlights. Not a megaphone,
+            not a firehose &mdash; a quick, reliable briefing you can scan in a few minutes.
+          </P>
+        </Section>
+
+        <Section heading="How it works">
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+            {[
+              ["We aggregate, we don't rewrite.", "Every headline links straight back to the publisher who reported it. We never republish full articles or claim someone else's work."],
+              ["Always fresh.", "The feed refreshes automatically throughout the day, pulling the latest from every source."],
+              ["Filter to your Toronto.", "Sort by neighbourhood focus (Newmarket, Toronto, Ontario) or by beat (Environment, Politics, Investigative), and save stories to read later."],
+            ].map(([h, body]) => (
+              <li key={h} style={{ display: "flex", gap: 12, background: c.cardBg, border: `1px solid ${c.cardBorder}`, borderRadius: 12, padding: "16px 18px" }}>
+                <span style={{ flexShrink: 0, width: 8, height: 8, borderRadius: "50%", background: c.accent, marginTop: 7 }} />
+                <span>
+                  <strong style={{ color: c.title, fontWeight: 700 }}>{h}</strong>{" "}
+                  <span style={{ color: c.body }}>{body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section heading={`Our ${RSS_SOURCES.length} sources`}>
+          <P>
+            We link to reporting from a mix of major outlets, independents, and investigative newsrooms:
+          </P>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {RSS_SOURCES.map((s) => (
+              <span key={s.name} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 500, color: c.text, background: c.cardBg, border: `1px solid ${c.cardBorder}`, borderRadius: 20, padding: "6px 13px" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} />
+                {s.name}
+              </span>
+            ))}
+          </div>
+        </Section>
+
+        <Section heading="Support local journalism">
+          <P>
+            Debrief.TO exists to send readers <em>toward</em> the newsrooms doing the work &mdash; not away from them.
+            If a story matters to you, click through, read it at the source, and consider subscribing.
+            Independent local reporting only survives if people pay for it.
+          </P>
+        </Section>
+
+        <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 24, marginTop: 8 }}>
+          <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.6, margin: 0 }}>
+            Debrief.TO is an independent project and is not affiliated with any of the publications it links to.
+            All articles remain the property of their original publishers. Questions or a source we&rsquo;re missing?{" "}
+            <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600, textDecoration: "none" }}>hello@debrief.to</a>
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 /* ---- Bookmarks Page ---- */
 function BookmarksPage({ bookmarks, onBack, onRemove, darkMode }) {
   const dm = darkMode;
@@ -251,10 +370,6 @@ export default function Home() {
 
   const isBookmarked = (article) => bookmarks.some((b) => b.title === article.title);
 
-  if (page === "bookmarks") {
-    return <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} />;
-  }
-
   // Get all source names from active categories
   const activeSources = activeCategories.length === 0
     ? []
@@ -287,6 +402,16 @@ export default function Home() {
     observer.observe(node);
     return () => observer.disconnect();
   }, [hasMore]);
+
+  // Full-page views. These early returns must come AFTER every hook above so
+  // the hook order stays identical on every render (Rules of Hooks).
+  if (page === "bookmarks") {
+    return <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} />;
+  }
+
+  if (page === "about") {
+    return <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} />;
+  }
 
   const dm = darkMode;
   const t = {
@@ -354,6 +479,14 @@ export default function Home() {
                 {bookmarks.length > 0 && (
                   <span style={{ fontSize: 10, fontWeight: 700, background: "#E63956", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{bookmarks.length}</span>
                 )}
+              </button>
+
+              <button onClick={() => setPage("about")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 20, fontSize: 12, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#2E5A47" : "#CDE3D7"}`, color: dm ? "#5FBF92" : "#2D6A4F" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#2D6A4F12" : "#2D6A4F08"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                About
               </button>
             </div>
           </div>
