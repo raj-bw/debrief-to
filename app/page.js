@@ -213,6 +213,20 @@ function AboutPage({ onBack, darkMode }) {
 }
 
 /* ---- Bookmarks Page ---- */
+// Tab icons. They follow the site's own Dark button (not the computer's setting):
+// light icons live in /icons/, dark ones in /icons/dark/ with the same file names.
+// React puts these <link> tags in the page <head> and updates them when `dark` changes.
+function SiteIcons({ dark }) {
+  const dir = dark ? "/icons/dark" : "/icons";
+  return (
+    <>
+      <link rel="icon" type="image/png" sizes="16x16" href={`${dir}/favicon-16.png`} />
+      <link rel="icon" type="image/png" sizes="32x32" href={`${dir}/favicon-32.png`} />
+      <link rel="icon" type="image/png" sizes="192x192" href={`${dir}/favicon-192.png`} />
+    </>
+  );
+}
+
 function BookmarksPage({ bookmarks, onBack, onRemove, darkMode }) {
   const dm = darkMode;
   const grouped = groupByDate(bookmarks);
@@ -238,7 +252,7 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode }) {
           <div style={{ textAlign: "center", padding: "80px 24px", background: dm ? "#2A2A2A" : "#FFF", borderRadius: 12, border: `1px solid ${dm ? "#3A3A3A" : "#E8E5E0"}` }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={dm ? "#444" : "#D4D0CA"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 16 }}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
             <p style={{ fontFamily: "'Georgia', serif", fontSize: 18, fontWeight: 600, marginBottom: 6 }}>No saved articles yet</p>
-            <p style={{ fontSize: 14, color: dm ? "#706B64" : "#A09B94" }}>Click the bookmark icon on any article to save it for later.</p>
+            <p style={{ fontSize: 14, color: dm ? "#706B64" : "#A09B94" }}>Click the bookmark icon on any article to save it for later. Saved articles stay in this browser until you remove them.</p>
           </div>
         ) : (
           grouped.map((group) => (
@@ -275,7 +289,7 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode }) {
 
 /* ---- Main App ---- */
 export default function Home() {
-  // --- Persisted state: preferences in localStorage, bookmarks with tab tracking ---
+  // --- Persisted state: preferences and saved articles live in localStorage (this browser only) ---
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(21);
@@ -306,24 +320,11 @@ export default function Home() {
   useEffect(() => { if (hydrated) localStorage.setItem("cp_darkMode", JSON.stringify(darkMode)); }, [darkMode, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_bookmarks", JSON.stringify(bookmarks)); }, [bookmarks, hydrated]);
 
-  // Tab tracking: count open tabs, clear bookmarks when last tab closes
+  // Saved articles now stay until the reader removes them. Older versions of the
+  // site kept a tab counter (and deleted saved articles when it hit zero) —
+  // remove that leftover so it can't do anything.
   useEffect(() => {
-    // Increment tab count on mount
-    const count = parseInt(localStorage.getItem("cp_tabCount") || "0", 10);
-    localStorage.setItem("cp_tabCount", String(count + 1));
-
-    const handleUnload = () => {
-      const current = parseInt(localStorage.getItem("cp_tabCount") || "1", 10);
-      const newCount = Math.max(0, current - 1);
-      localStorage.setItem("cp_tabCount", String(newCount));
-      // Last tab closing — clear bookmarks
-      if (newCount === 0) {
-        localStorage.removeItem("cp_bookmarks");
-      }
-    };
-
-    window.addEventListener("beforeunload", handleUnload);
-    return () => window.removeEventListener("beforeunload", handleUnload);
+    try { localStorage.removeItem("cp_tabCount"); } catch {}
   }, []);
 
   // Load articles from live RSS feeds via /api/feed
@@ -454,11 +455,21 @@ export default function Home() {
   // Full-page views. These early returns must come AFTER every hook above so
   // the hook order stays identical on every render (Rules of Hooks).
   if (page === "bookmarks") {
-    return <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} />;
+    return (
+      <>
+        <SiteIcons dark={darkMode} />
+        <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} />
+      </>
+    );
   }
 
   if (page === "about") {
-    return <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} />;
+    return (
+      <>
+        <SiteIcons dark={darkMode} />
+        <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} />
+      </>
+    );
   }
 
   const dm = darkMode;
@@ -480,6 +491,7 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: t.bg, color: t.text }}>
+      <SiteIcons dark={darkMode} />
       {/* ===== HEADER ===== */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ padding: "20px 120px 16px" }}>
