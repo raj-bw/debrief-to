@@ -328,27 +328,68 @@ export default function Home() {
 
   // Load articles from live RSS feeds via /api/feed
   const [feedError, setFeedError] = useState(null);
+  const [fetchedAt, setFetchedAt] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0); // bump this to load the feed again
+  const lastLoadedRef = useRef(0);
+  const hasArticlesRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
+    // Only show the grey placeholder cards if there's nothing on screen yet
+    if (!hasArticlesRef.current) setLoading(true);
+    setFeedError(null);
     (async () => {
       try {
-        const res = await fetch("/api/feed");
-        if (!res.ok) throw new Error(`Feed responded ${res.status}`);
-        const data = await res.json();
+        // "no-cache" = the browser must check with the server instead of reusing an old copy
+        const res = await fetch("/api/feed", { cache: "no-cache" });
+        let data = null;
+        try { data = await res.json(); } catch {}
+        if (!res.ok) {
+          throw new Error(
+            res.status === 503
+              ? "None of our news sources answered just now."
+              : `The server had a problem (error ${res.status}).`
+          );
+        }
+        if (!data) throw new Error("The server sent back something we couldn't read.");
         if (cancelled) return;
         const sorted = (data.articles || []).sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
         setArticles(sorted);
+        setFetchedAt(data.fetchedAt || null);
+        hasArticlesRef.current = sorted.length > 0;
+        lastLoadedRef.current = Date.now();
         if (data.errors?.length) {
           console.warn("[debrief.to] some sources failed:", data.errors);
         }
       } catch (err) {
-        if (!cancelled) setFeedError(err.message);
+        if (!cancelled) {
+          setFeedError(
+            err instanceof TypeError
+              ? "We couldn't reach the server. Check your internet connection."
+              : err.message || "Something went wrong."
+          );
+        }
         console.error("[debrief.to] feed load failed:", err);
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  // If someone comes back to a tab that has been open for 30+ minutes
+  // (common on phones), quietly load the latest articles.
+  useEffect(() => {
+    const onVisible = () => {
+      if (
+        document.visibilityState === "visible" &&
+        lastLoadedRef.current &&
+        Date.now() - lastLoadedRef.current > 30 * 60 * 1000
+      ) {
+        setReloadKey((k) => k + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   const toggleCategory = (catLabel) => {
@@ -375,11 +416,18 @@ export default function Home() {
     ? []
     : SOURCE_CATEGORIES.filter((c) => activeCategories.includes(c.label)).flatMap((c) => c.sources);
 
-  const filtered = filterByTime(articles, timeFilter).filter((a) => {
+  // Step 1: apply the source + search filters
+  const matchesOtherFilters = articles.filter((a) => {
     const matchesSource = activeCategories.length === 0 || activeSources.includes(a.source);
     const matchesSearch = !searchQuery || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSource && matchesSearch;
   });
+  // Step 2: apply the time filter (Today / This Week / This Month)
+  const timeFiltered = filterByTime(matchesOtherFilters, timeFilter);
+  // Safety net: if the time filter leaves nothing but there ARE matching articles,
+  // show the most recent ones instead of an empty page.
+  const showingFallback = timeFiltered.length === 0 && matchesOtherFilters.length > 0;
+  const filtered = showingFallback ? matchesOtherFilters : timeFiltered;
 
   const visibleArticles = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -578,8 +626,9 @@ export default function Home() {
       {/* ===== MAIN CONTENT ===== */}
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 24px 64px" }}>
         <div style={{ marginBottom: 20, fontSize: 13, color: t.textSec, fontWeight: 400, letterSpacing: "0.2px", textTransform: "none" }}>
-          Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} article{filtered.length !== 1 ? "s" : ""} {"\u00B7"} {timeFilter.toLowerCase()}
+          Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} article{filtered.length !== 1 ? "s" : ""} {"\u00B7"} {showingFallback ? "most recent" : timeFilter.toLowerCase()}
           {activeCategories.length > 0 && ` \u00B7 ${activeCategories.join(", ")}`}
+          {fetchedAt && !loading && ` \u00B7 Updated ${timeAgo(fetchedAt)}`}
         </div>
 
         {loading ? (
@@ -596,17 +645,27 @@ export default function Home() {
               </div>
             ))}
           </div>
+        ) : feedError && articles.length === 0 ? (
+          <div role="alert" style={{ textAlign: "center", padding: "64px 24px", background: t.cardBg, borderRadius: 10, border: `1px solid ${t.cardBorder}`, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <p style={{ fontSize: 18, fontFamily: "'Georgia', serif", fontWeight: 600, color: t.text }}>Couldn't load the news right now</p>
+            <p style={{ fontSize: 14, color: t.textSec, marginTop: 6, maxWidth: 420, lineHeight: 1.5 }}>{feedError}</p>
+            <button onClick={() => setReloadKey((k) => k + 1)} style={{ marginTop: 18, padding: "9px 18px", borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "1.5px solid #2D6A4F" }}>
+              Try again
+            </button>
+          </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "64px 24px", background: t.cardBg, borderRadius: 10, border: `1px solid ${t.cardBorder}`, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <p style={{ fontSize: 18, fontFamily: "'Georgia', serif", fontWeight: 600, color: t.text }}>No articles found</p>
-            <p style={{ fontSize: 14, color: t.textSec, marginTop: 6 }}>Try a different time range, search term, or filter.</p>
-            {timeFilter !== "This Month" && (
-              <button onClick={() => setTimeFilter("This Month")} style={{ marginTop: 18, padding: "9px 18px", borderRadius: 8, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "1.5px solid #2D6A4F" }}>
-                Show this month
-              </button>
-            )}
+            <p style={{ fontSize: 14, color: t.textSec, marginTop: 6 }}>Try a different search term or source filter.</p>
           </div>
         ) : (
+          <>
+          {showingFallback && (
+            <div role="status" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 14, lineHeight: 1.5, background: dm ? "#23302A" : "#EEF5F1", border: `1px solid ${dm ? "#35503F" : "#CDE3D7"}`, color: t.text }}>
+              Nothing new {timeFilter === "Today" ? "in the last 24 hours" : timeFilter === "This Week" ? "in the last 7 days" : "in the last 30 days"}
+              {searchQuery ? " for this search" : ""}. Here are the most recent articles instead.
+            </div>
+          )}
           <div style={gridStyle}>
             {visibleArticles.map((article, i) => (
               <div key={article.title + i} style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", transition: "transform 0.25s ease, box-shadow 0.25s ease", cursor: "default", position: "relative", boxShadow: dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)" }}
@@ -659,6 +718,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          </>
         )}
 
         {/* Infinite scroll sentinel + loading indicator */}

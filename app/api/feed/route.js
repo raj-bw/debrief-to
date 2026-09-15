@@ -1,7 +1,15 @@
 import Parser from "rss-parser";
 
-export const dynamic = "force-static";
-export const revalidate = 1800;
+// Run this route on every request that reaches the server, and let Vercel's CDN
+// hold a short-lived copy instead. (It used to be "force-static" + revalidate,
+// which served weeks-old articles to the first visitor after a quiet stretch.)
+export const dynamic = "force-dynamic";
+
+// How long Vercel's CDN may reuse a copy of the feed:
+//   - fresh for 10 minutes
+//   - then up to 20 more minutes it may serve the old copy while it fetches a new one
+// After 30 minutes with no visitors, the next visitor waits a few seconds for fresh articles.
+const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
 
 const SOURCES = [
   { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"],                                                                                                       color: "#2D6A4F", tag: "Environment & Policy", category: "Environment" },
@@ -19,7 +27,7 @@ const SOURCES = [
 ];
 
 const parser = new Parser({
-  timeout: 12000,
+  timeout: 8000,
   headers: {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
@@ -111,8 +119,19 @@ export async function GET() {
     else if (r?.__error) errors.push({ source: r.__error, message: r.message });
   }
   articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-  return Response.json(
-    { articles, errors, fetchedAt: new Date().toISOString(), sourceCount: SOURCES.length },
-    { headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" } }
-  );
+  const body = { articles, errors, fetchedAt: new Date().toISOString(), sourceCount: SOURCES.length };
+
+  // If every source failed, say so and don't let the CDN keep this empty result.
+  if (articles.length === 0) {
+    return Response.json(body, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+
+  return Response.json(body, {
+    headers: {
+      // Only Vercel's CDN reads this one.
+      "Vercel-CDN-Cache-Control": CDN_CACHE,
+      // Browsers: always check back with the server instead of reusing an old copy.
+      "Cache-Control": "public, max-age=0, must-revalidate",
+    },
+  });
 }
