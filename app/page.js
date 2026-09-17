@@ -86,7 +86,74 @@ function groupByDate(articles) {
 }
 
 /* ---- About Page ---- */
-function AboutPage({ onBack, darkMode }) {
+
+/* ---- Header pieces shared by the feed, Saved and About pages ----
+   Keeping one component means the three capsules land in exactly the same
+   place on every page, so the button you clicked is the button you click
+   again to come back. ---- */
+
+// Left block: the wordmark. Fixed width so the capsules never shift sideways
+// between pages, whatever size the wordmark is.
+function Wordmark({ dm, size = 28, tagline = true, onClick }) {
+  const inner = (
+    <>
+      <h1 style={{ fontFamily: "'Georgia', serif", fontSize: size, fontWeight: 700, letterSpacing: "-0.5px", lineHeight: 1, margin: 0 }}>
+        <span style={{ color: "#2D6A4F" }}>Debrief</span>
+        <span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
+      </h1>
+      {tagline && <p style={{ fontSize: 12, color: dm ? "#C8C4BE" : "#000", marginTop: 4, fontWeight: 400 }}>Toronto&apos;s local news, in one place</p>}
+    </>
+  );
+  const box = { flex: "0 0 auto", minWidth: "min(230px, 100%)", textAlign: "left" };
+  if (!onClick) return <div style={box}>{inner}</div>;
+  return (
+    <button onClick={onClick} aria-label="Back to the feed" style={{ ...box, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}>
+      {inner}
+    </button>
+  );
+}
+
+// The three capsules. On the Saved and About pages the matching capsule is
+// filled in and shows an x — clicking it takes you back to the feed.
+function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
+  const base = { display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap" };
+  const X = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  );
+  const savedOpen = page === "bookmarks";
+  const aboutOpen = page === "about";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 auto", flexShrink: 0 }}>
+      <button onClick={onToggleDark} style={{ ...base, gap: 5, background: dm ? "#2D6A4F" : "transparent", border: `1.5px solid ${dm ? "#2D6A4F" : "#8A8580"}`, color: dm ? "#FFF" : "#6B665F" }}>
+        {dm ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        )}
+        {dm ? "Light" : "Dark"}
+      </button>
+
+      <button onClick={() => onGo(savedOpen ? "feed" : "bookmarks")} aria-pressed={savedOpen}
+        aria-label={savedOpen ? "Close saved articles and go back to the feed" : "Open saved articles"}
+        style={{ ...base, fontWeight: savedOpen ? 600 : 500, background: savedOpen ? "#C0354A" : "transparent", border: `1.5px solid ${savedOpen ? "#C0354A" : (dm ? "#5A3040" : "#E8D0D6")}`, color: savedOpen ? "#FFF" : (dm ? "#E63956" : "#C0354A") }}>
+        {savedOpen ? <X /> : <svg width="15" height="15" viewBox="0 0 24 24" fill="#E63956" stroke="#2B2D5B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>}
+        Saved
+        {savedCount > 0 && !savedOpen && (
+          <span style={{ fontSize: 10, fontWeight: 700, background: "#E63956", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{savedCount}</span>
+        )}
+      </button>
+
+      <button onClick={() => onGo(aboutOpen ? "feed" : "about")} aria-pressed={aboutOpen}
+        aria-label={aboutOpen ? "Close About and go back to the feed" : "Open About"}
+        style={{ ...base, fontWeight: aboutOpen ? 600 : 500, background: aboutOpen ? "#2D6A4F" : "transparent", border: `1.5px solid ${aboutOpen ? "#2D6A4F" : (dm ? "#2E5A47" : "#CDE3D7")}`, color: aboutOpen ? "#FFF" : (dm ? "#7FD3A8" : "#2D6A4F") }}>
+        {aboutOpen ? <X /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}
+        About
+      </button>
+    </div>
+  );
+}
+
+function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount }) {
   const dm = darkMode;
   const c = {
     bg: dm ? "#1A1A1A" : "#FAF8F5",
@@ -113,21 +180,16 @@ function AboutPage({ onBack, darkMode }) {
   );
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: c.bg, color: c.text }}>
-      <header style={{ background: c.headerBg, borderBottom: `1px solid ${c.border}`, position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 820, margin: "0 auto", padding: "20px clamp(16px, 4vw, 24px)", display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={onBack} aria-label="Back to the feed" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, fontFamily: "'Georgia', serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.5px" }}>
-            <span style={{ color: "#2D6A4F" }}>Debrief</span><span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
-          </button>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+      <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+          <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
+          <NavCapsules dm={dm} page="about" savedCount={savedCount} onToggleDark={onToggleDark} onGo={onGo} />
+          <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", order: 3 }}>
+            <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10, color: c.title }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               About
             </h2>
           </div>
-          <button onClick={onBack} aria-label="Close and go back to the feed" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "transparent", border: `1.5px solid ${dm ? "#2E5A47" : "#CDE3D7"}`, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Close
-          </button>
         </div>
       </header>
 
@@ -241,27 +303,22 @@ function SiteIcons({ dark }) {
   );
 }
 
-function BookmarksPage({ bookmarks, onBack, onRemove, darkMode }) {
+function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, onGo }) {
   const dm = darkMode;
   const grouped = groupByDate(bookmarks);
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: dm ? "#1A1A1A" : "#FAF8F5", color: dm ? "#E8E5E0" : "#2C2C2C" }}>
-      <header style={{ background: dm ? "#222" : "#FFF", borderBottom: `1px solid ${dm ? "#333" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px clamp(16px, 4vw, 24px)", display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={onBack} aria-label="Back to the feed" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, fontFamily: "'Georgia', serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.5px" }}>
-            <span style={{ color: "#2D6A4F" }}>Debrief</span><span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
-          </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
+      <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+          <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
+          <NavCapsules dm={dm} page="bookmarks" savedCount={bookmarks.length} onToggleDark={onToggleDark} onGo={onGo} />
+          <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, order: 3 }}>
             <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10, color: dm ? "#E8E5E0" : "#2C2C2C" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="#E63956" stroke="#2B2D5B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
               Saved Articles
             </h2>
+            <span style={{ fontSize: 13, color: dm ? "#9A958E" : "#6B665F" }}>{bookmarks.length} saved</span>
           </div>
-          <span style={{ fontSize: 13, color: dm ? "#9A958E" : "#6B665F", flexShrink: 0 }}>{bookmarks.length} saved</span>
-          <button onClick={onBack} aria-label="Close and go back to the feed" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "transparent", border: `1.5px solid ${dm ? "#5A3040" : "#E8D0D6"}`, color: dm ? "#E63956" : "#C0354A" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Close
-          </button>
         </div>
       </header>
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px clamp(16px, 4vw, 24px) 64px" }}>
@@ -475,7 +532,7 @@ export default function Home() {
     return (
       <>
         <SiteIcons dark={darkMode} />
-        <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} />
+        <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={setPage} />
       </>
     );
   }
@@ -484,7 +541,7 @@ export default function Home() {
     return (
       <>
         <SiteIcons dark={darkMode} />
-        <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} />
+        <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={setPage} savedCount={bookmarks.length} />
       </>
     );
   }
@@ -513,59 +570,24 @@ export default function Home() {
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px" }}>
 
-          {/* Top row */}
+          {/* Top row: wordmark - capsules - search. The capsules sit in the middle
+              with even space on both sides, and in the same spot on every page. */}
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
-            <div style={{ flexShrink: 0 }}>
-              <h1 style={{ fontFamily: "'Georgia', serif", fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", lineHeight: 1, margin: 0 }}>
-                <span style={{ color: "#2D6A4F" }}>Debrief</span>
-                <span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
-              </h1>
-              <p style={{ fontSize: 12, color: t.desc, marginTop: 4, fontWeight: 400 }}>Toronto's local news, in one place</p>
-            </div>
-
-            <div style={{ flex: "1 1 240px", minWidth: 0, display: "flex", justifyContent: "center", order: 3 }}>
+            <Wordmark dm={dm} />
+            <NavCapsules dm={dm} page="feed" savedCount={bookmarks.length} onToggleDark={() => setDarkMode(!dm)} onGo={setPage} />
+            <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", justifyContent: "flex-end", order: 3 }}>
               <div style={{ position: "relative", width: "100%", maxWidth: 480 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }}>
                   <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input
-                  style={{ border: `1px solid ${t.inputBorder}`, borderRadius: 24, padding: "10px 18px 10px 44px", fontSize: 14, background: t.inputBg, color: t.text, width: "100%", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                  style={{ border: `1px solid ${t.inputBorder}`, borderRadius: 24, padding: "12px 18px 12px 44px", fontSize: 14, background: t.inputBg, color: t.text, width: "100%", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                   placeholder="Search articles..."
                   aria-label="Search articles"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-            </div>
-
-            <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
-              <button onClick={() => setDarkMode(!dm)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "12px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: dm ? "#2D6A4F" : "transparent", border: dm ? "1.5px solid #2D6A4F" : `1.5px solid ${t.inputBorder}`, color: dm ? "#FFF" : t.textSec }}>
-                {dm ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                )}
-                {dm ? "Light" : "Dark"}
-              </button>
-
-              <button onClick={() => setPage("bookmarks")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#5A3040" : "#E8D0D6"}`, color: dm ? "#E63956" : "#C0354A" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#E6395612" : "#E6395608"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="#E63956" stroke="#2B2D5B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                Saved
-                {bookmarks.length > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 700, background: "#E63956", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{bookmarks.length}</span>
-                )}
-              </button>
-
-              <button onClick={() => setPage("about")} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#2E5A47" : "#CDE3D7"}`, color: dm ? "#5FBF92" : "#2D6A4F" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#2D6A4F12" : "#2D6A4F08"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                About
-              </button>
             </div>
           </div>
 
