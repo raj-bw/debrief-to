@@ -204,99 +204,15 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount }) {
       </header>
 
       <main style={{ maxWidth: 820, margin: "0 auto", padding: "44px clamp(16px, 4vw, 24px) 80px" }}>
-        {/* Hero */}
-        <div style={{ marginBottom: 40 }}>
-          <h1 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(26px, 6vw, 34px)", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-0.5px", margin: "0 0 12px", color: c.title }}>
-            Local news you can actually get to.
+        <div style={{ textAlign: "center", padding: "72px 24px", background: c.cardBg, borderRadius: 12, border: `1px solid ${c.cardBorder}` }}>
+          <h1 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(22px, 5vw, 28px)", fontWeight: 700, color: c.title, margin: "0 0 10px" }}>
+            About this page is on its way
           </h1>
-          <p style={{ fontSize: "clamp(16px, 4vw, 18px)", lineHeight: 1.6, color: c.body, margin: 0 }}>
-            Debrief.TO collects headlines from newsrooms covering Newmarket, Toronto and Ontario, and links you
-            straight to the people who reported them.
-          </p>
-          <p style={{ fontSize: 14, color: c.muted, margin: "16px 0 0" }}>
-            Built and run by Raj Bawa in Newmarket, Ontario.
+          <p style={{ fontSize: 15.5, lineHeight: 1.7, color: c.body, margin: "0 auto", maxWidth: 460 }}>
+            Debrief.TO collects headlines from newsrooms covering Newmarket, Toronto and Ontario,
+            and links straight to the people who reported them. A fuller explanation is being written.
           </p>
         </div>
-
-        <Section heading="Why I built it">
-          <P>
-            I don&rsquo;t think most people my age are apathetic about their city. I think they&rsquo;re
-            overwhelmed. Between the cost of living, two jobs and everything else, nobody has time to check a
-            dozen news sites to find out that their bus route is changing or that council is voting on housing
-            on Tuesday.
-          </P>
-          <P>
-            Then there&rsquo;s the access problem. A lot of good reporting sits behind subscriptions, so social
-            media becomes the default news source, and what you understand about your own city depends on what
-            an algorithm decided to show you.
-          </P>
-          <P>
-            Debrief.TO is my small attempt at the first step: put credible local reporting in one place, for
-            free, and make it easy to find. It grew out of my application to BUILD, a civic engagement program
-            run by Apathy is Boring, and I keep working on it because I think knowing what&rsquo;s happening
-            near you is where getting involved starts.
-          </P>
-        </Section>
-
-        <Section heading="How it works">
-          <P>
-            Every newsroom here publishes a public feed of its own headlines. Debrief.TO reads those feeds, sorts
-            everything newest first, and shows you the headline, the first couple of lines, and where it came
-            from. It refreshes itself throughout the day.
-          </P>
-          <P>
-            Full articles are never copied. Every headline links to the publisher&rsquo;s own page, and reading
-            it there is what supports the reporting. If you can subscribe to a local newsroom, please do.
-          </P>
-        </Section>
-
-        <Section heading="What it doesn&rsquo;t do">
-          <P>
-            No accounts, no ads and no tracking of what you read. Saved articles and your dark-mode choice are
-            stored by your own browser, on your own device, and never sent anywhere. Clear your browser data and
-            they&rsquo;re gone.
-          </P>
-          <P>
-            Some outlets are marked <strong>Subscription</strong>, which means most of their articles need a paid
-            account. That label is there so a link never wastes your time.
-          </P>
-        </Section>
-
-        <Section heading="Where the stories come from">
-          <div style={{ display: "grid", gap: 10 }}>
-            {SOURCE_CATEGORIES.map((cat) => (
-              <div key={cat.label} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "baseline" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: c.title, minWidth: 104 }}>{cat.icon} {cat.label}</span>
-                {cat.sources.map((name) => {
-                  const src = RSS_SOURCES.find((r) => r.name === name);
-                  return (
-                    <span key={name} style={{ fontSize: 14, color: c.body, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: src?.color, display: "inline-block" }} />
-                      {name}
-                      {src?.paywall && <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", color: dm ? "#E0B978" : "#8A5A12" }}>subscription</span>}
-                    </span>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: 14, lineHeight: 1.7, color: c.muted, margin: "18px 0 0" }}>
-            Newsrooms: if you&rsquo;d rather not appear here, email me and I&rsquo;ll take your feed out the same
-            day. If your feed is broken or missing, tell me that too.
-          </p>
-        </Section>
-
-        <Section heading="Get in touch">
-          <P>
-            Suggestions for sources to add, corrections, or anything that looks broken:{" "}
-            <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
-          </P>
-        </Section>
-
-        <p style={{ fontSize: 13, lineHeight: 1.7, color: c.muted, borderTop: `1px solid ${c.border}`, paddingTop: 20, margin: 0 }}>
-          Debrief.TO is an independent, non-commercial project. It isn&rsquo;t affiliated with any of the
-          newsrooms listed above, and headlines and summaries belong to them.
-        </p>
       </main>
     </div>
   );

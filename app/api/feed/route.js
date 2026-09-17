@@ -13,7 +13,7 @@ const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
 
 const SOURCES = [
   { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"],                                                                                                       color: "#2D6A4F", tag: "Environment & Policy", category: "Environment" },
-  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"],                          color: "#7B2D8E", tag: "Ontario Politics",     category: "Politics", paywall: true },
+  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"],                          color: "#7B2D8E", tag: "Ontario Politics",     category: "Politics" },
   { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"],                                                                                                    color: "#0F2E4A", tag: "Urban Issues",         category: "Toronto" },
   { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"],                                                                                                          color: "#D4872C", tag: "Current Affairs",      category: "Current Affairs" },
   { name: "Canadaland",     urls: ["https://www.canadaland.com/feed/"],                                                                                                    color: "#C62828", tag: "Investigative",        category: "Investigative" },
@@ -21,7 +21,7 @@ const SOURCES = [
   { name: "Newmarket Today", urls: ["https://www.newmarkettoday.ca/local/feed", "https://www.newmarkettoday.ca/feed/local-news.xml", "https://www.newmarkettoday.ca/rss"],  color: "#1A73E8", tag: "Local News",           category: "Local" },
   { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"],                                                                                                           color: "#3A9B7A", tag: "Local News",           category: "Local" },
   { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"],                                   color: "#E03C31", tag: "Major Outlet",         category: "Major Outlets" },
-  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets", paywall: true },
+  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets" },
   { name: "Toronto Sun",     urls: ["https://torontosun.com/category/news/local-news/feed/", "https://torontosun.com/feed/"],                                               color: "#DA1A32", tag: "Major Outlet",         category: "Major Outlets" },
 ];
 
@@ -95,6 +95,23 @@ const SKIP_TITLES = {
   ],
 };
 
+/* Which individual articles actually need a subscription.
+   The Trillium publishes free stories under /news/ and subscriber stories
+   under /insider-news/ and /trillium-insiders/, so we can tell them apart
+   from the link alone. Toronto Star meters nearly everything, so there the
+   label applies to the source as a whole. */
+const PAYWALL_PATHS = {
+  "The Trillium": ["/insider-news/", "/trillium-insiders/"],
+};
+const PAYWALL_EVERYTHING = ["Toronto Star"];
+
+function isPaywalled(src, link) {
+  if (PAYWALL_EVERYTHING.includes(src.name)) return true;
+  const paths = PAYWALL_PATHS[src.name] || [];
+  const path = link.replace(/^https?:\/\/[^/]+/, "").toLowerCase();
+  return paths.some((p) => path.startsWith(p));
+}
+
 // Anything matching these is kept but labelled "Opinion"
 const OPINION_PATHS = ["/opinion/", "/opinions/", "/commentary/", "/editorial/"];
 const OPINION_TITLES = [/^op-?ed\b/i, /^opinion\b/i, /^editorial\b/i, /^analysis\b/i, /^column\b/i];
@@ -143,7 +160,7 @@ async function fetchSource(src) {
           source: src.name,
           sourceColor: src.color,
           tag: src.tag,
-          paywall: src.paywall || false, // true = most articles need a subscription
+          paywall: isPaywalled(src, item.link || ""), // this particular article needs a subscription
           image: extractImage(item),
         };
       });
