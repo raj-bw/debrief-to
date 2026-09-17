@@ -71,6 +71,50 @@ function extractImage(item) {
   return null;
 }
 
+/* ---- What gets left out, and what gets labelled ----
+   The goal is straight local reporting, so two kinds of item are dropped:
+   opinion columns dressed as news (Postmedia writes them as "SURNAME: ...")
+   and a newsroom's own housekeeping posts. Commentary from sources that are
+   openly analytical is kept, but labelled "Opinion" so readers can tell. ---- */
+
+// Sections we never want, by source
+const SKIP_PATHS = {
+  "Toronto Sun": ["/opinion/", "/entertainment/", "/sports/", "/life/", "/driving/", "/shopping-essentials/"],
+  "Canadaland": ["/live/"],
+};
+
+// Headlines we never want, by source
+const SKIP_TITLES = {
+  // Postmedia columns: "WARMINGTON: ...", "MANDEL: ..."
+  "Toronto Sun": [/^[A-Z][A-Z'’.\-]{2,}(?:\s+[A-Z][A-Z'’.\-]{2,})?\s*:/],
+  // Canadaland's own notices rather than reporting
+  "Canadaland": [
+    /^apply for/i, /fellowship/i, /live call-?in/i, /live event/i,
+    /transparency report/i, /artificial intelligence policy/i,
+    /corrections and clarifications/i, /^retraction and apology/i,
+  ],
+};
+
+// Anything matching these is kept but labelled "Opinion"
+const OPINION_PATHS = ["/opinion/", "/opinions/", "/commentary/", "/editorial/"];
+const OPINION_TITLES = [/^op-?ed\b/i, /^opinion\b/i, /^editorial\b/i, /^analysis\b/i, /^column\b/i];
+
+function pathOf(link) {
+  return link.replace(/^https?:\/\/[^/]+/, "").toLowerCase();
+}
+
+function shouldSkip(src, article) {
+  const path = pathOf(article.link);
+  if ((SKIP_PATHS[src.name] || []).some((p) => path.includes(p))) return true;
+  if ((SKIP_TITLES[src.name] || []).some((re) => re.test(article.title))) return true;
+  return false;
+}
+
+function isOpinion(article) {
+  const path = pathOf(article.link);
+  return OPINION_PATHS.some((p) => path.includes(p)) || OPINION_TITLES.some((re) => re.test(article.title));
+}
+
 // Newmarket Today carries local reporting plus syndicated national/world wire copy.
 // We drop the wire sections and keep everything else, so local stories aren't lost.
 const NEWMARKET_WIRE_PATHS = [
@@ -107,6 +151,10 @@ async function fetchSource(src) {
       if (src.name === "Newmarket Today") {
         articles = articles.filter((a) => isLocalNewmarket(a.link));
       }
+      // Leave out columns and newsroom housekeeping, and label the commentary we keep
+      articles = articles
+        .filter((a) => !shouldSkip(src, a))
+        .map((a) => ({ ...a, opinion: isOpinion(a) }));
       return articles.slice(0, 20);
     } catch (err) {
       lastErr = err;

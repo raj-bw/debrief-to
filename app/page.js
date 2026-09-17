@@ -30,6 +30,16 @@ const TIME_OPTIONS = ["Today", "This Week", "This Month"];
 
 // Helper: get a visible tint for category pill backgrounds
 // Dark source colours like #0F2E4A need stronger opacity to show up
+// Brand colours like Spacing's navy are too dark to read on a dark background,
+// so in dark mode we mix the colour with white until it's legible.
+function lightenForDark(hexColor, amount = 0.55) {
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  const mix = (c) => Math.round(c + (255 - c) * amount);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
 function getCatTint(hexColor, opacity) {
   const r = parseInt(hexColor.slice(1, 3), 16);
   const g = parseInt(hexColor.slice(3, 5), 16);
@@ -754,10 +764,15 @@ export default function Home() {
                 <div style={{ padding: "20px 24px 22px", flex: 1, display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", marginBottom: 10, flex: 1 }}>
-                      <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: article.sourceColor, marginRight: 7 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: article.sourceColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
+                      <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: dm ? lightenForDark(article.sourceColor) : article.sourceColor, marginRight: 7 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : article.sourceColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
                       <span style={{ margin: "0 6px", color: t.textMuted, fontSize: 10 }}>{"\u00B7"}</span>
                       <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 400 }}>{article.tag}</span>
+                      {article.opinion && (
+                        <span title="Commentary, not straight reporting" style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#A9B7D0" : "#44506B", background: dm ? "#252B36" : "#EDF0F6", border: `1px solid ${dm ? "#3A4454" : "#D6DDE9"}` }}>
+                          Opinion
+                        </span>
+                      )}
                       {article.paywall && (
                         <span title="Most articles from this outlet need a subscription" style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#E0B978" : "#8A5A12", background: dm ? "#3A2E1C" : "#F6ECD9", border: `1px solid ${dm ? "#5A4526" : "#E8D5B0"}` }}>
                           Subscription
@@ -774,7 +789,7 @@ export default function Home() {
                     <p style={{ fontSize: 14, lineHeight: 1.65, color: t.desc, flex: 1, marginBottom: 14 }}>{article.description}</p>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${dm ? "#333" : "#F0EDE8"}`, paddingTop: 14, marginTop: "auto" }}>
                       <span style={{ fontSize: 12, color: t.textMuted }}>{timeAgo(article.pubDate)}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#2D6A4F", display: "flex", alignItems: "center", gap: 4, letterSpacing: "0.2px" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F", display: "flex", alignItems: "center", gap: 4, letterSpacing: "0.2px" }}>
                         Read<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                       </span>
                     </div>
