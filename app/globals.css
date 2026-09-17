@@ -8,3 +8,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* On narrow screens the time filters read "Today / Week / Month" so the whole
+   row fits on one line. The word "This" is hidden, not deleted, so screen
+   readers and wider screens still get the full label. */
+@media (max-width: 500px) {
+  .time-prefix { display: none; }
+  .filter-row { gap: 4px !important; }
+  .filter-divider { margin: 0 2px !important; }
+}

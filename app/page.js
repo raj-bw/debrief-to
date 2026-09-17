@@ -180,7 +180,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount }) {
   );
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: c.bg, color: c.text }}>
-      <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
+      <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
         <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="about" savedCount={savedCount} onToggleDark={onToggleDark} onGo={onGo} />
@@ -308,7 +308,7 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
   const grouped = groupByDate(bookmarks);
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: dm ? "#1A1A1A" : "#FAF8F5", color: dm ? "#E8E5E0" : "#2C2C2C" }}>
-      <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
+      <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
         <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="bookmarks" savedCount={bookmarks.length} onToggleDark={onToggleDark} onGo={onGo} />
@@ -567,7 +567,7 @@ export default function Home() {
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: t.bg, color: t.text }}>
       <SiteIcons dark={darkMode} />
       {/* ===== HEADER ===== */}
-      <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, position: "sticky", top: 0, zIndex: 100 }}>
+      <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
         <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px" }}>
 
           {/* Top row: wordmark - capsules - search. The capsules sit in the middle
@@ -592,8 +592,8 @@ export default function Home() {
           </div>
 
           {/* Second row: Sources + Time + Active filters */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => setShowSources(!showSources)} aria-expanded={showSources} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "11px clamp(10px, 3vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.6vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
+          <div className="filter-row" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => setShowSources(!showSources)} aria-expanded={showSources} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "11px clamp(11px, 2.8vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
               // Same look as the time capsules: solid green when on, outlined when off
               background: showSources ? "#2D6A4F" : "transparent",
               color: showSources ? "#FFF" : (dm ? "#7FD3A8" : "#2D6A4F"),
@@ -602,13 +602,13 @@ export default function Home() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 0.2s ease", transform: showSources ? "rotate(180deg)" : "rotate(0deg)" }}><polyline points="6 9 12 15 18 9" /></svg>
             </button>
 
-            <div style={{ width: 1, height: 22, background: dm ? t.desc : t.border, margin: "0 4px" }} />
+            <div className="filter-divider" style={{ width: 1, height: 22, background: dm ? t.desc : t.border, margin: "0 4px" }} />
 
             {TIME_OPTIONS.map((opt) => {
               const isActive = timeFilter === opt;
               return (
-                <button key={opt} onClick={() => setTimeFilter(opt)} style={{ padding: "11px clamp(10px, 3vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.6vw, 15px)", fontWeight: isActive ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", whiteSpace: "nowrap", background: isActive ? "#2D6A4F" : "transparent", color: isActive ? "#FFF" : (dm ? t.desc : t.textSec), border: isActive ? "1.5px solid #2D6A4F" : "1.5px solid transparent" }}>
-                  {opt}
+                <button key={opt} onClick={() => setTimeFilter(opt)} style={{ padding: "11px clamp(9px, 2.6vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: isActive ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", whiteSpace: "nowrap", background: isActive ? "#2D6A4F" : "transparent", color: isActive ? "#FFF" : (dm ? t.desc : t.textSec), border: isActive ? "1.5px solid #2D6A4F" : "1.5px solid transparent" }}>
+                  {opt.startsWith("This ") ? (<><span className="time-prefix">This </span>{opt.slice(5)}</>) : opt}
                 </button>
               );
             })}
