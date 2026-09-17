@@ -1,5 +1,6 @@
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -16,6 +17,26 @@ export const metadata = {
   icons: {
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
+  // Used to build full links for the share preview below
+  metadataBase: new URL("https://debrief.to"),
+  // What people see when the link is shared in a text, on social media or in Slack
+  openGraph: {
+    type: "website",
+    siteName: "Debrief.TO",
+    locale: "en_CA",
+    url: "https://debrief.to",
+    title: "Debrief.TO — Toronto's local news, in one place",
+    description:
+      "Headlines from newsrooms covering Newmarket, Toronto and Ontario, free and in one feed. Every story links back to the publisher.",
+    images: [{ url: "/icons/og-image.png", width: 1200, height: 630, alt: "Debrief.TO — Toronto's local news, in one place" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Debrief.TO — Toronto's local news, in one place",
+    description:
+      "Headlines from newsrooms covering Newmarket, Toronto and Ontario, free and in one feed.",
+    images: ["/icons/og-image.png"],
+  },
 };
 
 export default function RootLayout({ children }) {
@@ -23,6 +44,7 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body className={dmSans.variable} style={{ fontFamily: "var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif" }} suppressHydrationWarning>
         {children}
+        <Analytics />
       </body>
     </html>
   );

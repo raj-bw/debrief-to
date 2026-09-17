@@ -13,16 +13,15 @@ const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
 
 const SOURCES = [
   { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"],                                                                                                       color: "#2D6A4F", tag: "Environment & Policy", category: "Environment" },
-  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"],                          color: "#7B2D8E", tag: "Ontario Politics",     category: "Politics" },
+  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"],                          color: "#7B2D8E", tag: "Ontario Politics",     category: "Politics", paywall: true },
   { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"],                                                                                                    color: "#0F2E4A", tag: "Urban Issues",         category: "Toronto" },
-  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/"],                                                                                                          color: "#D4872C", tag: "Current Affairs",      category: "Current Affairs" },
+  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"],                                                                                                          color: "#D4872C", tag: "Current Affairs",      category: "Current Affairs" },
   { name: "Canadaland",     urls: ["https://www.canadaland.com/feed/"],                                                                                                    color: "#C62828", tag: "Investigative",        category: "Investigative" },
   { name: "The Breach",     urls: ["https://breachmedia.ca/feed/"],                                                                                                        color: "#1565C0", tag: "Investigative",        category: "Investigative" },
   { name: "Newmarket Today", urls: ["https://www.newmarkettoday.ca/local/feed", "https://www.newmarkettoday.ca/feed/local-news.xml", "https://www.newmarkettoday.ca/rss"],  color: "#1A73E8", tag: "Local News",           category: "Local" },
   { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"],                                                                                                           color: "#3A9B7A", tag: "Local News",           category: "Local" },
   { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"],                                   color: "#E03C31", tag: "Major Outlet",         category: "Major Outlets" },
-  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets" },
-  { name: "Globe & Mail",    urls: ["https://www.theglobeandmail.com/arc/outboundfeeds/rss/category/canada/"],                                                              color: "#1C1C1C", tag: "Major Outlet",         category: "Major Outlets" },
+  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets", paywall: true },
   { name: "Toronto Sun",     urls: ["https://torontosun.com/category/news/local-news/feed/", "https://torontosun.com/feed/"],                                               color: "#DA1A32", tag: "Major Outlet",         category: "Major Outlets" },
 ];
 
@@ -72,10 +71,16 @@ function extractImage(item) {
   return null;
 }
 
-// Newmarket Today syndicates national/world wire stories — only keep local content
-const NEWMARKET_LOCAL_PATHS = ["/local-news/", "/columns/", "/adopt-me/", "/local-sports/", "/local-entertainment/"];
+// Newmarket Today carries local reporting plus syndicated national/world wire copy.
+// We drop the wire sections and keep everything else, so local stories aren't lost.
+const NEWMARKET_WIRE_PATHS = [
+  "/beyond-local/", "/ontario-news/", "/canada-news/", "/world-news/",
+  "/national-", "/national/", "/world/", "/canada/", "/sports-news/",
+  "/entertainment-news/", "/business-news/", "/auto-news/", "/lifestyle/",
+];
 function isLocalNewmarket(link) {
-  return NEWMARKET_LOCAL_PATHS.some((p) => link.includes(p));
+  const path = link.replace(/^https?:\/\/[^/]+/, "").toLowerCase();
+  return !NEWMARKET_WIRE_PATHS.some((p) => path.startsWith(p));
 }
 
 async function fetchSource(src) {
@@ -94,6 +99,7 @@ async function fetchSource(src) {
           source: src.name,
           sourceColor: src.color,
           tag: src.tag,
+          paywall: src.paywall || false, // true = most articles need a subscription
           image: extractImage(item),
         };
       });
