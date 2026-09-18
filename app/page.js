@@ -2,27 +2,40 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 
 const RSS_SOURCES = [
-  // Newmarket / York Region
-  { name: "Newmarket Today", color: "#1A73E8", tag: "Local News", category: "Newmarket" },
-  { name: "thelocal.to", color: "#3A9B7A", tag: "Local News", category: "Newmarket" },
+  // Newmarket / York
+  { name: "Newmarket Today", color: "#1A73E8", tag: "Newmarket" },
   // Toronto
-  { name: "CBC Toronto", color: "#E03C31", tag: "Toronto", category: "Toronto" },
-  { name: "Toronto Star", color: "#003DA5", tag: "Toronto", category: "Toronto", paywall: true },
-  { name: "Spacing Toronto", color: "#0F2E4A", tag: "Urban Issues", category: "Toronto" },
+  { name: "CBC Toronto", color: "#E03C31", tag: "Toronto" },
+  { name: "TorontoToday", color: "#0F7B6C", tag: "Toronto" },
+  { name: "The Green Line", color: "#4C8C2B", tag: "Community" },
+  { name: "thelocal.to", color: "#3A9B7A", tag: "City Life" },
+  { name: "Spacing Toronto", color: "#0F2E4A", tag: "Urbanism" },
+  { name: "Toronto Star", color: "#003DA5", tag: "Toronto", paywall: true },
   // Ontario
-  { name: "The Trillium", color: "#7B2D8E", tag: "Ontario Politics", category: "Ontario", paywall: true },
-  { name: "The Narwhal", color: "#2D6A4F", tag: "Environment & Policy", category: "Ontario" },
-  // Independent newsrooms
-  { name: "The Breach", color: "#1565C0", tag: "Investigative", category: "Independent" },
-  { name: "Canadaland", color: "#C62828", tag: "Investigative", category: "Independent" },
-  { name: "The Walrus", color: "#D4872C", tag: "Current Affairs", category: "Independent" },
+  { name: "The Trillium", color: "#7B2D8E", tag: "Ontario Politics", paywall: true },
+  { name: "The Narwhal", color: "#2D6A4F", tag: "Environment" },
+  // National reporting
+  { name: "National Observer", color: "#0B7285", tag: "Climate & Politics" },
+  { name: "The Breach", color: "#1565C0", tag: "Investigative" },
+  { name: "IJF", color: "#8B5E00", tag: "Investigative" },
+  { name: "Ricochet", color: "#B3261E", tag: "Public Interest" },
+  { name: "The Maple", color: "#A8324A", tag: "Labour & Politics" },
+  { name: "Canadaland", color: "#C62828", tag: "Media Watch" },
+  { name: "The Walrus", color: "#D4872C", tag: "Current Affairs" },
 ];
 
+/* Two kinds of filter, shown as two rows in the Sources panel:
+   WHERE the news is from, and WHAT it covers. A source can sit in one of each. */
 const SOURCE_CATEGORIES = [
-  { label: "Newmarket", icon: "\u{1F4CD}", sources: ["Newmarket Today", "thelocal.to"], group: "place" },
-  { label: "Toronto", icon: "\u{1F3D9}", sources: ["CBC Toronto", "Toronto Star", "Spacing Toronto"], group: "place" },
+  // --- Place ---
+  { label: "Newmarket", icon: "\u{1F4CD}", sources: ["Newmarket Today"], group: "place" },
+  { label: "Toronto", icon: "\u{1F3D9}", sources: ["CBC Toronto", "TorontoToday", "The Green Line", "thelocal.to", "Spacing Toronto", "Toronto Star"], group: "place" },
   { label: "Ontario", icon: "\u{1F341}", sources: ["The Trillium", "The Narwhal"], group: "place" },
-  { label: "Independent", icon: "\u{1F50D}", sources: ["The Breach", "Canadaland", "The Walrus", "The Narwhal", "Spacing Toronto", "thelocal.to"], group: "kind" },
+  // --- Topic ---
+  { label: "Environment", icon: "\u{1F33F}", sources: ["The Narwhal", "National Observer"], group: "topic" },
+  { label: "Investigative", icon: "\u{1F50D}", sources: ["IJF", "The Breach", "Canadaland", "The Maple", "Ricochet"], group: "topic" },
+  { label: "National Politics", icon: "\u{1F1E8}\u{1F1E6}", sources: ["The Breach", "Ricochet", "The Maple", "National Observer", "The Walrus"], group: "topic" },
+  { label: "Urbanism & Transit", icon: "\u{1F687}", sources: ["Spacing Toronto", "thelocal.to", "The Green Line"], group: "topic" },
 ];
 
 const TIME_OPTIONS = ["Today", "This Week", "This Month"];

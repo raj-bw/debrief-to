@@ -11,17 +11,31 @@ export const dynamic = "force-dynamic";
 // After 30 minutes with no visitors, the next visitor waits a few seconds for fresh articles.
 const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
 
+// How many articles any one source may contribute. Busy newsrooms like CBC
+// used to fill the page on their own; this keeps the mix readable.
+const PER_SOURCE_LIMIT = 8;
+
 const SOURCES = [
-  { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"],                                                                                                       color: "#2D6A4F", tag: "Environment & Policy", category: "Environment" },
-  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"],                          color: "#7B2D8E", tag: "Ontario Politics",     category: "Politics" },
-  { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"],                                                                                                    color: "#0F2E4A", tag: "Urban Issues",         category: "Toronto" },
-  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"],                                                                                                          color: "#D4872C", tag: "Current Affairs",      category: "Current Affairs" },
-  { name: "Canadaland",     urls: ["https://www.canadaland.com/feed/"],                                                                                                    color: "#C62828", tag: "Investigative",        category: "Investigative" },
-  { name: "The Breach",     urls: ["https://breachmedia.ca/feed/"],                                                                                                        color: "#1565C0", tag: "Investigative",        category: "Investigative" },
-  { name: "Newmarket Today", urls: ["https://www.newmarkettoday.ca/local/feed", "https://www.newmarkettoday.ca/feed/local-news.xml", "https://www.newmarkettoday.ca/rss"],  color: "#1A73E8", tag: "Local News",           category: "Local" },
-  { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"],                                                                                                           color: "#3A9B7A", tag: "Local News",           category: "Local" },
-  { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"],                                   color: "#E03C31", tag: "Major Outlet",         category: "Major Outlets" },
-  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets" },
+  // --- Newmarket / York ---
+  { name: "Newmarket Today", urls: ["https://www.newmarkettoday.ca/local/feed", "https://www.newmarkettoday.ca/feed/local-news.xml", "https://www.newmarkettoday.ca/rss"], color: "#1A73E8", tag: "Newmarket" },
+  // --- Toronto ---
+  { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"], color: "#E03C31", tag: "Toronto" },
+  { name: "TorontoToday",    urls: ["https://www.torontotoday.ca/local/feed", "https://www.torontotoday.ca/feed", "https://www.torontotoday.ca/rss"], color: "#0F7B6C", tag: "Toronto" },
+  { name: "The Green Line",  urls: ["https://thegreenline.to/feed/", "https://thegreenline.to/rss"], color: "#4C8C2B", tag: "Community" },
+  { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"], color: "#3A9B7A", tag: "City Life" },
+  { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"], color: "#0F2E4A", tag: "Urbanism" },
+  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Toronto" },
+  // --- Ontario ---
+  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"], color: "#7B2D8E", tag: "Ontario Politics" },
+  { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"], color: "#2D6A4F", tag: "Environment" },
+  // --- National reporting ---
+  { name: "National Observer", urls: ["https://www.nationalobserver.com/front/rss", "https://www.nationalobserver.com/rss.xml"], color: "#0B7285", tag: "Climate & Politics" },
+  { name: "The Breach",      urls: ["https://breachmedia.ca/feed/"], color: "#1565C0", tag: "Investigative" },
+  { name: "IJF",             urls: ["https://theijf.org/rss.xml", "https://theijf.org/feed", "https://theijf.org/rss"], color: "#8B5E00", tag: "Investigative" },
+  { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", tag: "Public Interest" },
+  { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", tag: "Labour & Politics" },
+  { name: "Canadaland",      urls: ["https://www.canadaland.com/feed/"], color: "#C62828", tag: "Media Watch" },
+  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"], color: "#D4872C", tag: "Current Affairs" },
 ];
 
 const parser = new Parser({
@@ -172,13 +186,28 @@ async function fetchSource(src) {
       articles = articles
         .filter((a) => !shouldSkip(src, a))
         .map((a) => ({ ...a, opinion: isOpinion(a) }));
-      return articles.slice(0, 20);
+      return articles.slice(0, PER_SOURCE_LIMIT);
     } catch (err) {
       lastErr = err;
       console.warn(`[debrief.to] ${src.name} ${url} -> ${err.message}`);
     }
   }
   return { __error: src.name, message: lastErr?.message || "all candidate URLs failed" };
+}
+
+// Keep newest-first order, but never show more than two cards in a row from the
+// same newsroom: if a third would follow, the next article from someone else is
+// pulled up ahead of it.
+function spreadOutSources(list, maxRun = 2) {
+  for (let i = maxRun; i < list.length; i++) {
+    const run = list.slice(i - maxRun, i);
+    if (!run.every((a) => a.source === list[i].source)) continue;
+    const swapWith = list.findIndex((a, j) => j > i && a.source !== list[i].source);
+    if (swapWith === -1) break; // nothing left from another source
+    const [moved] = list.splice(swapWith, 1);
+    list.splice(i, 0, moved);
+  }
+  return list;
 }
 
 export async function GET() {
@@ -190,6 +219,7 @@ export async function GET() {
     else if (r?.__error) errors.push({ source: r.__error, message: r.message });
   }
   articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  spreadOutSources(articles);
   const body = { articles, errors, fetchedAt: new Date().toISOString(), sourceCount: SOURCES.length };
 
   // If every source failed, say so and don't let the CDN keep this empty result.
