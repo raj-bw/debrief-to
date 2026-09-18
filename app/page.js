@@ -8,7 +8,6 @@ const RSS_SOURCES = [
   // Toronto
   { name: "CBC Toronto", color: "#E03C31", tag: "Toronto", category: "Toronto" },
   { name: "Toronto Star", color: "#003DA5", tag: "Toronto", category: "Toronto", paywall: true },
-  { name: "Toronto Sun", color: "#DA1A32", tag: "Toronto", category: "Toronto" },
   { name: "Spacing Toronto", color: "#0F2E4A", tag: "Urban Issues", category: "Toronto" },
   // Ontario
   { name: "The Trillium", color: "#7B2D8E", tag: "Ontario Politics", category: "Ontario", paywall: true },
@@ -21,7 +20,7 @@ const RSS_SOURCES = [
 
 const SOURCE_CATEGORIES = [
   { label: "Newmarket", icon: "\u{1F4CD}", sources: ["Newmarket Today", "thelocal.to"], group: "place" },
-  { label: "Toronto", icon: "\u{1F3D9}", sources: ["CBC Toronto", "Toronto Star", "Toronto Sun", "Spacing Toronto"], group: "place" },
+  { label: "Toronto", icon: "\u{1F3D9}", sources: ["CBC Toronto", "Toronto Star", "Spacing Toronto"], group: "place" },
   { label: "Ontario", icon: "\u{1F341}", sources: ["The Trillium", "The Narwhal"], group: "place" },
   { label: "Independent", icon: "\u{1F50D}", sources: ["The Breach", "Canadaland", "The Walrus", "The Narwhal", "Spacing Toronto", "thelocal.to"], group: "kind" },
 ];

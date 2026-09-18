@@ -22,7 +22,6 @@ const SOURCES = [
   { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"],                                                                                                           color: "#3A9B7A", tag: "Local News",           category: "Local" },
   { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"],                                   color: "#E03C31", tag: "Major Outlet",         category: "Major Outlets" },
   { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", tag: "Major Outlet",     category: "Major Outlets" },
-  { name: "Toronto Sun",     urls: ["https://torontosun.com/category/news/local-news/feed/", "https://torontosun.com/feed/"],                                               color: "#DA1A32", tag: "Major Outlet",         category: "Major Outlets" },
 ];
 
 const parser = new Parser({
@@ -79,7 +78,8 @@ function extractImage(item) {
 
 // Sections we never want, by source
 const SKIP_PATHS = {
-  "Toronto Sun": ["/opinion/", "/entertainment/", "/sports/", "/life/", "/driving/", "/shopping-essentials/"],
+  // Toronto Sun was removed as a source in Sept 2026 — too much tabloid copy.
+  // These rules stay as a pattern for any future tabloid-style source.
   "Canadaland": ["/live/"],
 };
 
