@@ -91,16 +91,29 @@ function extractImage(item) {
    openly analytical is kept, but labelled "Opinion" so readers can tell. ---- */
 
 // Sections we never want, by source
+// Village Media pipes Canadian Press wire copy through its local feeds.
+const WIRE_PATHS = ["/national-news/", "/world-news/", "/canada-news/", "/beyond-local/", "/national/", "/world/"];
+
 const SKIP_PATHS = {
   // Toronto Sun was removed as a source in Sept 2026 — too much tabloid copy.
   // These rules stay as a pattern for any future tabloid-style source.
   "Canadaland": ["/live/"],
+  // Wire copy, not Toronto reporting
+  "TorontoToday": WIRE_PATHS,
+  // Sports and the daily weather post aren't what people come here for
+  "Toronto Star": ["/sports/", "/life/", "/entertainment/"],
+  // Audio and video clips rather than articles
+  "CBC Toronto": ["/player/"],
+  // Council coverage for other Ontario towns (Barrie, Milton, Springwater...)
+  "The Trillium": ["/municipalities-newsletter/"],
 };
 
 // Headlines we never want, by source
 const SKIP_TITLES = {
   // Postmedia columns: "WARMINGTON: ...", "MANDEL: ..."
   "Toronto Sun": [/^[A-Z][A-Z'’.\-]{2,}(?:\s+[A-Z][A-Z'’.\-]{2,})?\s*:/],
+  // The daily weather post
+  "Toronto Star": [/forecast:/i, /^weather:/i],
   // Canadaland's own notices rather than reporting
   "Canadaland": [
     /^apply for/i, /fellowship/i, /live call-?in/i, /live event/i,
@@ -195,6 +208,57 @@ async function fetchSource(src) {
   return { __error: src.name, message: lastErr?.message || "all candidate URLs failed" };
 }
 
+/* ---- Keeping the feed digestible ----
+   A newsroom posting every twenty minutes shouldn't drown out a weekly
+   investigation. Three rules do the work, and none of them judge an
+   individual story: a daily limit per newsroom, a limit on crime-blotter
+   items, and an order that gives every newsroom a turn before anyone gets
+   a second slot. ---- */
+
+const PER_SOURCE_PER_DAY = 3;
+const BLOTTER_PER_DAY = 2;
+
+// Day in Toronto time, so "today" means what a reader in Newmarket means by it
+function dayKey(iso) {
+  try {
+    return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+  } catch {
+    return "unknown";
+  }
+}
+
+const BLOTTER_PATHS = ["/police-beat/", "/crime/", "/police/"];
+const BLOTTER_TITLE = /\b(charged|police say|arrested|homicide|stabb\w+|fatally shot|dead after|body found)\b/i;
+function isBlotter(a) {
+  const path = (a.link || "").replace(/^https?:\/\/[^/]+/, "").toLowerCase();
+  return BLOTTER_PATHS.some((p) => path.includes(p)) || BLOTTER_TITLE.test(a.title || "");
+}
+
+// Keep at most `max` items per day for each key (list must already be newest first)
+function capPerDay(list, keyOf, max) {
+  const seen = new Map();
+  return list.filter((a) => {
+    const key = keyOf(a) + "|" + dayKey(a.pubDate);
+    if (key.startsWith("null|")) return true;
+    const n = (seen.get(key) || 0) + 1;
+    seen.set(key, n);
+    return n <= max;
+  });
+}
+
+// Give every newsroom a turn: the newest story from each, then second-newest
+// from each, and so on. Within a round, newest first.
+function fairShare(list) {
+  const rank = new Map();
+  const ranked = list.map((a) => {
+    const n = (rank.get(a.source) || 0);
+    rank.set(a.source, n + 1);
+    return { a, round: n };
+  });
+  ranked.sort((x, y) => x.round - y.round || new Date(y.a.pubDate) - new Date(x.a.pubDate));
+  return ranked.map((r) => r.a);
+}
+
 // Keep newest-first order, but never show more than two cards in a row from the
 // same newsroom: if a third would follow, the next article from someone else is
 // pulled up ahead of it.
@@ -219,7 +283,18 @@ export async function GET() {
     else if (r?.__error) errors.push({ source: r.__error, message: r.message });
   }
   articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-  spreadOutSources(articles);
+
+  // 1. no newsroom gets more than PER_SOURCE_PER_DAY stories on any given day
+  let shortlist = capPerDay(articles, (a) => a.source, PER_SOURCE_PER_DAY);
+  // 2. crime-blotter items are capped for the whole feed, not per source
+  const blotterKept = capPerDay(shortlist.filter(isBlotter), () => "blotter", BLOTTER_PER_DAY);
+  const blotterSet = new Set(blotterKept.map((a) => a.link));
+  shortlist = shortlist.filter((a) => !isBlotter(a) || blotterSet.has(a.link));
+  // 3. every newsroom gets a turn before anyone gets a second slot
+  shortlist = fairShare(shortlist);
+  spreadOutSources(shortlist);
+  articles.length = 0;
+  articles.push(...shortlist);
   const body = { articles, errors, fetchedAt: new Date().toISOString(), sourceCount: SOURCES.length };
 
   // If every source failed, say so and don't let the CDN keep this empty result.
