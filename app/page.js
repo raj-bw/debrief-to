@@ -522,6 +522,10 @@ export default function Home() {
   const [townSlug, setTownSlug] = useState(DEFAULT_TOWN);
   const [showPicker, setShowPicker] = useState(false);
   const [archiveInfo, setArchiveInfo] = useState({ enabled: false, days: 0 });
+  // What the server says the local tab is called. Usually the same as what we
+  // work out here, but it differs when a town's own publisher didn't answer and
+  // the server fell back to the region — so the server's answer wins.
+  const [serverTown, setServerTown] = useState(null);
 
   // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
@@ -555,7 +559,8 @@ export default function Home() {
   }, []);
 
   // What the local tab is called, and whether it's falling back to a region.
-  const home = resolveTown(townSlug);
+  const localGuess = resolveTown(townSlug);
+  const home = serverTown && serverTown.slug === townSlug ? serverTown : localGuess;
   const CATEGORIES = buildCategories(home.label);
 
   const chooseTown = (slug) => {
@@ -602,6 +607,7 @@ export default function Home() {
         setArticles(sorted);
         setFetchedAt(data.fetchedAt || null);
         setArchiveInfo(data.archive || { enabled: false, days: 0 });
+        setServerTown(data.town || null);
         hasArticlesRef.current = sorted.length > 0;
         lastLoadedRef.current = Date.now();
         if (data.errors?.length) {

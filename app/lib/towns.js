@@ -22,6 +22,11 @@ function villageMedia(name, host, color) {
   };
 }
 
+// Not every town is a Village Media town. This is for everyone else.
+function feed(name, urls, color) {
+  return { name, urls, color };
+}
+
 /* ---- Regions ----
    A region's feeds are the fallback for every town inside it that has no
    publisher of its own. ---- */
@@ -40,7 +45,10 @@ export const REGIONS = {
   },
   "waterloo-region": {
     name: "Waterloo Region",
-    feeds: [villageMedia("Kitchener Today", "kitchenertoday.com", "#5B3E96")],
+    // Kitchener Today's feed is serving malformed XML (an attribute with no
+    // value, which stops any strict parser dead). That's theirs to fix, so the
+    // region leans on Cambridge Today, which answers fine.
+    feeds: [villageMedia("Cambridge Today", "cambridgetoday.ca", "#6B4AA8")],
   },
   "niagara-region": {
     name: "Niagara Region",
@@ -68,7 +76,11 @@ export const REGIONS = {
   },
   ottawa: {
     name: "Ottawa",
-    feeds: [villageMedia("Ottawa Matters", "ottawamatters.com", "#A63D40")],
+    // ottawamatters.com is a Rogers site, not a Village Media one, so it has no
+    // /local/feed — it answered with something that wasn't RSS at all. CBC
+    // Ottawa is the free, credible equivalent, and the same shape of feed we
+    // already use for Toronto.
+    feeds: [feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40")],
   },
 };
 
@@ -122,7 +134,7 @@ export const TOWNS = [
   { slug: "elliot-lake", name: "Elliot Lake", region: "algoma-district", feeds: [villageMedia("Elliot Lake Today", "elliotlaketoday.com", "#4A6D8C")] },
 
   // --- Ottawa ---
-  { slug: "ottawa", name: "Ottawa", region: "ottawa", feeds: [villageMedia("Ottawa Matters", "ottawamatters.com", "#A63D40")] },
+  { slug: "ottawa", name: "Ottawa", region: "ottawa", feeds: [feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40")] },
 ];
 
 export const DEFAULT_TOWN = "newmarket";
@@ -147,6 +159,10 @@ export function resolveTown(slug) {
     label: hasOwn ? town.name : (region?.name || "Ontario"),
     usingRegion: !hasOwn,
     feeds: hasOwn ? town.feeds : (region?.feeds || []),
+    // Kept separately so the feed route can fall back to the region if a
+    // town's own publisher stops answering — a feed that breaks shouldn't
+    // leave a reader staring at an empty local tab.
+    regionFeeds: region?.feeds || [],
   };
 }
 

@@ -3,6 +3,10 @@ import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
 import { topicsFor, placesFor } from "../../lib/topics";
 import { clusterStories } from "../../lib/cluster";
 import { appendToday, readBack, trim, archiveEnabled } from "../../lib/archive";
+// How a story is judged — what gets left out and what only gets labelled —
+// lives in its own file, because those rules are published on the About page
+// and deserve to be readable and testable on their own.
+import { isPaywalled, shouldSkip, isOpinion, isBlotter } from "../../lib/filters";
 
 // Run this route on every request that reaches the server, and let Vercel's CDN
 // hold a short-lived copy instead. (It used to be "force-static" + revalidate,
@@ -92,85 +96,7 @@ function extractImage(item) {
   return null;
 }
 
-/* ---- What gets left out, and what gets labelled ----
-   Every rule below targets the *format* of a post, never its subject. Wire
-   copy from somewhere else, sports and entertainment sections, video clips,
-   the daily weather post, a newsroom's own fundraising notices: none of these
-   are local reporting. Nothing is ever dropped for what it is about or what
-   conclusion it reaches. ---- */
-
-// Village Media pipes Canadian Press wire copy through every one of its local
-// feeds, so this applies to all of them, in whatever town.
-const WIRE_PATHS = [
-  "/beyond-local/", "/national-news/", "/world-news/", "/canada-news/",
-  "/ontario-news/", "/national/", "/world/", "/canada/", "/sports-news/",
-  "/entertainment-news/", "/business-news/", "/auto-news/", "/lifestyle/",
-];
-
-const SKIP_PATHS = {
-  // Toronto Sun was removed as a source in Sept 2026 — too much tabloid copy.
-  // These rules stay as a pattern for any future tabloid-style source.
-  "Canadaland": ["/live/"],
-  // Sports, lifestyle and entertainment aren't what people come here for
-  "Toronto Star": ["/sports/", "/life/", "/entertainment/"],
-  // Audio and video clips rather than articles
-  "CBC Toronto": ["/player/"],
-  // Council coverage for other Ontario towns (Barrie, Milton, Springwater...)
-  "The Trillium": ["/municipalities-newsletter/"],
-};
-
-const SKIP_TITLES = {
-  // Postmedia-style columns: "WARMINGTON: ...", "MANDEL: ..."
-  "Toronto Sun": [/^[A-Z][A-Z'’.\-]{2,}(?:\s+[A-Z][A-Z'’.\-]{2,})?\s*:/],
-  // The daily weather post
-  "Toronto Star": [/forecast:/i, /^weather:/i],
-  // Canadaland's own notices rather than reporting
-  "Canadaland": [
-    /^apply for/i, /fellowship/i, /live call-?in/i, /live event/i,
-    /transparency report/i, /artificial intelligence policy/i,
-    /corrections and clarifications/i, /^retraction and apology/i,
-  ],
-};
-
-/* Which individual articles actually need a subscription.
-   The Trillium publishes free stories under /news/ and subscriber stories
-   under /insider-news/ and /trillium-insiders/, so we can tell them apart
-   from the link alone. Toronto Star meters nearly everything, so there the
-   label applies to the source as a whole. */
-const PAYWALL_PATHS = {
-  "The Trillium": ["/insider-news/", "/trillium-insiders/"],
-};
-const PAYWALL_EVERYTHING = ["Toronto Star"];
-
-function pathOf(link) {
-  return String(link || "").replace(/^https?:\/\/[^/]+/, "").toLowerCase();
-}
-
-function isPaywalled(src, link) {
-  if (PAYWALL_EVERYTHING.includes(src.name)) return true;
-  const paths = PAYWALL_PATHS[src.name] || [];
-  return paths.some((p) => pathOf(link).startsWith(p));
-}
-
-// Anything matching these is kept but labelled "Opinion"
-const OPINION_PATHS = ["/opinion/", "/opinions/", "/commentary/", "/editorial/"];
-const OPINION_TITLES = [/^op-?ed\b/i, /^opinion\b/i, /^editorial\b/i, /^analysis\b/i, /^column\b/i];
-
-function shouldSkip(src, article) {
-  const path = pathOf(article.link);
-  // Wire copy syndicated into a local site is not local news
-  if (src.kind === "village" && WIRE_PATHS.some((p) => path.startsWith(p))) return true;
-  if ((SKIP_PATHS[src.name] || []).some((p) => path.includes(p))) return true;
-  if ((SKIP_TITLES[src.name] || []).some((re) => re.test(article.title))) return true;
-  return false;
-}
-
-function isOpinion(article) {
-  const path = pathOf(article.link);
-  return OPINION_PATHS.some((p) => path.includes(p)) || OPINION_TITLES.some((re) => re.test(article.title));
-}
-
-async function fetchSource(src, homePlace) {
+async function fetchSource(src) {
   let lastErr = null;
   for (const url of src.urls) {
     try {
@@ -197,7 +123,9 @@ async function fetchSource(src, homePlace) {
           // What the story is about, and where it is about — worked out per
           // article, so one newsroom's output can land in several tabs.
           topics: topicsFor(base, item),
-          places: placesFor(base, src.place, homePlace),
+          // `places` is filled in after every feed is back, because the name of
+          // the local tab isn't settled until we know whether the town's own
+          // publisher answered.
         });
         if (articles.length >= PER_SOURCE_LIMIT) break;
       }
@@ -226,12 +154,6 @@ function dayKey(iso) {
   } catch {
     return "unknown";
   }
-}
-
-const BLOTTER_PATHS = ["/police-beat/", "/crime/", "/police/"];
-const BLOTTER_TITLE = /\b(charged|police say|arrested|homicide|stabb\w+|fatally shot|dead after|body found)\b/i;
-function isBlotter(a) {
-  return BLOTTER_PATHS.some((p) => pathOf(a.link).includes(p)) || BLOTTER_TITLE.test(a.title || "");
 }
 
 // Keep at most `max` items per day for each key (list must already be newest first)
@@ -297,19 +219,47 @@ export async function GET(request) {
   // The reader's local tab: their town if it has a publisher, otherwise the
   // region that covers it.
   const town = resolveTown(townSlug);
-  const homePlace = town.label;
+  let homePlace = town.label;
+  let usingRegion = town.usingRegion;
 
   // The town's own publisher sits alongside the standing list.
   const townSources = (town.feeds || []).map((f) => ({ ...f, place: "home" }));
   const allSources = [...townSources, ...SOURCES];
 
-  const results = await Promise.all(allSources.map((s) => fetchSource(s, homePlace)));
+  const results = await Promise.all(allSources.map((s) => fetchSource(s)));
   const errors = [];
   const live = [];
   for (const r of results) {
     if (Array.isArray(r)) live.push(...r);
     else if (r?.__error) errors.push({ source: r.__error, message: r.message });
   }
+
+  /* If the town's own publisher didn't answer, fall back to the region's — the
+     same thing that happens for a town with no publisher at all, just decided
+     at request time rather than in the registry. A feed can break for a
+     morning; that shouldn't leave someone staring at an empty local tab.
+
+     The tab takes the region's name when this happens, because that is what
+     the reader is actually getting. */
+  const regionFeeds = town.regionFeeds || [];
+  const sameAsTown = (f) => townSources.some((t) => t.urls?.[0] === f.urls?.[0]);
+  if (townSources.length && !usingRegion && !live.some((a) => a.sourcePlace === "home")) {
+    const spares = regionFeeds.filter((f) => !sameAsTown(f)).map((f) => ({ ...f, place: "home" }));
+    if (spares.length) {
+      const rescued = await Promise.all(spares.map((s) => fetchSource(s)));
+      for (const r of rescued) {
+        if (Array.isArray(r)) live.push(...r);
+        else if (r?.__error) errors.push({ source: r.__error, message: r.message });
+      }
+      if (live.some((a) => a.sourcePlace === "home")) {
+        homePlace = town.regionName;
+        usingRegion = true;
+      }
+    }
+  }
+
+  // Now that the local tab's name is settled, work out where each story belongs.
+  for (const a of live) a.places = placesFor(a, a.sourcePlace, homePlace);
 
   // Put today's catch in the archive before anything is filtered away, so the
   // record is of what was published, not of what fitted on the page.
@@ -364,10 +314,12 @@ export async function GET(request) {
     sourceCount: allSources.length,
     town: {
       slug: town.slug,
-      label: town.label,
+      label: homePlace,
       townName: town.townName,
       regionName: town.regionName,
-      usingRegion: town.usingRegion,
+      usingRegion,
+      // true when the town has a publisher on paper but it didn't answer today
+      fellBackBecauseFeedFailed: usingRegion && !town.usingRegion,
     },
     range: rangeKey,
     // So the page can be honest about why a month view looks thin

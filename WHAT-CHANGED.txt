@@ -1,0 +1,41 @@
+Debrief.TO — follow-up fixes after checking the live site
+=========================================================
+
+Four files. Upload them over the existing ones, same paths.
+app/lib/filters.js is NEW.
+
+1. Obituaries are gone.
+   The live feed was running death notices from Newmarket Today next to
+   council stories ("STEVENS, Bernard George"). They live under
+   /obituaries/ and are now filtered, along with paid placements
+   (/spotlight/, /local-sponsored/), classifieds and entertainment
+   listings.
+
+2. Letters to the editor are now labelled, not deleted.
+   They were slipping through unlabelled. A reader's letter is
+   commentary, so it gets the Opinion pill like any other commentary.
+
+3. The two broken feeds are replaced.
+   - Ottawa: ottawamatters.com is a Rogers site, not a Village Media one,
+     so it never had a /local/feed. Now uses CBC Ottawa.
+   - Waterloo Region: Kitchener Today is serving malformed XML (their bug,
+     not ours). The region now leans on Cambridge Today, which answers.
+     Kitchener itself still tries its own paper first.
+
+4. A town whose feed breaks now falls back to its region automatically.
+   This was a genuine gap: the fallback only worked for towns with no
+   publisher listed at all. If a town's paper stopped answering mid-morning,
+   its readers got an empty local tab. Now the region's paper fills in and
+   the tab renames itself honestly ("Waterloo Region" rather than
+   "Kitchener").
+
+Also: the selection rules moved out of the feed route into
+app/lib/filters.js. Same rules, but they are now readable and testable on
+their own — they are the rules published on the About page, so they
+deserved their own file.
+
+STILL TO DO (this is the one that matters):
+   The archive is not on yet. Vercel dashboard -> Storage -> Create ->
+   Blob -> connect it to the debrief-to project, then REDEPLOY.
+   Until then "This Week" and "This Month" have nothing older to show,
+   which is why the site says so on the page.
