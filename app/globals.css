@@ -17,3 +17,10 @@ body {
   .filter-row { gap: 4px !important; }
   .filter-divider { margin: 0 2px !important; }
 }
+
+/* The Change-town button keeps its pencil but drops its label on small
+   screens, so the place chips still fit across a phone. */
+@media (max-width: 640px) {
+  .change-town-label { display: none; }
+  .cat-divider { display: none; }
+}
