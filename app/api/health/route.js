@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 import { TOWNS, REGIONS } from "../../lib/towns";
-import { archiveEnabled, readBack, torontoDay, RETENTION_DAYS } from "../../lib/archive";
+import { archiveEnabled, credentialMode, readBack, torontoDay, RETENTION_DAYS } from "../../lib/archive";
 
 /* ---- Is everything still answering? ----
    Feeds break quietly. A newsroom redesigns its site, a feed URL moves, a
@@ -58,10 +58,19 @@ export async function GET(request) {
   const failed = results.filter((r) => !r.ok);
   const stale = ok.filter((r) => r.daysSinceNewest !== null && r.daysSinceNewest > 14);
 
-  let archive = { enabled: archiveEnabled(), retentionDays: RETENTION_DAYS, today: torontoDay() };
+  // Say how the archive is authenticating, and surface any error rather than
+  // just reporting a number — "0 days stored" and "we can't reach the store"
+  // look identical otherwise.
+  let archive = {
+    enabled: archiveEnabled(),
+    credentials: credentialMode(),
+    retentionDays: RETENTION_DAYS,
+    today: torontoDay(),
+  };
   if (archiveEnabled()) {
     const back = await readBack(RETENTION_DAYS, "shared");
     archive = { ...archive, daysStored: back.days, articlesStored: back.articles.length };
+    if (back.error) archive.error = back.error;
   }
 
   return Response.json({

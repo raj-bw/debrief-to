@@ -31,10 +31,31 @@ import { put, list, del } from "@vercel/blob";
 const PREFIX = "archive/";
 export const RETENTION_DAYS = 45;
 
-// Vercel sets this when a Blob store is connected to the project. Without it
-// there is no archive and everything below turns into a no-op.
+/* Is there a Blob store to write to?
+
+   Vercel has two ways of proving who we are, and a store connected today uses
+   the newer one:
+
+     - OIDC: a short-lived VERCEL_OIDC_TOKEN that Vercel injects into the
+       running function, plus BLOB_STORE_ID naming the store. Nothing
+       long-lived is stored in the project, which is why it's the better
+       scheme and now the default.
+     - A long-lived BLOB_READ_WRITE_TOKEN. Older stores, and local development.
+
+   The SDK handles either on its own — it only needs one of them to be present.
+   This check exists so the rest of the site can degrade quietly when there is
+   no store at all, so it has to recognise both. Looking only for the old token
+   is exactly the bug that left a perfectly good store sitting unused. */
 function enabled() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+}
+
+// Which of the two is in play — reported by /api/health, so that "the archive
+// isn't running" is always answerable without guesswork.
+export function credentialMode() {
+  if (process.env.BLOB_STORE_ID) return "oidc (BLOB_STORE_ID)";
+  if (process.env.BLOB_READ_WRITE_TOKEN) return "read-write token";
+  return "none";
 }
 
 // The date in Toronto, because "today" should mean what a reader in Newmarket
