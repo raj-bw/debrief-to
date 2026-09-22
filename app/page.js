@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { townOptions, DEFAULT_TOWN, resolveTown } from "./lib/towns";
+import { townOptions, DEFAULT_TOWN, resolveTown, localOwnership } from "./lib/towns";
 
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
@@ -299,7 +299,7 @@ function SiteIcons({ dark }) {
    The site argues that opaque algorithms decide too much of what people see.
    Publishing our own rules is the consistent thing to do — and it is a
    promise we can be held to. ---- */
-function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel }) {
+function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel, localFeeds = [] }) {
   const dm = darkMode;
   const c = {
     bg: dm ? "#1A1A1A" : "#FAF8F5",
@@ -385,7 +385,9 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           </Rule>
           <Rule title="What we filter out.">
             We remove syndicated wire copy that isn&apos;t about your community, sports and entertainment sections,
-            weather posts, video clips, event promotions, and opinion columns. In every case we are filtering
+            weather posts, video clips, event promotions, obituaries, press releases, paid placements, and columns
+            syndicated across a newspaper chain. Local editorials and letters stay, labelled Opinion. Papers that
+            charge after a few free articles are labelled Sub. In every case we are filtering
             by <em>format</em>, not by subject. A story is never removed because of what it is about or what
             conclusion it reaches.
           </Rule>
@@ -419,7 +421,15 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <Section heading="Where the news comes from">
           <P>
             {homeLabel
-              ? <>Your local tab currently draws on <strong style={{ color: c.title, fontWeight: 600 }}>{homeLabel}</strong>. Alongside it:</>
+              ? <>Your local tab, <strong style={{ color: c.title, fontWeight: 600 }}>{homeLabel}</strong>, draws on{" "}
+                  {localFeeds.map((f, i) => (
+                    <span key={f.name}>
+                      {i > 0 ? (i === localFeeds.length - 1 ? " and " : ", ") : ""}
+                      <strong style={{ color: c.title, fontWeight: 600 }}>{f.name}</strong>
+                      {f.owner ? <span style={{ color: c.muted }}> ({f.owner})</span> : null}
+                    </span>
+                  ))}
+                  {localFeeds.length ? "" : "its local newsroom"}. Alongside it:</>
               : <>There isn&apos;t a newsroom covering your town in the list yet, so you&apos;re seeing Ontario-wide reporting. If you know one we should carry, tell us. In the meantime:</>}
           </P>
           <div style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 20 }}>
@@ -476,6 +486,24 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
                     </span>
                   ))}
                   {independent.length > 0 && ` The other ${independent.length} are independently owned, each by itself.`}
+                </p>
+              );
+            })()}
+            {(() => {
+              /* The same question for the local newsrooms, across Ontario.
+                 Counted from the registry, so it can't drift from what the
+                 site actually carries. Owners we haven't confirmed are
+                 counted as that, not assumed independent. */
+              const { total, byOwner, unconfirmed } = localOwnership();
+              const chains = Object.entries(byOwner).sort((a, b) => b[1] - a[1]);
+              return (
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: c.body, margin: "12px 0 0" }}>
+                  <strong style={{ color: c.title, fontWeight: 600 }}>Across Ontario</strong>, the local tabs draw on {total} newsrooms.{" "}
+                  {chains.map(([owner, n], i) => (
+                    <span key={owner}>{i > 0 ? (i === chains.length - 1 ? " and " : ", ") : ""}{n} {n === 1 ? "is" : "are"} {owner}</span>
+                  ))}
+                  {chains.length ? ". " : ""}
+                  {unconfirmed > 0 && <>The other {unconfirmed} are owned outside those companies; we&apos;re confirming each one.</>}
                 </p>
               );
             })()}
@@ -805,7 +833,7 @@ export default function Home() {
     return (
       <>
         <SiteIcons dark={darkMode} />
-        <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={setPage} savedCount={bookmarks.length} homeLabel={home.label} />
+        <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={setPage} savedCount={bookmarks.length} homeLabel={home.label} localFeeds={localGuess.feeds} />
       </>
     );
   }

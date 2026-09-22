@@ -25,7 +25,24 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // The paths a publisher is most likely to serve a feed from, cheapest first.
-const FEED_PATHS = ["/feed", "/rss", "/feed/", "/rss.xml", "/local/feed", "/index.xml"];
+/* The paths a publisher is most likely to serve a feed from, cheapest first.
+
+   The last one is the lesson from the Metroland sweep. Every Metroland
+   portal answered 404 or served HTML on all of the obvious paths, and the
+   whole chain — twelve regional portals, most of southern Ontario outside
+   the Village Media towns — was written off as feedless. They run on BLOX,
+   which will hand back a search result as RSS, and that feed is complete
+   and current. A chain is not feedless until the platform it runs on has
+   been asked in the way that platform answers. */
+const FEED_PATHS = [
+  "/feed",
+  "/rss",
+  "/feed/",
+  "/rss.xml",
+  "/local/feed",
+  "/index.xml",
+  "/search/?f=rss&t=article&c=news*&l=30&s=start_time&sd=desc",
+];
 
 const parser = new Parser({
   timeout: 5000,
@@ -57,7 +74,14 @@ async function probe(candidate) {
         daysSinceNewest: newest ? Math.floor((Date.now() - new Date(newest)) / 86400000) : null,
         // A feed that answers but stopped publishing months ago is its own
         // kind of broken, so the verdict says so rather than just "ok".
-        verdict: newest && (Date.now() - new Date(newest)) / 86400000 > 30 ? "stale" : "good",
+        /* A weekly paper is not a broken one. Anything inside thirty days is
+           worth carrying — it will simply appear in This Week or This Month
+           rather than in Today, which is where a reader would look for it
+           anyway. Past thirty days the paper has stopped, and we say so. */
+        verdict: !newest ? "undated"
+          : (Date.now() - new Date(newest)) / 86400000 > 30 ? "stale"
+          : (Date.now() - new Date(newest)) / 86400000 > 7 ? "monthly"
+          : "good",
       };
     } catch (err) {
       tried.push(`${path}: ${(err?.message || "failed").slice(0, 60)}`);
@@ -76,7 +100,8 @@ export async function GET(request) {
   const batch = pool.slice(offset, offset + limit);
   const results = await Promise.all(batch.map(probe));
 
-  const good = results.filter((r) => r.ok && r.verdict === "good");
+  // "Keep" is the thirty-day bar, not the seven-day one: a weekly counts.
+  const good = results.filter((r) => r.ok && (r.verdict === "good" || r.verdict === "monthly"));
   const stale = results.filter((r) => r.ok && r.verdict === "stale");
   const failed = results.filter((r) => !r.ok);
 

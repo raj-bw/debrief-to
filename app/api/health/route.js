@@ -1,5 +1,6 @@
-import Parser from "rss-parser";
 import { publisherFeeds } from "../../lib/towns";
+// The same door the live feed uses, so a green light here means readers get it.
+import { fetchItems } from "../../lib/fetch-feed";
 import { archiveEnabled, credentialMode, readBack, torontoDay, RETENTION_DAYS } from "../../lib/archive";
 
 /* ---- Is everything still answering? ----
@@ -15,32 +16,22 @@ import { archiveEnabled, credentialMode, readBack, torontoDay, RETENTION_DAYS } 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const parser = new Parser({
-  timeout: 8000,
-  headers: {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/rss+xml, application/xml, text/xml, */*",
-  },
-});
-
-async function check(name, urls) {
-  let lastErr = null;
-  for (const url of urls) {
-    try {
-      const feed = await parser.parseURL(url);
-      const items = feed.items || [];
-      const newest = items[0]?.isoDate || items[0]?.pubDate || null;
-      return {
-        name, ok: true, url, items: items.length, newest,
-        // A feed that still answers but stopped publishing months ago is its
-        // own kind of broken, so say how stale it is.
-        daysSinceNewest: newest ? Math.floor((Date.now() - new Date(newest)) / 86400000) : null,
-      };
-    } catch (err) {
-      lastErr = err?.message;   // try the next candidate URL before giving up
-    }
+async function check(feed) {
+  try {
+    const { items, url, via } = await fetchItems(feed);
+    const newest = items[0]?.isoDate || items[0]?.pubDate || null;
+    return {
+      name: feed.name, ok: true, url, items: items.length, newest,
+      // "honest" means the first attempt was refused and the plain-named
+      // retry got through: the Cloudflare question, answered per feed.
+      via,
+      // A feed that still answers but stopped publishing months ago is its
+      // own kind of broken, so say how stale it is.
+      daysSinceNewest: newest ? Math.floor((Date.now() - new Date(newest)) / 86400000) : null,
+    };
+  } catch (err) {
+    return { name: feed.name, ok: false, url: feed.api || (feed.urls || [])[0], error: err?.message || "failed" };
   }
-  return { name, ok: false, url: urls[0], error: lastErr || "all candidate URLs failed" };
 }
 
 export async function GET(request) {
@@ -50,12 +41,17 @@ export async function GET(request) {
   // Every distinct newsroom we depend on. ?towns=1 checks the ones tied to a
   // single municipality; the default checks the region-wide ones, which are
   // what most towns actually fall back to.
-  const targets = publisherFeeds(wantTowns ? "town" : "region");
+  // There are over a hundred and fifty feeds now, so they can be checked in
+  // pages: ?towns=1&offset=40&limit=40. Without paging, everything at once.
+  const all = publisherFeeds(wantTowns ? "town" : "region");
+  const offset = Number(searchParams.get("offset") || 0);
+  const limit = Number(searchParams.get("limit") || all.length);
+  const targets = all.slice(offset, offset + limit);
 
-  const results = await Promise.all(targets.map((t) => check(t.name, t.urls)));
+  const results = await Promise.all(targets.map(check));
   const ok = results.filter((r) => r.ok);
   const failed = results.filter((r) => !r.ok);
-  const stale = ok.filter((r) => r.daysSinceNewest !== null && r.daysSinceNewest > 14);
+  const stale = ok.filter((r) => r.daysSinceNewest !== null && r.daysSinceNewest > 30);
 
   // Say how the archive is authenticating, and surface any error rather than
   // just reporting a number — "0 days stored" and "we can't reach the store"
@@ -75,9 +71,11 @@ export async function GET(request) {
   return Response.json({
     checked: wantTowns ? "town feeds" : "region feeds",
     summary: `${ok.length} of ${results.length} answering${failed.length ? `, ${failed.length} failing` : ""}${stale.length ? `, ${stale.length} stale` : ""}`,
+    page: { offset, limit: targets.length, of: all.length, next: offset + targets.length < all.length ? offset + targets.length : null },
+    neededHonestName: ok.filter((r) => r.via === "honest").map((r) => r.name),
     failing: failed,
     stale: stale.map((r) => ({ name: r.name, daysSinceNewest: r.daysSinceNewest })),
-    answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest })),
+    answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest, via: r.via })),
     archive,
   }, { headers: { "Cache-Control": "no-store" } });
 }

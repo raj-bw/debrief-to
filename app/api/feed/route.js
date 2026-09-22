@@ -1,4 +1,3 @@
-import Parser from "rss-parser";
 import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
 import { topicsFor, placesFor } from "../../lib/topics";
 import { clusterStories } from "../../lib/cluster";
@@ -7,6 +6,9 @@ import { appendToday, readBack, trim, archiveEnabled } from "../../lib/archive";
 // lives in its own file, because those rules are published on the About page
 // and deserve to be readable and testable on their own.
 import { isPaywalled, shouldSkip, isOpinion, isBlotter } from "../../lib/filters";
+// RSS, WordPress API and the rest all come in through one door, shared with
+// /api/health so that page tests exactly what readers depend on.
+import { fetchItems } from "../../lib/fetch-feed";
 
 // Run this route on every request that reaches the server, and let Vercel's CDN
 // hold a short-lived copy instead. (It used to be "force-static" + revalidate,
@@ -50,21 +52,6 @@ const SOURCES = [
   { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"], color: "#D4872C", place: "National" },
 ];
 
-const parser = new Parser({
-  timeout: 8000,
-  headers: {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/rss+xml, application/xml, text/xml, */*",
-  },
-  customFields: {
-    item: [
-      ["media:content", "mediaContent", { keepArray: true }],
-      ["media:thumbnail", "mediaThumbnail"],
-      ["content:encoded", "contentEncoded"],
-    ],
-  },
-});
-
 function stripHtml(html) {
   if (!html) return "";
   return html
@@ -79,11 +66,14 @@ function stripHtml(html) {
     .replace(/&#39;/g, "'")
     .replace(/&#x27;/g, "'")
     .replace(/&hellip;/g, "…")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function extractImage(item) {
+  if (item.image) return item.image;   // WordPress API items carry it directly
   if (item.enclosure?.url && /\.(jpg|jpeg|png|webp|gif)/i.test(item.enclosure.url)) {
     return item.enclosure.url;
   }
@@ -97,45 +87,42 @@ function extractImage(item) {
 }
 
 async function fetchSource(src) {
-  let lastErr = null;
-  for (const url of src.urls) {
-    try {
-      const feed = await parser.parseURL(url);
-      const articles = [];
-      for (const item of (feed.items || []).slice(0, 40)) {
-        const raw = item.contentSnippet || item.content || item.description || "";
-        const base = {
-          title: stripHtml(item.title || ""),
-          link: item.link || "",
-          description: stripHtml(raw).slice(0, 320),
-          pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
-          source: src.name,
-          sourceColor: src.color,
-          sourcePlace: src.place,
-          paywall: isPaywalled(src, item.link || ""),
-          image: extractImage(item),
-        };
-        if (!base.link || !base.title) continue;
-        if (shouldSkip(src, base)) continue;
-        articles.push({
-          ...base,
-          opinion: isOpinion(base),
-          // What the story is about, and where it is about — worked out per
-          // article, so one newsroom's output can land in several tabs.
-          topics: topicsFor(base, item),
-          // `places` is filled in after every feed is back, because the name of
-          // the local tab isn't settled until we know whether the town's own
-          // publisher answered.
-        });
-        if (articles.length >= PER_SOURCE_LIMIT) break;
-      }
-      return articles;
-    } catch (err) {
-      lastErr = err;
-      console.warn(`[debrief.to] ${src.name} ${url} -> ${err.message}`);
-    }
+  let got;
+  try {
+    got = await fetchItems(src);
+  } catch (err) {
+    console.warn(`[debrief.to] ${src.name} -> ${err?.message}`);
+    return { __error: src.name, message: err?.message || "all candidate URLs failed" };
   }
-  return { __error: src.name, message: lastErr?.message || "all candidate URLs failed" };
+  const articles = [];
+  for (const item of (got.items || []).slice(0, 40)) {
+    const raw = item.contentSnippet || item.content || item.description || "";
+    const base = {
+      title: stripHtml(item.title || ""),
+      link: item.link || "",
+      description: stripHtml(raw).slice(0, 320),
+      pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
+      source: src.name,
+      sourceColor: src.color,
+      sourcePlace: src.place,
+      paywall: isPaywalled(src, item.link || ""),
+      image: extractImage(item),
+    };
+    if (!base.link || !base.title) continue;
+    if (shouldSkip(src, base)) continue;
+    articles.push({
+      ...base,
+      opinion: isOpinion(base),
+      // What the story is about, and where it is about — worked out per
+      // article, so one newsroom's output can land in several tabs.
+      topics: topicsFor(base, item),
+      // `places` is filled in after every feed is back, because the name of
+      // the local tab isn't settled until we know whether the town's own
+      // publisher answered.
+    });
+    if (articles.length >= PER_SOURCE_LIMIT) break;
+  }
+  return articles;
 }
 
 /* ---- Keeping the feed digestible ----
@@ -292,6 +279,24 @@ export async function GET(request) {
   for (const a of older) if (a?.link) byLink.set(a.link, a);
   for (const a of live) if (a?.link) byLink.set(a.link, a);
   let articles = [...byLink.values()];
+
+  /* ---- What "today" actually means ----
+     Until now nothing was filtered by date: whatever a publisher's feed
+     happened to be holding went into every view, so a weekly paper's
+     three-week-old story sat in Today looking like news.
+
+     Now the range means what it says. The window is the one the reader
+     asked for, with a day's grace so a story filed late last night still
+     counts as today's. A publisher that is quiet for a fortnight simply
+     stops appearing in Today and shows up in This Week or This Month
+     instead — which is the honest answer, and the reason it is worth
+     carrying weeklies and small-town papers at all. ---- */
+  const windowStart = Date.now() - (days + 1) * 86400000;
+  const inWindow = (a) => {
+    const t = new Date(a.pubDate).getTime();
+    return Number.isFinite(t) ? t >= windowStart : true;   // undated: keep
+  };
+  articles = articles.filter(inWindow);
 
   articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 

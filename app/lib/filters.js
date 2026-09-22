@@ -23,6 +23,65 @@ const WIRE_PATHS = [
   "/spotlight/", "/local-sponsored/", "/sponsored/", "/classifieds/", "/deals/",
 ];
 
+/* Metroland's portals are asked for their news section only (see
+   metroland() in towns.js), which is where almost all of this is caught.
+   These are the leaks that still get through a section-scoped request:
+   syndicated press releases filed under news, real-estate listings, and the
+   evergreen "topics" bucket that has not been updated since 2023. Kept
+   separate from the Village Media list because the same path fragment means
+   different things on different platforms — "/local/" is a wire bucket on
+   one and the actual reporting on another. */
+const METROLAND_SKIP_PATHS = [
+  "/volunteer-opportunities/", "/shopping-and-services/", "/special-features/",
+  "/fun-and-games/", "/things-to-do/", "/events/", "/contests/",
+  "/business/real-estate/", "/news/topics/",
+  "/obituaries/", "/obituary/", "/deaths/", "/sponsored/", "/classifieds/",
+  // The Torstar dailies (Spectator, Record, Standard...) share this platform
+  // and file Canadian Press copy under news/canada and news/world.
+  "/news/canada/", "/news/world/", "/news/national/", "/news/canada-news/", "/news/world-news/",
+];
+
+/* Paid-for announcements arrive through every chain — Metroland files them
+   under news, Postmedia under /press-releases/. These words mean the same
+   thing on any platform, so this list applies to every source. */
+const UNIVERSAL_SKIP_PATHS = [
+  "/press-releases/", "/press-release/", "/globenewswire/", "/globe-newswire/",
+  "/pr-newswire/", "/prnewswire/", "/business-wire/", "/newsfile/", "/cision/",
+  "/newswire/", "/sponsored/", "/sponsored-content/",
+];
+
+/* Postmedia. Two things to keep out, both matching choices already made.
+
+   Wire copy under /news/national/ and /news/world/, as with Village Media.
+
+   And syndicated columnists. Postmedia runs the same national columnists
+   across the chain — including the Toronto Sun's, which this site removed.
+   A Sun column appearing under a local paper's name is still a Sun column,
+   and dropping the source only to take its columns back through a sister
+   paper would quietly undo that decision. Local editorials and letters are
+   kept and labelled Opinion; it is the columnists section that goes.
+
+   Sports, arts and lifestyle are left out for the same reason they are left
+   out of Village Media: not what readers come here for. */
+const POSTMEDIA_SKIP_PATHS = [
+  "/news/national/", "/news/world/", "/news/canada/", "/news/ontario-news/",
+  "/news/crime/national/", "/opinion/columnists/",
+  "/sports/", "/arts-life/", "/entertainment/", "/life/", "/health/", "/travel/",
+  "/remembering/", "/obituaries/", "/business/real-estate/",
+];
+// "WARMINGTON: ...", "LILLEY: ..." — the house style for a syndicated column.
+const COLUMN_TITLE = /^[A-Z][A-Z'’.\-]{2,}(?:\s+[A-Z][A-Z'’.\-]{2,})?\s*:/;
+
+/* Words that mean the same thing on any platform. A WordPress independent
+   often files everything under a flat date path, so there is no section to
+   read — the only signal left is how the newsroom labelled the piece. Kept
+   short and unambiguous on purpose: a rule that fires on a real story is
+   worse than one that misses a notice. */
+const UNIVERSAL_SKIP_TITLES = [
+  /^obituar(y|ies)\b/i, /^in memoriam\b/i, /^death notice/i,
+  /^sponsored\b/i, /^advertorial\b/i, /^paid content\b/i,
+];
+
 const SKIP_PATHS = {
   // Toronto Sun was removed as a source in Sept 2026 — too much tabloid copy.
   // These rules stay as a pattern for any future tabloid-style source.
@@ -64,6 +123,9 @@ export function pathOf(link) {
 
 export function isPaywalled(src, link) {
   if (PAYWALL_EVERYTHING.includes(src.name)) return true;
+  // Metered dailies in the town registry carry the flag themselves, for the
+  // same reason as the Star: a meter can't be read from a link.
+  if (src.paywall === true) return true;
   const paths = PAYWALL_PATHS[src.name] || [];
   return paths.some((p) => pathOf(link).startsWith(p));
 }
@@ -78,6 +140,11 @@ export function shouldSkip(src, article) {
   const path = pathOf(article.link);
   // Wire copy syndicated into a local site is not local news
   if (src.kind === "village" && WIRE_PATHS.some((p) => path.startsWith(p))) return true;
+  if (src.kind === "metroland" && METROLAND_SKIP_PATHS.some((p) => path.includes(p))) return true;
+  if (src.owner === "Postmedia" && POSTMEDIA_SKIP_PATHS.some((p) => path.includes(p))) return true;
+  if (src.owner === "Postmedia" && COLUMN_TITLE.test(article.title || "")) return true;
+  if (UNIVERSAL_SKIP_PATHS.some((p) => path.includes(p))) return true;
+  if (UNIVERSAL_SKIP_TITLES.some((re) => re.test(article.title))) return true;
   if ((SKIP_PATHS[src.name] || []).some((p) => path.includes(p))) return true;
   if ((SKIP_TITLES[src.name] || []).some((re) => re.test(article.title))) return true;
   return false;
