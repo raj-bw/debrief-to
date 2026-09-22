@@ -14,13 +14,13 @@ import { townOptions, DEFAULT_TOWN, resolveTown } from "./lib/towns";
    accurately for fifteen organisations, and each one publishes its own
    funding on its own site — which is where the links go. */
 const PUBLISHERS = [
-  { name: "CBC Toronto", color: "#E03C31", url: "https://www.cbc.ca/news/canada/toronto", place: "Toronto", funding: "public" },
-  { name: "TorontoToday", color: "#0F7B6C", url: "https://www.torontotoday.ca", place: "Toronto", funding: "commercial" },
+  { name: "CBC Toronto", color: "#E03C31", url: "https://www.cbc.ca/news/canada/toronto", place: "Toronto", funding: "public", owner: "CBC/Radio-Canada" },
+  { name: "TorontoToday", color: "#0F7B6C", url: "https://www.torontotoday.ca", place: "Toronto", funding: "commercial", owner: "Village Media" },
   { name: "The Green Line", color: "#4C8C2B", url: "https://thegreenline.to", place: "Toronto", funding: "reader" },
   { name: "thelocal.to", color: "#3A9B7A", url: "https://thelocal.to", place: "Toronto", funding: "reader" },
   { name: "Spacing Toronto", color: "#0F2E4A", url: "https://spacing.ca/toronto", place: "Toronto", funding: "commercial" },
-  { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true, funding: "commercial" },
-  { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true, funding: "commercial" },
+  { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true, funding: "commercial", owner: "Torstar, owned by NordStar Capital" },
+  { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true, funding: "commercial", owner: "Village Media" },
   { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader" },
   { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "National", funding: "reader" },
   { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "National", funding: "reader" },
@@ -456,6 +456,29 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
                 </p>
               );
             })}
+            {(() => {
+              /* Who owns whom. The thing worth knowing is not that a newsroom
+                 has an owner — they all do — but when several on this list
+                 share one, because that is when "four newsrooms covered it"
+                 means less than it looks. Built from the data, so it stays
+                 right as the list grows. */
+              const byOwner = {};
+              PUBLISHERS.forEach((pub) => { if (pub.owner) (byOwner[pub.owner] ||= []).push(pub.name); });
+              const owned = Object.entries(byOwner);
+              const independent = PUBLISHERS.filter((pub) => !pub.owner).map((pub) => pub.name);
+              if (owned.length === 0) return null;
+              return (
+                <p style={{ fontSize: 14, lineHeight: 1.7, color: c.body, margin: "12px 0 0" }}>
+                  <strong style={{ color: c.title, fontWeight: 600 }}>Who owns them.</strong>{" "}
+                  {owned.map(([owner, names], i) => (
+                    <span key={owner}>
+                      {i > 0 ? " " : ""}{names.join(" and ")} {names.length > 1 ? "are" : "is"} {owner}.
+                    </span>
+                  ))}
+                  {independent.length > 0 && ` The other ${independent.length} are independently owned, each by itself.`}
+                </p>
+              );
+            })()}
             <p style={{ fontSize: 13.5, lineHeight: 1.65, color: c.muted, margin: "10px 0 0" }}>
               Reader-funded covers memberships, donations and subscriptions, and includes registered non-profits and
               charities. These are funding models, not verdicts: a commercially owned newsroom can do excellent
@@ -613,8 +636,13 @@ export default function Home() {
 
   const chooseTown = (slug) => {
     try { localStorage.setItem("cp_town", slug); localStorage.setItem("cp_townAsked", "1"); } catch {}
-    // A place filter naming the old town means nothing now, so let it go.
-    setActiveCategories((prev) => prev.filter((l) => l !== home.label));
+    /* Select the new local tab straight away. Someone who has just told us
+       where they live wants to see their town's news, not the same mixed feed
+       with a new chip sitting there unselected. Any previous place filter
+       named a town they no longer live in, so it goes.
+       A town with no newsroom has no tab to select, so it clears instead. */
+    const next = resolveTown(slug);
+    setActiveCategories(next.label ? [next.label] : []);
     setTownSlug(slug);
     setShowPicker(false);
   };
@@ -1030,7 +1058,11 @@ export default function Home() {
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", marginBottom: 10, flex: 1 }}>
                       <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: dm ? lightenForDark(article.sourceColor) : article.sourceColor, marginRight: 7 }} />
                       <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : article.sourceColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
-                      {(article.topics || []).slice(0, 1).map((tp) => (
+                      {/* Up to two, because an article genuinely can be both —
+                          a highway's environmental assessment is Environment
+                          and Urbanism & Transit. Showing only the first made
+                          the tagging look wrong when it wasn't. */}
+                      {(article.topics || []).slice(0, 2).map((tp) => (
                         <React.Fragment key={tp}>
                           <span style={{ margin: "0 6px", color: t.textMuted, fontSize: 10 }}>{"·"}</span>
                           <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 400 }}>{tp}</span>

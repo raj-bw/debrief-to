@@ -37,9 +37,17 @@ const TOPIC_PATHS = {
 /* 2. Feed categories. Matched loosely against whatever the publisher wrote,
       lowercased. "Climate Change" contains "climate", so it matches. */
 const TOPIC_FEED_CATEGORIES = {
-  "Environment": ["environment", "climate", "energy", "conservation", "nature", "wildlife", "pollution", "greenbelt", "water"],
+  // "energy", "water" and "nature" were dropped: they appear as publisher
+  // categories on plenty of stories that are not about the environment.
+  "Environment": ["environment", "climate", "conservation", "wildlife", "pollution", "greenbelt"],
   "Investigative": ["investigation", "investigative", "in depth", "in-depth", "long read", "accountability"],
-  "National Politics": ["politics", "federal politics", "parliament", "election", "government", "policy"],
+  /* "politics", "government", "election" and "policy" are all used by
+     publishers for city-hall stories. They say what a piece is about but
+     nothing about its scale, and scale is what this tab claims. A Toronto
+     mayoral debate was being filed under National Politics because of them.
+     Only unambiguously federal categories remain; everything else has to earn
+     the tag through a headline that names the level of government. */
+  "National Politics": ["federal politics", "parliament", "house of commons"],
   "Urbanism & Transit": ["transit", "transportation", "urbanism", "housing", "development", "planning", "public space", "infrastructure", "city building", "architecture"],
 };
 
@@ -88,6 +96,12 @@ const PLACE_TITLE_PATTERNS = {
   "Ontario": [/\bontario\b/i, /\bqueen'?s park\b/i, /\bdoug ford\b/i, /\bprovince of ontario\b/i],
 };
 
+/* Does this publisher category actually contain the term, as a word or
+   phrase, rather than merely somewhere inside a longer word? */
+function hasPhrase(category, term) {
+  return new RegExp(`(^|[^a-z])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`, "i").test(category);
+}
+
 function pathOf(link) {
   return String(link || "").replace(/^https?:\/\/[^/]+/, "").toLowerCase();
 }
@@ -113,8 +127,10 @@ export function topicsFor(article, item) {
   for (const topic of TOPICS) {
     // 1. the section of the site it lives in
     if ((TOPIC_PATHS[topic] || []).some((p) => path.includes(p))) { found.add(topic); continue; }
-    // 2. the publisher's own categories
-    if ((TOPIC_FEED_CATEGORIES[topic] || []).some((c) => cats.some((x) => x.includes(c)))) { found.add(topic); continue; }
+    // 2. the publisher's own categories, matched on whole words. Substring
+    //    matching put a Doug Ford profile under Environment because some
+    //    unrelated category happened to contain one of these words.
+    if ((TOPIC_FEED_CATEGORIES[topic] || []).some((c) => cats.some((x) => hasPhrase(x, c)))) { found.add(topic); continue; }
     // 3. a distinctive phrase in the headline
     if ((TOPIC_TITLE_PATTERNS[topic] || []).some((re) => re.test(title))) { found.add(topic); }
   }

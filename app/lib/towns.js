@@ -108,6 +108,13 @@ for (const [name, divisionIndex] of PLACES.places) {
   BY_SLUG.set(slugify(name), { name, division: PLACES.divisions[divisionIndex] });
 }
 
+/* Toronto is deliberately not a hometown option. Toronto coverage already has
+   its own place tab, fed by the standing source list, so offering it here too
+   would give a Toronto reader the same city in two chips side by side.
+   Anyone who picked it before simply gets no local tab — which is correct,
+   because the Toronto tab is their local tab. */
+const NOT_A_HOMETOWN = new Set(["toronto", "scarborough", "etobicoke", "north-york", "east-york"]);
+
 export function getPlace(slug) {
   const key = ALIASES[slug] || slug;
   return BY_SLUG.get(key) || BY_SLUG.get(DEFAULT_TOWN) || null;
@@ -121,6 +128,13 @@ export function getPlace(slug) {
      "province" no local newsroom yet — there is no local tab at all, which is
                 honest, rather than a tab that is always empty */
 export function resolveTown(slug) {
+  if (NOT_A_HOMETOWN.has(ALIASES[slug] || slug)) {
+    return {
+      slug: "toronto", townName: "Toronto", label: null,
+      tier: "province", hasLocal: false, usingRegion: false,
+      regionName: "Toronto", feeds: [], regionFeeds: [],
+    };
+  }
   const place = getPlace(slug);
   if (!place) {
     return { slug: DEFAULT_TOWN, townName: "Newmarket", label: "Newmarket", tier: "town", hasLocal: true, usingRegion: false, regionName: "York Region", feeds: TOWN_FEEDS["Newmarket"], regionFeeds: DIVISION_FEEDS["York"].feeds };
@@ -155,6 +169,7 @@ export function resolveTown(slug) {
 export function townOptions() {
   const out = [];
   for (const [name, divisionIndex] of PLACES.places) {
+    if (NOT_A_HOMETOWN.has(slugify(name))) continue;   // Toronto has its own tab already
     const divisionName = PLACES.divisions[divisionIndex];
     const division = DIVISION_FEEDS[divisionName];
     const own = TOWN_FEEDS[name];
