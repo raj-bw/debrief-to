@@ -391,6 +391,12 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             by <em>format</em>, not by subject. A story is never removed because of what it is about or what
             conclusion it reaches.
           </Rule>
+          <Rule title="Council agendas.">
+            In 119 Ontario towns, your local tab also lists the next few council and committee meetings, with a
+            link to each agenda, straight from the town&apos;s own official portal. They sit in their own box,
+            marked as official records, and never mix with the news: a council agenda is what the town says it
+            will discuss, not reporting on what happened.
+          </Rule>
           <Rule title="What we never do.">
             We don&apos;t rank stories by popularity. We don&apos;t track what you read. We don&apos;t promote a story
             because it&apos;s getting clicks or bury one because it isn&apos;t. There is no personalization, no
@@ -660,6 +666,21 @@ export default function Home() {
   // What the local tab is called, and whether it's falling back to a region.
   const localGuess = resolveTown(townSlug);
   const home = serverTown && serverTown.slug === townSlug ? serverTown : localGuess;
+
+  /* The reader's own council: the next few meetings and their agendas, read
+     from the town's official portal. Its own small box, never mixed into the
+     story feed — a meeting next Tuesday isn't news from today. */
+  const [council, setCouncil] = useState({ town: null, meetings: [] });
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+    setCouncil({ town: null, meetings: [] });
+    fetch(`/api/council?town=${encodeURIComponent(townSlug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!cancelled && j) setCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [] }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [townSlug, hydrated]);
   const CATEGORIES = buildCategories(home.label);
 
   const chooseTown = (slug) => {
@@ -1015,6 +1036,35 @@ export default function Home() {
           {activeCats.length > 0 && ` · ${activeCats.join(", ")}`}
           {fetchedAt && !loading && ` · Updated ${timeAgo(fetchedAt)}`}
         </div>
+
+        {council.meetings.length > 0 && !searchQuery && (activeCats.length === 0 || activeCats.includes(home.label)) && (
+          <section aria-label={`Coming up at ${council.town} council`} style={{ marginBottom: 24, padding: "16px 18px", borderRadius: 12, background: dm ? "#1F2A2F" : "#F3F7FA", border: `1px solid ${dm ? "#2F4450" : "#D6E4EC"}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: t.text }}>
+                Coming up at {council.town} council
+              </p>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", color: t.textSec }}>
+                Official agendas · not news
+              </span>
+            </div>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {council.meetings.map((m) => (
+                <li key={m.start + m.name} style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "2px 10px", fontSize: 14, lineHeight: 1.45, color: t.text }}>
+                  <span style={{ fontWeight: 600 }}>{m.name}</span>
+                  <span style={{ color: t.textSec }}>{m.when.replace(/, \d{4} @/, " ·")}</span>
+                  {m.agenda
+                    ? <a href={m.agenda} target="_blank" rel="noopener noreferrer" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>Agenda</a>
+                    : <span style={{ color: t.textSec, fontSize: 13 }}>Agenda not posted yet</span>}
+                </li>
+              ))}
+            </ul>
+            {council.portal && (
+              <a href={council.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: t.textSec }}>
+                All meetings, minutes and video on the town&apos;s site →
+              </a>
+            )}
+          </section>
+        )}
 
         {loading ? (
           <div style={gridStyle}>
