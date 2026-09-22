@@ -9,9 +9,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata = {
-  title: "Debrief.TO — Toronto's local news, in one place",
+  title: "Debrief.TO — Ontario's local news, in one place",
   description:
-    "Debrief.TO aggregates headlines from independent and major Toronto publishers. All content belongs to its original source.",
+    "Debrief.TO gathers headlines from local and independent newsrooms across Ontario. All content belongs to the newsroom that reported it.",
   // Browser-tab icons are added in app/page.js (<SiteIcons>) so they can follow
   // the site's Dark button. This one is for iPhone/iPad "Add to Home Screen".
   icons: {
@@ -25,16 +25,16 @@ export const metadata = {
     siteName: "Debrief.TO",
     locale: "en_CA",
     url: "https://debrief.to",
-    title: "Debrief.TO — Toronto's local news, in one place",
+    title: "Debrief.TO — Ontario's local news, in one place",
     description:
-      "Headlines from newsrooms covering Newmarket, Toronto and Ontario, free and in one feed. Every story links back to the publisher.",
-    images: [{ url: "/icons/og-image.png", width: 1200, height: 630, alt: "Debrief.TO — Toronto's local news, in one place" }],
+      "Headlines from local and independent newsrooms across Ontario, free and in one feed. Every story links back to the publisher.",
+    images: [{ url: "/icons/og-image.png", width: 1200, height: 630, alt: "Debrief.TO — Ontario's local news, in one place" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Debrief.TO — Toronto's local news, in one place",
+    title: "Debrief.TO — Ontario's local news, in one place",
     description:
-      "Headlines from newsrooms covering Newmarket, Toronto and Ontario, free and in one feed.",
+      "Headlines from local and independent newsrooms across Ontario, free and in one feed.",
     images: ["/icons/og-image.png"],
   },
 };

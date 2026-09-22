@@ -245,7 +245,7 @@ function TownPicker({ dm, onPick, onSkip }) {
           <p style={{ fontSize: 12, color: c.muted, margin: "10px 2px 0" }}>
             {q
               ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}`
-              : `Every municipality in Ontario \u2014 ${options.length}. Start typing.`}
+              : `Every municipality in Ontario \u2014 ${options.length}`}
           </p>
         </div>
 
@@ -799,18 +799,11 @@ export default function Home() {
     skeleton: dm ? "#333" : "#EBE8E3",
   };
 
-  // A quiet, honest line about why a week or month view might look thin.
-  const archiveNote = (() => {
-    if (range === "today" || loading) return null;
-    const wanted = range === "week" ? 7 : 31;
-    if (!archiveInfo.enabled) {
-      return "This is everything currently in the publishers' feeds. Older stories will appear here as the archive fills up.";
-    }
-    if (archiveInfo.days < wanted - 1) {
-      return `The archive currently holds ${archiveInfo.days} day${archiveInfo.days === 1 ? "" : "s"} of older stories, and grows each day.`;
-    }
-    return null;
-  })();
+  /* The archive's depth is deliberately NOT shown to readers. "0 days of older
+     stories" reads like a fault rather than a feature, and a reader doesn't
+     need to know how the pipes work — they just want the news. It is still
+     tracked: /api/health reports daysStored and articlesStored, which is where
+     to look if the archive ever stops filling. */
 
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: t.bg, color: t.text }}>
@@ -1004,11 +997,6 @@ export default function Home() {
             <div role="status" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 14, lineHeight: 1.5, background: dm ? "#23302A" : "#EEF5F1", border: `1px solid ${dm ? "#35503F" : "#CDE3D7"}`, color: t.text }}>
               Nothing new {timeFilter === "Today" ? "in the last 24 hours" : timeFilter === "This Week" ? "in the last 7 days" : "in the last 31 days"}
               {searchQuery ? " for this search" : ""}. Here are the most recent articles instead.
-            </div>
-          )}
-          {archiveNote && !showingFallback && (
-            <div role="status" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 13.5, lineHeight: 1.55, background: dm ? "#262626" : "#F4F1EC", border: `1px solid ${dm ? "#383838" : "#E4E0DA"}`, color: t.textSec }}>
-              {archiveNote}
             </div>
           )}
           <div style={gridStyle}>
