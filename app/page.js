@@ -5,23 +5,33 @@ import { townOptions, DEFAULT_TOWN, resolveTown } from "./lib/towns";
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
    belong to individual articles rather than to whole publications. */
+/* `funding` is the newsroom's funding MODEL, not a judgment of it:
+     reader     — runs on memberships, donations or subscriptions rather than
+                  an owner. Includes registered non-profits and charities.
+     public     — funded by government (in practice, the CBC).
+     commercial — privately owned and advertising- or subscriber-funded.
+   Kept coarse on purpose. Anything finer than this we could not state
+   accurately for fifteen organisations, and each one publishes its own
+   funding on its own site — which is where the links go. */
 const PUBLISHERS = [
-  { name: "CBC Toronto", color: "#E03C31", url: "https://www.cbc.ca/news/canada/toronto", place: "Toronto" },
-  { name: "TorontoToday", color: "#0F7B6C", url: "https://www.torontotoday.ca", place: "Toronto" },
-  { name: "The Green Line", color: "#4C8C2B", url: "https://thegreenline.to", place: "Toronto" },
-  { name: "thelocal.to", color: "#3A9B7A", url: "https://thelocal.to", place: "Toronto" },
-  { name: "Spacing Toronto", color: "#0F2E4A", url: "https://spacing.ca/toronto", place: "Toronto" },
-  { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true },
-  { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true },
-  { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario" },
-  { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "National" },
-  { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "National" },
-  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "National" },
-  { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "National" },
-  { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "National" },
-  { name: "Canadaland", color: "#C62828", url: "https://www.canadaland.com", place: "National" },
-  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "National" },
+  { name: "CBC Toronto", color: "#E03C31", url: "https://www.cbc.ca/news/canada/toronto", place: "Toronto", funding: "public" },
+  { name: "TorontoToday", color: "#0F7B6C", url: "https://www.torontotoday.ca", place: "Toronto", funding: "commercial" },
+  { name: "The Green Line", color: "#4C8C2B", url: "https://thegreenline.to", place: "Toronto", funding: "reader" },
+  { name: "thelocal.to", color: "#3A9B7A", url: "https://thelocal.to", place: "Toronto", funding: "reader" },
+  { name: "Spacing Toronto", color: "#0F2E4A", url: "https://spacing.ca/toronto", place: "Toronto", funding: "commercial" },
+  { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true, funding: "commercial" },
+  { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true, funding: "commercial" },
+  { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader" },
+  { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "National", funding: "reader" },
+  { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "National", funding: "reader" },
+  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "National", funding: "reader" },
+  { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "National", funding: "reader" },
+  { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "National", funding: "reader" },
+  { name: "Canadaland", color: "#C62828", url: "https://www.canadaland.com", place: "National", funding: "reader" },
+  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "National", funding: "reader" },
 ];
+
+const FUNDING_LABEL = { reader: "Reader-funded", public: "Publicly funded", commercial: "Commercially owned" };
 
 /* Two kinds of filter, shown as two rows in the Sources panel: WHERE the news
    is from, and WHAT it covers.
@@ -431,6 +441,29 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
               </div>
             ))}
           </div>
+          <div style={{ borderLeft: `3px solid ${dm ? "#3E6B57" : "#CDE3D7"}`, paddingLeft: 16, margin: "0 0 20px" }}>
+            <p style={{ fontSize: 14.5, lineHeight: 1.7, color: c.body, margin: "0 0 10px" }}>
+              <strong style={{ color: c.title, fontWeight: 600 }}>Who pays for them.</strong> Choosing this list is
+              the one editorial decision here, so it&apos;s fair to ask who funds the newsrooms on it. Broadly:
+            </p>
+            {["reader", "public", "commercial"].map((kind) => {
+              const names = PUBLISHERS.filter((p) => p.funding === kind).map((p) => p.name);
+              if (names.length === 0) return null;
+              return (
+                <p key={kind} style={{ fontSize: 14, lineHeight: 1.65, color: c.body, margin: "0 0 8px" }}>
+                  <strong style={{ color: c.title, fontWeight: 600 }}>{FUNDING_LABEL[kind]}</strong>
+                  <span style={{ color: c.muted }}> ({names.length})</span> — {names.join(", ")}.
+                </p>
+              );
+            })}
+            <p style={{ fontSize: 13.5, lineHeight: 1.65, color: c.muted, margin: "10px 0 0" }}>
+              Reader-funded covers memberships, donations and subscriptions, and includes registered non-profits and
+              charities. These are funding models, not verdicts: a commercially owned newsroom can do excellent
+              reporting, and a reader-funded one can still have a point of view. Every newsroom publishes its own
+              funding on its own site, and the links above go there.
+            </p>
+          </div>
+
           <P>
             Every headline belongs to the newsroom that reported it, and every link goes to their site. Local
             journalism only survives if people read it at the source — if something here is worth your time, the best

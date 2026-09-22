@@ -1,53 +1,47 @@
-Debrief.TO — every town in Ontario
-==================================
+Debrief.TO — who funds the newsrooms
+====================================
 
-Six files. app/lib/ontario-places.json is NEW.
+One file: app/page.js
 
-  app/page.js
-  app/lib/ontario-places.json   (new)
-  app/lib/towns.js
-  app/lib/topics.js
-  app/api/feed/route.js
-  app/api/health/route.js
+NOTE: this includes the Ontario town changes as well, since they are in the
+same file. If you have not uploaded debrief-ontario-towns.zip yet, upload
+that one FIRST (it has five other files), then this page.js on top.
 
-WHAT IT DOES
+WHAT IT ADDS
 
-All 413 Ontario municipalities are now selectable, from Toronto down to
-Cockburn Island. The list scrolls and searches. No API, no key, no billing,
-and nothing about the reader is sent anywhere to look their town up — which
-matters, because the About page promises their town never leaves their
-browser and a third-party autocomplete would quietly break that.
+The About page said choosing the source list is "the one editorial decision
+here" but said nothing about who funds those newsrooms. It now does, grouped
+three ways:
 
-The data is split in two, deliberately:
+  Reader-funded      memberships, donations, subscriptions; includes
+                     registered non-profits and charities
+  Publicly funded    government (in practice, the CBC)
+  Commercially owned privately owned, ad- or subscriber-funded
 
-  WHICH PLACES EXIST  - public record, ships as an 8 KB file.
-  WHO COVERS THEM     - editorial, ours, and the part that actually matters.
+Deliberately coarse. Anything finer could not be stated accurately for
+fifteen organisations, and each one publishes its own funding on its own
+site — which is where the links already go.
 
-A reader's local news resolves in three steps:
+It also says plainly that these are funding models and not verdicts: a
+commercially owned newsroom can do excellent reporting and a reader-funded
+one can still have a point of view.
 
-  1. Their town has its own newsroom      -> tab is named after the town
-                                             (Newmarket -> "Newmarket")
-  2. Their region's newsroom covers them  -> tab is named after the region
-                                             (Aurora -> "York Region")
-  3. Nobody covers them yet               -> NO local tab at all
+WORTH YOUR EYE BEFORE YOU PUBLISH
 
-Case 3 is the honest one. A tab that is always empty is worse than no tab.
-Those readers get a "Set your town" control instead, so they are never stuck,
-and the picker tells them up front rather than after they choose.
+I am confident about CBC (public), Toronto Star (NordStar Capital) and the
+Village Media outlets — TorontoToday and The Trillium — as commercial, and
+about the non-profits: The Narwhal, The Walrus, IJF, The Green Line,
+The Local.
 
-The picker now names the actual newsroom against each town, so nobody picks
-blind: "Aurora — Newmarket Today, York Region", "Kingston — No local
-publisher yet". That list doubles as your map of where to add a publisher.
+Three I would sanity-check against their own About pages, because their
+structures are less clear-cut and I would rather you confirm than take my
+word on a public page:
 
-MIGRATION
+  - Spacing Toronto   tagged commercial; it is a small independent magazine
+  - National Observer tagged reader-funded; it is reader-supported but
+                      for-profit
+  - The Maple         tagged reader-funded; it merged with Passage in 2023,
+                      so check how it now describes itself
 
-Readers who already chose a town keep it. Slugs that changed are aliased
-("sudbury" -> Greater Sudbury, "bradford" -> Bradford West Gwillimbury), and
-Toronto's former boroughs (Scarborough, Etobicoke, North York) map to Toronto,
-since they are not municipalities of their own.
-
-SOURCE OF THE DATA
-
-Every municipality and its census division came from the Wikipedia list of
-municipalities in Ontario, read directly from the table rather than typed from
-memory. 413 rows, 49 divisions, spot-checked against known answers.
+Changing any of them is a one-word edit to the `funding` field in the
+PUBLISHERS list at the top of app/page.js.
