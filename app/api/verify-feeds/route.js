@@ -25,10 +25,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // The paths a publisher is most likely to serve a feed from, cheapest first.
-const FEED_PATHS = ["/feed", "/rss", "/feed/", "/rss.xml", "/local/feed", "/index.xml", "/atom.xml", "/?feed=rss2"];
+const FEED_PATHS = ["/feed", "/rss", "/feed/", "/rss.xml", "/local/feed", "/index.xml"];
 
 const parser = new Parser({
-  timeout: 6000,
+  timeout: 5000,
   headers: {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
@@ -79,6 +79,20 @@ export async function GET(request) {
   const good = results.filter((r) => r.ok && r.verdict === "good");
   const stale = results.filter((r) => r.ok && r.verdict === "stale");
   const failed = results.filter((r) => !r.ok);
+
+  if (searchParams.get("format") === "text") {
+    const lines = results.map((r) =>
+      r.ok
+        ? `OK|${r.name}|${r.feedUrl}|items=${r.items}|days=${r.daysSinceNewest ?? "?"}|${r.verdict}|${r.scope}|serves=${r.servesCount}`
+        : `NO|${r.name}|${r.domain}`
+    );
+    const done = offset + batch.length;
+    lines.push(`--- ${offset}-${done - 1} of ${pool.length} | ${good.length} good, ${stale.length} stale, ${failed.length} none`);
+    lines.push(done < pool.length ? `NEXT offset=${done}` : "NEXT none");
+    return new Response(lines.join("\n"), {
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  }
 
   return Response.json({
     batch: { offset, limit, returned: batch.length, totalInScope: pool.length },

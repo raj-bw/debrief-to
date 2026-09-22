@@ -1,7 +1,8 @@
 Debrief.TO — tagging fixes, Toronto, ownership, feed verifier
 =============================================================
 
-Five files. Two are new.
+Five files. Two are new. This REPLACES the earlier debrief-next.zip
+(the verifier now has a compact text mode and tuned timeouts).
 
   app/page.js                          (replaces)
   app/lib/topics.js                    (replaces)
@@ -9,82 +10,36 @@ Five files. Two are new.
   app/lib/candidate-publishers.json    (NEW)
   app/api/verify-feeds/route.js        (NEW)
 
-Upload these AFTER debrief-UPLOAD-THIS.zip. If you have not uploaded that
-one yet, upload it first — these build on it.
+Upload AFTER debrief-UPLOAD-THIS.zip. If that one is not up yet, upload it
+first — these build on it.
 
-1. THE TWO MIS-TAGS YOU SPOTTED
+CONTENTS
 
-Both were real, and the second was a design flaw rather than a typo.
+1. The two mis-tags are fixed. A publisher tagging something "Politics" or
+   "Government" no longer makes it National Politics — those words describe
+   the subject, not the scale, and scale is what that tab claims. Category
+   matching is whole-word now, not substring, which is what put The Breach's
+   Doug Ford profile under Environment. Cards show up to two topics.
 
-The Green Line piece about the City of Toronto's powers was tagged National
-Politics. So was "Toronto Election 2026: Mayor's Debate" — a MUNICIPAL
-election. Cause: any article a publisher tagged "Politics", "Government",
-"Election" or "Policy" matched National Politics. Those words say what a
-piece is about but nothing about its scale, and scale is what that tab
-claims. Only unambiguously federal categories are accepted now; everything
-else has to earn the tag through a headline naming the level of government.
+2. Picking a town selects its chip and filters the feed in one step.
 
-The Breach's Doug Ford profile was tagged Environment because category
-matching was checking substrings — so a category merely CONTAINING one of
-our words counted. It now matches whole words only, and the broadest terms
-("energy", "water", "nature") are gone.
+3. Toronto is no longer a hometown option; it already has its own place tab.
 
-Expect the National Politics tab to get thinner. That is the intended
-trade: a thin accurate tab beats a fat wrong one. See the question I asked
-you in chat about renaming it — that is the better fix.
+4. The About page says who owns whom, generated from the data.
 
-Also: cards now show up to TWO topics instead of one. An article genuinely
-can be both, and showing only the first made correct tagging look wrong.
+5. /api/verify-feeds — 149 candidate publishers from your research, tested
+   against six common feed paths, from Vercel.
 
-2. PICKING A TOWN NOW SELECTS AND LOADS IT
+ALL YOU NEED TO DO
 
-Choose Guelph and the Guelph pill is active immediately with the feed
-filtered to it. Previously you had to pick the town, then go and click its
-chip. A town with no newsroom clears the filter instead, since there is no
-tab to select.
+Upload these files, let Vercel deploy, and tell me it is live. I will run
+all 149 checks myself and come back with the verified list — I can reach
+debrief.to from here, which is how I have been checking /api/health.
 
-3. TORONTO REMOVED FROM THE HOMETOWN LIST
+If you want to look yourself, this is the readable version:
 
-Toronto already has its own place tab fed by the standing source list, so
-offering it as a hometown put the same city in two chips side by side.
-Anyone who had picked it now gets no local tab, which is correct — the
-Toronto tab IS their local tab. Scarborough, Etobicoke, North York and East
-York behave the same way.
+  https://debrief.to/api/verify-feeds?format=text
 
-4. WHO OWNS THEM, ON THE ABOUT PAGE
-
-Under the funding section: "TorontoToday and The Trillium are Village
-Media. Toronto Star is Torstar, owned by NordStar Capital. CBC Toronto is
-CBC/Radio-Canada. The other 12 are independently owned, each by itself."
-
-Generated from the data rather than typed, so it stays right as the list
-grows. The point is not that a newsroom has an owner — they all do — but
-that when several on the list share one, "four newsrooms covered this"
-means less than it looks.
-
-5. THE FEED VERIFIER — THIS IS THE BIG ONE
-
-149 candidate publishers extracted from your research (74 town-level, 75
-regional), covering every publication and URL in the document.
-
-Visit, once deployed:
-
-  https://debrief.to/api/verify-feeds
-
-It tries eight common feed paths against each publisher and reports which
-answer, how many items they carry and how stale they are. Ten at a time;
-the response includes a "next" link for the following batch, so roughly 15
-clicks covers all 149.
-
-  /api/verify-feeds?limit=20            bigger batches
-  /api/verify-feeds?scope=town          only the town-level ones
-  /api/verify-feeds?offset=40           jump in partway
-
-It is read-only and changes nothing. Send me the output and I will turn the
-winners into the actual source list.
-
-I could not run it from here — publishers block my sandbox, and even DNS
-fails. That is exactly why it has to run on Vercel.
-
-Expect a meaningful share to fail. WordPress and Village Media sites nearly
-always have feeds; Metroland portals and broadcaster sites often do not.
+One line per publisher: OK or NO, the name, and the working feed URL where
+there is one. The last two lines say how far through it is and where the
+next batch starts.
