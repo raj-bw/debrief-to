@@ -318,6 +318,7 @@ export async function GET(request) {
       townName: town.townName,
       regionName: town.regionName,
       usingRegion,
+      hasLocal: Boolean(homePlace),
       // true when the town has a publisher on paper but it didn't answer today
       fellBackBecauseFeedFailed: usingRegion && !town.usingRegion,
     },

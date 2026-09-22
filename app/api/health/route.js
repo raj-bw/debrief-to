@@ -1,5 +1,5 @@
 import Parser from "rss-parser";
-import { TOWNS, REGIONS } from "../../lib/towns";
+import { publisherFeeds } from "../../lib/towns";
 import { archiveEnabled, credentialMode, readBack, torontoDay, RETENTION_DAYS } from "../../lib/archive";
 
 /* ---- Is everything still answering? ----
@@ -47,11 +47,10 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const wantTowns = searchParams.get("towns") === "1";
 
-  const targets = wantTowns
-    ? TOWNS.filter((t) => t.feeds?.length).map((t) => ({ name: `${t.name} (${t.feeds[0].name})`, urls: t.feeds[0].urls }))
-    : [
-        ...Object.entries(REGIONS).map(([slug, r]) => ({ name: `${r.name} (${r.feeds[0].name})`, urls: r.feeds[0].urls })),
-      ];
+  // Every distinct newsroom we depend on. ?towns=1 checks the ones tied to a
+  // single municipality; the default checks the region-wide ones, which are
+  // what most towns actually fall back to.
+  const targets = publisherFeeds(wantTowns ? "town" : "region");
 
   const results = await Promise.all(targets.map((t) => check(t.name, t.urls)));
   const ok = results.filter((r) => r.ok);

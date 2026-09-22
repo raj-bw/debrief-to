@@ -1,18 +1,53 @@
-Debrief.TO — town picker + Change button
-========================================
+Debrief.TO — every town in Ontario
+==================================
 
-One file: app/page.js
+Six files. app/lib/ontario-places.json is NEW.
 
-1. The town list shows every town and scrolls.
-   It was capped at the first 8 when the search box was empty, which made it
-   look like those were the only places on offer. Now all 33 are listed, the
-   list scrolls, and a line under the search box says how many there are so
-   the scroll is expected.
+  app/page.js
+  app/lib/ontario-places.json   (new)
+  app/lib/towns.js
+  app/lib/topics.js
+  app/api/feed/route.js
+  app/api/health/route.js
 
-2. The Change button is amber.
-   It was outlined in grey and read as just another category chip. It now uses
-   the same warm palette as the Subscription pill — clearly an action, clearly
-   not a filter, and still clearly part of this site.
+WHAT IT DOES
 
-Nothing else changed. The obituary filter, the archive and the feeds are
-untouched.
+All 413 Ontario municipalities are now selectable, from Toronto down to
+Cockburn Island. The list scrolls and searches. No API, no key, no billing,
+and nothing about the reader is sent anywhere to look their town up — which
+matters, because the About page promises their town never leaves their
+browser and a third-party autocomplete would quietly break that.
+
+The data is split in two, deliberately:
+
+  WHICH PLACES EXIST  - public record, ships as an 8 KB file.
+  WHO COVERS THEM     - editorial, ours, and the part that actually matters.
+
+A reader's local news resolves in three steps:
+
+  1. Their town has its own newsroom      -> tab is named after the town
+                                             (Newmarket -> "Newmarket")
+  2. Their region's newsroom covers them  -> tab is named after the region
+                                             (Aurora -> "York Region")
+  3. Nobody covers them yet               -> NO local tab at all
+
+Case 3 is the honest one. A tab that is always empty is worse than no tab.
+Those readers get a "Set your town" control instead, so they are never stuck,
+and the picker tells them up front rather than after they choose.
+
+The picker now names the actual newsroom against each town, so nobody picks
+blind: "Aurora — Newmarket Today, York Region", "Kingston — No local
+publisher yet". That list doubles as your map of where to add a publisher.
+
+MIGRATION
+
+Readers who already chose a town keep it. Slugs that changed are aliased
+("sudbury" -> Greater Sudbury, "bradford" -> Bradford West Gwillimbury), and
+Toronto's former boroughs (Scarborough, Etobicoke, North York) map to Toronto,
+since they are not municipalities of their own.
+
+SOURCE OF THE DATA
+
+Every municipality and its census division came from the Wikipedia list of
+municipalities in Ontario, read directly from the table rather than typed from
+memory. 413 rows, 49 divisions, spot-checked against known answers.

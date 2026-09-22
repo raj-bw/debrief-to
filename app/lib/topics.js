@@ -129,7 +129,7 @@ export function placesFor(article, sourcePlace, homePlace) {
   const found = new Set();
 
   // The source's own patch, always.
-  if (sourcePlace === "home") found.add(homePlace);
+  if (sourcePlace === "home" && homePlace) found.add(homePlace);
   else if (sourcePlace) found.add(sourcePlace);
 
   // A headline that names somewhere else earns that place too.

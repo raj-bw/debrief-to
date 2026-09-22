@@ -35,7 +35,9 @@ const PUBLISHERS = [
    it has a publisher of its own, otherwise the region that covers it. */
 function buildCategories(homeLabel) {
   return [
-    { label: homeLabel, icon: "\u{1F4CD}", group: "place", kind: "place", color: "#1A73E8", home: true },
+    // No newsroom covers this town yet? Then there is no local tab. A tab that
+    // is always empty is worse than no tab, and the picker has already said so.
+    ...(homeLabel ? [{ label: homeLabel, icon: "\u{1F4CD}", group: "place", kind: "place", color: "#1A73E8", home: true }] : []),
     { label: "Toronto", icon: "\u{1F3D9}", group: "place", kind: "place", color: "#0F7B6C" },
     { label: "Ontario", icon: "\u{1F341}", group: "place", kind: "place", color: "#7B2D8E" },
     { label: "Environment", icon: "\u{1F33F}", group: "topic", kind: "topic", color: "#2D6A4F" },
@@ -220,7 +222,7 @@ function TownPicker({ dm, onPick, onSkip }) {
         <div style={{ padding: "26px 24px 16px" }}>
           <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, color: c.text, margin: "0 0 8px" }}>Where do you live?</h2>
           <p style={{ fontSize: 14.5, lineHeight: 1.6, color: c.body, margin: "0 0 16px" }}>
-            Debrief.TO will show your community&apos;s news first. Your choice stays in this browser — there&apos;s no account and nothing is sent to us.
+            Debrief.TO will show your community&apos;s news first — from your town&apos;s own newsroom where there is one, otherwise from the newsroom covering your region. Your choice stays in this browser; there&apos;s no account and nothing is sent to us.
           </p>
           <input
             autoFocus
@@ -233,14 +235,14 @@ function TownPicker({ dm, onPick, onSkip }) {
           <p style={{ fontSize: 12, color: c.muted, margin: "10px 2px 0" }}>
             {q
               ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}`
-              : `${options.length} towns \u2014 scroll, or start typing`}
+              : `Every municipality in Ontario \u2014 ${options.length}. Start typing.`}
           </p>
         </div>
 
         <div style={{ overflowY: "auto", padding: "0 12px", flex: 1, minHeight: 180, WebkitOverflowScrolling: "touch" }}>
           {matches.length === 0 ? (
             <p style={{ fontSize: 14, color: c.muted, padding: "18px 12px 24px", lineHeight: 1.6, margin: 0 }}>
-              No town by that name yet. Skip for now and you&apos;ll get Newmarket — or email hello@debrief.to and ask for yours.
+              Nothing matches that. Try fewer letters — the list uses each municipality&apos;s official name, so Stouffville is &ldquo;Whitchurch-Stouffville&rdquo;.
             </p>
           ) : (
             matches.map((t) => (
@@ -248,9 +250,13 @@ function TownPicker({ dm, onPick, onSkip }) {
                 style={{ display: "flex", width: "100%", alignItems: "baseline", justifyContent: "space-between", gap: 10, textAlign: "left", background: "transparent", border: "none", borderRadius: 10, padding: "12px 12px", cursor: "pointer", fontFamily: "inherit", color: c.text }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = c.rowHover; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
-                <span style={{ fontSize: 15.5, fontWeight: t.hasOwn ? 600 : 500, color: t.hasOwn ? c.text : c.muted }}>{t.name}</span>
-                <span style={{ fontSize: 12, color: c.muted, textAlign: "right", flexShrink: 0 }}>
-                  {t.hasOwn ? t.regionName : `No results — showing ${t.regionName}`}
+                <span style={{ fontSize: 15.5, fontWeight: t.tier === "town" ? 600 : 500, color: t.tier === "province" ? c.muted : c.text }}>{t.name}</span>
+                <span style={{ fontSize: 12, color: c.muted, textAlign: "right", flexShrink: 0, maxWidth: "58%" }}>
+                  {t.tier === "town"
+                    ? t.sourceName
+                    : t.tier === "region"
+                      ? `${t.sourceName} — ${t.regionName}`
+                      : "No local publisher yet"}
                 </span>
               </button>
             ))
@@ -402,7 +408,9 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
 
         <Section heading="Where the news comes from">
           <P>
-            Your local tab currently draws on {homeLabel ? <strong style={{ color: c.title, fontWeight: 600 }}>{homeLabel}</strong> : "your community"}. Alongside it:
+            {homeLabel
+              ? <>Your local tab currently draws on <strong style={{ color: c.title, fontWeight: 600 }}>{homeLabel}</strong>. Alongside it:</>
+              : <>There isn&apos;t a newsroom covering your town in the list yet, so you&apos;re seeing Ontario-wide reporting. If you know one we should carry, tell us. In the meantime:</>}
           </P>
           <div style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 20 }}>
             {groups.map((g) => (
@@ -858,6 +866,21 @@ export default function Home() {
               of newsrooms lives on the About page. */}
           {showSources && (
             <div style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              {/* When there is no local tab there is no chip to hang the Change
+                  control off, and the reader would be stuck with a town they
+                  can't change. So it stands on its own instead. */}
+              {!home.label && (
+                <button onClick={() => setShowPicker(true)}
+                  aria-label="Set your town"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600,
+                    background: dm ? "#3A2E1C" : "#F6ECD9",
+                    border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
+                    color: dm ? "#E8C98A" : "#8A5A12",
+                    borderRadius: 20, padding: "11px 16px", fontSize: 15, fontFamily: "inherit", cursor: "pointer", lineHeight: 1 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Set your town
+                </button>
+              )}
               {CATEGORIES.map((cat, catIdx) => {
                 const isActive = activeCats.includes(cat.label);
                 const prevCat = CATEGORIES[catIdx - 1];
