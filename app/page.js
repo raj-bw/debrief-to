@@ -196,9 +196,11 @@ function TownPicker({ dm, onPick, onSkip }) {
   const [query, setQuery] = useState("");
   const options = townOptions();
   const q = query.trim().toLowerCase();
+  // Every town, always — the list scrolls. Showing only the first handful made
+  // it look like those were the only places on offer.
   const matches = q
     ? options.filter((t) => t.name.toLowerCase().includes(q) || t.regionName.toLowerCase().includes(q))
-    : options.slice(0, 8);
+    : options;
 
   const c = {
     panel: dm ? "#242424" : "#FFF",
@@ -228,9 +230,14 @@ function TownPicker({ dm, onPick, onSkip }) {
             aria-label="Search for your town"
             style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${c.inputBorder}`, borderRadius: 24, padding: "12px 18px", fontSize: 15, fontFamily: "inherit", background: c.inputBg, color: c.text, outline: "none" }}
           />
+          <p style={{ fontSize: 12, color: c.muted, margin: "10px 2px 0" }}>
+            {q
+              ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}`
+              : `${options.length} towns \u2014 scroll, or start typing`}
+          </p>
         </div>
 
-        <div style={{ overflowY: "auto", padding: "0 12px", flex: 1 }}>
+        <div style={{ overflowY: "auto", padding: "0 12px", flex: 1, minHeight: 180, WebkitOverflowScrolling: "touch" }}>
           {matches.length === 0 ? (
             <p style={{ fontSize: 14, color: c.muted, padding: "18px 12px 24px", lineHeight: 1.6, margin: 0 }}>
               No town by that name yet. Skip for now and you&apos;ll get Newmarket — or email hello@debrief.to and ask for yours.
@@ -872,7 +879,17 @@ export default function Home() {
                       {cat.home && (
                         <button onClick={() => setShowPicker(true)} title="Change your town"
                           aria-label={`Change your town, currently ${home.label}`}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "transparent", border: `1.5px solid ${dm ? "#3C3C3C" : t.border}`, color: dm ? "#D0CCC6" : t.textSec, borderRadius: 20, padding: "11px 12px", fontSize: 13, fontFamily: "inherit", cursor: "pointer", lineHeight: 1 }}>
+                          /* Amber, so it reads as an action rather than as one more
+                             category to filter by. It borrows the same warm palette
+                             as the Subscription pill, so it is obviously not green
+                             and still obviously part of this site. */
+                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600,
+                            background: dm ? "#3A2E1C" : "#F6ECD9",
+                            border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
+                            color: dm ? "#E8C98A" : "#8A5A12",
+                            borderRadius: 20, padding: "11px 13px", fontSize: 13, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, transition: "all 0.15s ease" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#4A3A22" : "#F0E0C2"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = dm ? "#3A2E1C" : "#F6ECD9"; }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
                           <span className="change-town-label">Change</span>
                         </button>

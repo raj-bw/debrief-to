@@ -1,33 +1,18 @@
-Debrief.TO — Blob credential fix
-================================
+Debrief.TO — town picker + Change button
+========================================
 
-Two files. Upload over the existing ones, same paths:
-  app/lib/archive.js
-  app/api/health/route.js
+One file: app/page.js
 
-THE BUG WAS MINE, not your setup.
+1. The town list shows every town and scrolls.
+   It was capped at the first 8 when the search box was empty, which made it
+   look like those were the only places on offer. Now all 33 are listed, the
+   list scrolls, and a line under the search box says how many there are so
+   the scroll is expected.
 
-Your Blob store is connected correctly. Vercel now authenticates Blob with
-VERCEL_OIDC_TOKEN + BLOB_STORE_ID (short-lived, nothing long-lived stored
-in the project) instead of the older BLOB_READ_WRITE_TOKEN. That is why
-your environment variables show BLOB_STORE_ID and no read/write token.
+2. The Change button is amber.
+   It was outlined in grey and read as just another category chip. It now uses
+   the same warm palette as the Subscription pill — clearly an action, clearly
+   not a filter, and still clearly part of this site.
 
-The @vercel/blob SDK handles either scheme by itself. But my code gated the
-whole archive behind a check for BLOB_READ_WRITE_TOKEN specifically, so it
-switched itself off before ever calling the SDK — with a perfectly good
-store sitting there unused.
-
-Now it recognises both schemes.
-
-Also: /api/health now reports which credential scheme is in use, and
-surfaces the actual error if the store can't be reached — previously
-"0 days stored" and "cannot reach the store" looked identical.
-
-After uploading, the deploy happens automatically. Then check:
-  https://debrief.to/api/health
-Expect:
-  "archive": { "enabled": true, "credentials": "oidc (BLOB_STORE_ID)", ... }
-
-daysStored will be 0 at first. That is correct — the archive skips today's
-file when reading back, because the live feed is a fresher copy of it.
-Tomorrow it becomes 1, and This Week starts getting deeper than Today.
+Nothing else changed. The obituary filter, the archive and the feeds are
+untouched.
