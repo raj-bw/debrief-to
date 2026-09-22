@@ -1,0 +1,25 @@
+name: Keep the archive filling
+
+on:
+  schedule:
+    # Times are UTC. Roughly 7am, 1pm and 7pm Toronto time.
+    - cron: "0 11,17,23 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load the feed so today's stories are archived
+        run: |
+          set -e
+          for range in today week month; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://debrief.to/api/feed?town=newmarket&range=$range")
+            echo "range=$range -> HTTP $code"
+          done
+
+      - name: Report which feeds are answering
+        run: |
+          curl -s "https://debrief.to/api/health" | head -c 2000
+          echo
