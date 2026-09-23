@@ -4,7 +4,7 @@ import { fetchItems } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
 import {
   archiveEnabled, archiveBackend, bucketFor, storeArticles, activeTowns,
-  trimAll, getState, setState, torontoDay,
+  trimAll, makeRoom, getState, setState, torontoDay,
 } from "../../lib/archive";
 
 /* ---- The collector ----
@@ -90,6 +90,9 @@ export async function GET(request) {
     }
   }
 
+  // Room first, so a full database never makes the run's writes fail.
+  const room = await makeRoom().catch(() => null);
+
   const { jobs, towns } = await buildJobs();
   const blox = jobs.filter((j) => isBlox(j.src));
   const rest = jobs.filter((j) => !isBlox(j.src));
@@ -119,7 +122,10 @@ export async function GET(request) {
   let trimmed = null;
   const today = torontoDay();
   if (state.lastTrimDay !== today) {
-    try { trimmed = await trimAll(); await setState({ lastTrimDay: today }); }
+    try {
+      trimmed = await trimAll();
+      await setState({ lastTrimDay: today, retentionInForce: String(room?.retentionDays ?? 45) });
+    }
     catch (err) { trimmed = { error: err?.message }; }
   }
 
@@ -133,6 +139,8 @@ export async function GET(request) {
     failed: failed.length,
     storiesAdded: results.reduce((n, r) => n + (r.added || 0), 0),
     notReached: skipped,
+    memory: room?.memory || null,
+    retentionDays: room?.retentionDays ?? null,
   };
   await setState({ lastRun: summary }).catch(() => {});
 

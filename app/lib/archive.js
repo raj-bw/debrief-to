@@ -19,13 +19,16 @@
    Why Redis and not Vercel Blob: the free Blob plan allows 2,000 writes a
    month and switches Blob off for 30 days if that's exceeded. The previous
    design wrote on reader visits — four to six writes and listings each —
-   and would have hit that within days of real traffic. Upstash Redis (added
-   through the Vercel Marketplace) allows 500,000 commands a month free, and
-   a sorted list per publication is exactly the shape this data has.
+   and would have hit that within days of real traffic. Redis has no such
+   per-write limit, and a sorted list per publication is exactly the shape
+   this data has.
 
-   Budget, roughly: a collector pass is about two commands per publication,
-   eight passes a day; a reader's feed request is about ten commands, and
-   the CDN absorbs most requests. Comfortably inside 500,000 a month.
+   The limit that matters is size: the free Redis plan is 30 MB. A story
+   takes about 850 bytes stored (measured), so that's roughly 30,000
+   stories — the standing sources plus a dozen or so busy towns at 45 days. If
+   it ever fills past 85%, the collector trims the oldest days early (never
+   below three weeks) rather than let writes fail; /api/health shows how
+   full it is and what retention is actually in force.
 
    Layout, per publication ("bucket"):
      z:<bucket>   sorted set — each story's link, scored by publish time
@@ -41,11 +44,17 @@
 export const RETENTION_DAYS = 45;
 const DAY = 86400000;
 
-/* Where Upstash's settings live. Connecting it through Vercel adds
-   KV_REST_API_URL and KV_REST_API_TOKEN — unless a custom prefix was chosen
-   when connecting, which gives e.g. STORAGE_KV_REST_API_URL. Upstash's own
-   dashboard names them UPSTASH_REDIS_REST_URL / _TOKEN. Any of these works:
-   the first URL setting found is used, with the token of the same prefix. */
+/* ---- Where the database is ----
+   Two kinds of Redis can be connected through the Vercel Marketplace, and
+   they hand over different settings:
+
+   - Redis Cloud (the "Redis" integration) gives one setting, REDIS_URL — a
+     direct connection. This is what debrief.to uses: the free plan, 30 MB.
+   - Upstash gives KV_REST_API_URL and KV_REST_API_TOKEN (or, from its own
+     dashboard, UPSTASH_REDIS_REST_URL / _TOKEN) — a web address instead.
+
+   Either works; a custom prefix chosen when connecting (STORAGE_REDIS_URL,
+   say) is found too. If both are present, the direct connection wins. */
 function findRest() {
   const keys = Object.keys(process.env);
   const urlKey = keys.find((k) => /(^|_)KV_REST_API_URL$/.test(k))
@@ -54,22 +63,29 @@ function findRest() {
   const tokenKey = urlKey.replace(/URL$/, "TOKEN");
   return { url: process.env[urlKey] || "", token: process.env[tokenKey] || "", urlKey, tokenKey };
 }
+function findTcp() {
+  const urlKey = Object.keys(process.env).find((k) => /(^|_)REDIS_URL$/.test(k) && /^rediss?:\/\//.test(process.env[k] || ""));
+  return urlKey ? { url: process.env[urlKey], urlKey } : { url: "", urlKey: null };
+}
+const TCP = findTcp();
 const REST = findRest();
 const REST_URL = REST.url;
 const REST_TOKEN = REST.token;
+const MODE = TCP.url ? "tcp" : (REST_URL && REST_TOKEN ? "rest" : null);
 
 export function archiveEnabled() {
-  return Boolean(REST_URL && REST_TOKEN);
+  return MODE !== null;
 }
 
 export function archiveBackend() {
-  if (archiveEnabled()) return `upstash redis (${REST.urlKey})`;
+  if (MODE === "tcp") return `redis (${TCP.urlKey})`;
+  if (MODE === "rest") return `upstash redis (${REST.urlKey})`;
   // Names only, never values: enough to see what's missing or misnamed.
   const seen = Object.keys(process.env).filter((k) => /KV|REDIS|UPSTASH/i.test(k)).sort();
   if (REST.urlKey && !REST_TOKEN) return `found ${REST.urlKey} but no ${REST.tokenKey} — check the token setting`;
   return seen.length
     ? `not connected — saw these settings, none usable: ${seen.join(", ")}`
-    : "not connected — no Upstash settings in this deployment. Add Upstash Redis in the Vercel Marketplace, connect it to this project for Production, then redeploy.";
+    : "not connected — no Redis settings in this deployment. Add Redis in the Vercel Marketplace, connect it to this project for Production, then redeploy.";
 }
 
 // The date in Toronto, because "today" should mean what a reader in Newmarket
@@ -78,10 +94,53 @@ export function torontoDay(d = new Date()) {
   return new Date(d).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 }
 
-/* One round trip, many commands. Upstash's REST API takes a list of Redis
-   commands and returns a list of results. */
+/* ---- The direct connection ----
+   One connection per server instance, opened on first use and reused. A
+   serverless instance can be frozen between requests and wake with a dead
+   socket, so every batch has a time limit, and a batch that runs out drops
+   the connection so the next one starts clean. */
+let clientPromise = null;
+async function getClient() {
+  if (!clientPromise) {
+    clientPromise = (async () => {
+      const { createClient } = await import("redis");
+      const c = createClient({
+        url: TCP.url,
+        socket: { connectTimeout: 5000, keepAlive: true, reconnectStrategy: (n) => (n > 3 ? false : 200 * n) },
+      });
+      c.on("error", (err) => console.warn("[debrief.to] redis:", err?.message));
+      await c.connect();
+      return c;
+    })().catch((err) => { clientPromise = null; throw err; });
+  }
+  return clientPromise;
+}
+function dropClient() {
+  const p = clientPromise;
+  clientPromise = null;
+  p?.then((c) => c.destroy?.()).catch(() => {});
+}
+async function tcpPipeline(commands) {
+  const run = (async () => {
+    const c = await getClient();
+    return Promise.all(commands.map((cmd) => c.sendCommand(cmd.map(String))));
+  })();
+  let timer;
+  const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("archive timed out")), 10000); });
+  try {
+    return await Promise.race([run, limit]);
+  } catch (err) {
+    dropClient();
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* One round trip, many commands, whichever kind of Redis this is. */
 async function pipeline(commands) {
   if (!commands.length) return [];
+  if (MODE === "tcp") return tcpPipeline(commands);
   const res = await fetch(`${REST_URL.replace(/\/+$/, "")}/pipeline`, {
     method: "POST",
     headers: { Authorization: `Bearer ${REST_TOKEN}`, "Content-Type": "application/json" },
@@ -114,21 +173,27 @@ export function bucketFor(src) {
   return `f${hash(key, 2166136261)}${hash(key, 374761393)}`;
 }
 
-// What's worth keeping. Images are only a URL on the publisher's server.
-function slim(a, firstSeen) {
+/* What's worth keeping — and no more, because the free database is 30 MB.
+   The link is already the key the story is filed under, so it isn't stored
+   twice; the summary is cut to about two lines (cards show little more);
+   images are only a URL on the publisher's server. */
+const DESC_MAX = 200;
+function shortDesc(d = "") {
+  if (d.length <= DESC_MAX) return d || undefined;
+  return d.slice(0, DESC_MAX).replace(/\s+\S*$/, "") + "…";
+}
+function slim(a) {
   return JSON.stringify({
     title: a.title,
-    link: a.link,
-    description: a.description,
+    description: shortDesc(a.description),
     pubDate: a.pubDate,
     undated: a.undated || undefined,
     source: a.source,
     sourcePlace: a.sourcePlace,
-    topics: a.topics,
+    topics: a.topics?.length ? a.topics : undefined,
     paywall: a.paywall || undefined,
     opinion: a.opinion || undefined,
     image: a.image || undefined,
-    firstSeen,
   });
 }
 
@@ -163,7 +228,7 @@ export async function storeArticles(bucket, label, articles) {
     // An undated story is dated by when we first saw it, once, and keeps it.
     const stored = a.undated ? { ...a, pubDate: iso } : a;
     zadd.push(a.undated ? now : t, a.link);
-    hset.push(a.link, slim(stored, iso));
+    hset.push(a.link, slim(stored));
   }
   await pipeline([zadd, hset, ["HSET", "archive:buckets", bucket, JSON.stringify({ name: label, lastAdded: iso })]]);
   return { added: toAdd.length };
@@ -190,10 +255,13 @@ export async function readArticles(buckets, sinceMs, perBucket = 400) {
     const bodies = wanted.length ? await pipeline(wanted.map((x) => ["HMGET", `h:${x.b}`, ...x.links])) : [];
     const articles = [];
     wanted.forEach((x, i) => {
-      for (const raw of bodies[i] || []) {
-        if (!raw) continue;
-        try { articles.push({ ...JSON.parse(raw), bucket: x.b }); } catch { /* skip a damaged entry */ }
-      }
+      (bodies[i] || []).forEach((raw, j) => {
+        if (!raw) return;
+        try {
+          const a = JSON.parse(raw);
+          articles.push({ ...a, link: a.link || x.links[j], topics: a.topics || [], bucket: x.b });
+        } catch { /* skip a damaged entry */ }
+      });
     });
     const value = { articles, buckets: wanted.length };
     readMemo.set(key, { at: Date.now(), value });
@@ -233,9 +301,9 @@ export async function activeTowns() {
 /* ---- The 45-day rule ----
    Once a day, every publication's shelf loses anything published more than
    45 days ago, and a shelf left empty is forgotten entirely. */
-export async function trimAll() {
+export async function trimAll(days = RETENTION_DAYS) {
   if (!archiveEnabled()) return { removed: 0 };
-  const cutoff = Date.now() - RETENTION_DAYS * DAY;
+  const cutoff = Date.now() - days * DAY;
   const [buckets] = await pipeline([["HKEYS", "archive:buckets"]]);
   let removed = 0;
   for (let i = 0; i < (buckets || []).length; i += 25) {
@@ -256,6 +324,45 @@ export async function trimAll() {
     if (empty.length) await pipeline([["HDEL", "archive:buckets", ...empty], ...empty.map((b) => ["DEL", `h:${b}`])]);
   }
   return { removed };
+}
+
+/* ---- How full is it ----
+   Redis reports its own memory use. The plan's size comes from the
+   database when it says (maxmemory), otherwise ARCHIVE_CAPACITY_MB, otherwise
+   the free plan's 30 MB. */
+export async function memoryUsage() {
+  if (!archiveEnabled()) return null;
+  try {
+    const [info] = await pipeline([["INFO", "memory"]]);
+    const field = (name) => {
+      const m = String(info || "").match(new RegExp(`^${name}:(\\d+)`, "m"));
+      return m ? Number(m[1]) : 0;
+    };
+    const used = field("used_memory");
+    const cap = field("maxmemory") || Number(process.env.ARCHIVE_CAPACITY_MB || 30) * 1048576;
+    if (!used) return null;
+    return { usedMB: +(used / 1048576).toFixed(2), capacityMB: +(cap / 1048576).toFixed(1), percent: Math.round((used / cap) * 100) };
+  } catch {
+    return null;
+  }
+}
+
+/* If the database is past 85% full, drop the oldest days three at a time
+   until it is under 75%, stopping at three weeks. Stories from the last
+   21 days are never touched, whatever happens. */
+const FULL = 85, ROOMY = 75, FLOOR_DAYS = 21;
+export async function makeRoom() {
+  let mem = await memoryUsage();
+  if (!mem || mem.percent < FULL) return { retentionDays: RETENTION_DAYS, memory: mem };
+  let days = RETENTION_DAYS;
+  let removed = 0;
+  while (days > FLOOR_DAYS && mem && mem.percent >= ROOMY) {
+    days = Math.max(FLOOR_DAYS, days - 3);
+    removed += (await trimAll(days)).removed;
+    mem = await memoryUsage();
+  }
+  await setState({ retentionInForce: String(days) }).catch(() => {});
+  return { retentionDays: days, removed, memory: mem };
 }
 
 /* ---- The collector's notebook ---- */
@@ -282,6 +389,7 @@ export async function setState(fields) {
 export async function archiveStats() {
   if (!archiveEnabled()) return { enabled: false, backend: archiveBackend() };
   try {
+    const memory = await memoryUsage();
     const [bucketMap, active, state] = await pipeline([
       ["HGETALL", "archive:buckets"],
       ["ZCARD", "archive:active"],
@@ -304,6 +412,8 @@ export async function archiveStats() {
       publications: buckets.length,
       storiesStored: sizes.reduce((n, x) => n + (Number(x) || 0), 0),
       oldestStoryDaysAgo: Number.isFinite(oldestMs) ? Math.floor((Date.now() - oldestMs) / DAY) : null,
+      memory: memory ? { ...memory, warning: memory.percent >= FULL ? "nearly full — oldest days are being trimmed early" : undefined } : null,
+      retentionInForce: Number(st.retentionInForce) || RETENTION_DAYS,
       lastCollectorRun: lastRun,
       lastTrimDay: st.lastTrimDay || null,
     };
