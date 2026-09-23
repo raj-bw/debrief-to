@@ -1,9 +1,10 @@
-# Keeps the archive filling, every three hours, whether or not anyone visits.
+# Keeps the archive filling, every hour, whether or not anyone visits.
 #
 # The collector (/api/collect) visits every publication for every active town
 # and stores what's new. Vercel runs it once a day on its own (vercel.json);
 # the free plan allows no more than that. Busy newsrooms roll stories out of
-# their feeds in less than a day, so this runs it every three hours as well.
+# their feeds in less than a day, and readers now read only from the archive,
+# so this runs it every hour: a new story reaches the site within the hour.
 # Either one alone keeps the archive whole; together they cover for each other.
 #
 # Setup, once:
@@ -21,7 +22,7 @@ name: Keep the archive filling
 
 on:
   schedule:
-    - cron: "17 */3 * * *"   # every three hours, at 17 past (quieter than :00)
+    - cron: "17 * * * *"      # every hour, at 17 past (quieter than :00)
   workflow_dispatch: {}       # "Run workflow" button in the Actions tab
 
 permissions:
