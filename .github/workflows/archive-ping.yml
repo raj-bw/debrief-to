@@ -14,7 +14,8 @@
 # Without the secret the collector still runs, but at most every 20 minutes.
 #
 # GitHub pauses scheduled workflows in a repository with no activity for 60
-# days. The last step prevents that, so this keeps running untended.
+# days. The last step prevents that, using only GitHub's own API. If it ever
+# pauses anyway, Vercel's daily run still keeps the archive going.
 
 name: Keep the archive filling
 
@@ -49,5 +50,12 @@ jobs:
         run: |
           curl -sS --max-time 60 "https://debrief.to/api/health?limit=1" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('archive'), indent=1))"
 
+      # No outside action needed: re-enabling the workflow through GitHub's own
+      # API resets the 60-day inactivity clock. (The popular keepalive action
+      # this used to call is blocked by GitHub.) Never fails the run.
       - name: Stop GitHub pausing this schedule
-        uses: gautamkrishnar/keepalive-workflow@v2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PUT "repos/${{ github.repository }}/actions/workflows/archive-ping.yml/enable" \
+            && echo "schedule kept alive" || echo "keepalive skipped"
