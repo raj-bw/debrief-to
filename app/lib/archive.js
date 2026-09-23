@@ -1,61 +1,56 @@
 /* ---- The archive ----
    RSS feeds are a window, not a record: most publishers expose only their
-   most recent twenty or so stories. That is why "This Week" and "This Month"
-   used to show barely more than "Today" — there was nothing older to show.
+   newest twenty or so stories, so without our own copy This Week and This
+   Month can only show what happens to still be in the window.
 
-   So we keep our own copy. One small JSON file per day, in Vercel Blob:
+   How it works now (September 2026 rewrite):
 
-     archive/2026-09-21.json
+   - A background collector (/api/collect) visits every publication for every
+     active town on a schedule, whether or not anyone is reading, and stores
+     what it finds. Readers never write — they only read.
 
-   One file per day rather than one growing file, because then trimming old
-   news is just deleting files, each write stays small, and two readers
-   arriving at the same moment can't overwrite each other's work.
+   - A town becomes active the first time anyone picks it, and stays active.
+     From then on its publications are collected every run, every day.
 
-   Nothing is scheduled. The feed route already runs at most once every ten
-   minutes behind the CDN cache; when it does, it drops anything new into
-   today's file and moves on. (Vercel's free plan only allows a cron job once
-   a day, which is not often enough, so this rides along with real traffic
-   instead. A GitHub Action pings the site a couple of times a day so a quiet
-   afternoon doesn't leave a hole.)
+   - Each publication has its own shelf. Anything older than 45 days is
+     removed from that publication's shelf once a day, so storage stays
+     bounded however long the site runs.
 
-   Only headlines, links and summaries are stored — about 650 bytes an
-   article, so roughly 100 KB a day and 4.5 MB for the full 45 days. Images
-   stay on the publishers' servers where they belong.
+   Why Redis and not Vercel Blob: the free Blob plan allows 2,000 writes a
+   month and switches Blob off for 30 days if that's exceeded. The previous
+   design wrote on reader visits — four to six writes and listings each —
+   and would have hit that within days of real traffic. Upstash Redis (added
+   through the Vercel Marketplace) allows 500,000 commands a month free, and
+   a sorted list per publication is exactly the shape this data has.
 
-   Every function here fails quietly. If the archive is unreachable, or was
-   never set up, the site still shows the live feed — the archive makes the
-   site better, it is never what makes it work. ---- */
+   Budget, roughly: a collector pass is about two commands per publication,
+   eight passes a day; a reader's feed request is about ten commands, and
+   the CDN absorbs most requests. Comfortably inside 500,000 a month.
 
-import { put, list, del } from "@vercel/blob";
+   Layout, per publication ("bucket"):
+     z:<bucket>   sorted set — each story's link, scored by publish time
+     h:<bucket>   hash — link → the story, as JSON
+   and for the site as a whole:
+     archive:active   sorted set — town slugs, scored by when first chosen
+     archive:buckets  hash — bucket → which publication it is
+     archive:state    hash — when the collector last ran, and what it did
 
-const PREFIX = "archive/";
+   Every function fails quietly. If the archive is unreachable, or was never
+   set up, the site still shows the live feed. ---- */
+
 export const RETENTION_DAYS = 45;
+const DAY = 86400000;
 
-/* Is there a Blob store to write to?
+const REST_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "";
+const REST_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "";
 
-   Vercel has two ways of proving who we are, and a store connected today uses
-   the newer one:
-
-     - OIDC: a short-lived VERCEL_OIDC_TOKEN that Vercel injects into the
-       running function, plus BLOB_STORE_ID naming the store. Nothing
-       long-lived is stored in the project, which is why it's the better
-       scheme and now the default.
-     - A long-lived BLOB_READ_WRITE_TOKEN. Older stores, and local development.
-
-   The SDK handles either on its own — it only needs one of them to be present.
-   This check exists so the rest of the site can degrade quietly when there is
-   no store at all, so it has to recognise both. Looking only for the old token
-   is exactly the bug that left a perfectly good store sitting unused. */
-function enabled() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+export function archiveEnabled() {
+  return Boolean(REST_URL && REST_TOKEN);
 }
 
-// Which of the two is in play — reported by /api/health, so that "the archive
-// isn't running" is always answerable without guesswork.
-export function credentialMode() {
-  if (process.env.BLOB_STORE_ID) return "oidc (BLOB_STORE_ID)";
-  if (process.env.BLOB_READ_WRITE_TOKEN) return "read-write token";
-  return "none";
+export function archiveBackend() {
+  if (!archiveEnabled()) return "none — add Upstash Redis in the Vercel Marketplace";
+  return process.env.KV_REST_API_URL ? "upstash redis (KV_REST_API_*)" : "upstash redis (UPSTASH_REDIS_REST_*)";
 }
 
 // The date in Toronto, because "today" should mean what a reader in Newmarket
@@ -64,123 +59,236 @@ export function torontoDay(d = new Date()) {
   return new Date(d).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 }
 
-function pathFor(day, town) {
-  // Each town's local stories are archived separately; everything else is shared.
-  return town && town !== "shared" ? `${PREFIX}${town}/${day}.json` : `${PREFIX}${day}.json`;
+/* One round trip, many commands. Upstash's REST API takes a list of Redis
+   commands and returns a list of results. */
+async function pipeline(commands) {
+  if (!commands.length) return [];
+  const res = await fetch(`${REST_URL.replace(/\/+$/, "")}/pipeline`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${REST_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(commands),
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`archive responded ${res.status}`);
+  const out = await res.json();
+  return out.map((r) => {
+    if (r && r.error) throw new Error(r.error);
+    return r ? r.result : null;
+  });
 }
 
-// Only the fields worth keeping. No images, no source colours — those are
-// looked up fresh when the article is shown.
-function slim(a) {
-  return {
+/* ---- Which shelf a publication's stories go on ----
+   The standing sources (CBC Toronto, The Narwhal, The Maple...) share one
+   shelf, because every reader's feed includes all of them and one read is
+   cheaper than sixteen. Every local publication gets its own. */
+function hash(str, seed) {
+  let h = seed >>> 0;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(36);
+}
+
+export function bucketFor(src) {
+  if (src.shared) return "shared";
+  const where = src.kind === "wpjson" ? `${src.api}#${src.categoryId}` : (src.urls || [])[0] || src.name;
+  const key = `${where}|${(src.onlyCategories || []).join(",")}`;
+  return `f${hash(key, 2166136261)}${hash(key, 374761393)}`;
+}
+
+// What's worth keeping. Images are only a URL on the publisher's server.
+function slim(a, firstSeen) {
+  return JSON.stringify({
     title: a.title,
     link: a.link,
     description: a.description,
     pubDate: a.pubDate,
+    undated: a.undated || undefined,
     source: a.source,
     sourcePlace: a.sourcePlace,
     topics: a.topics,
-    paywall: a.paywall,
-    opinion: a.opinion,
-    firstSeen: a.firstSeen || new Date().toISOString(),
-  };
+    paywall: a.paywall || undefined,
+    opinion: a.opinion || undefined,
+    image: a.image || undefined,
+    firstSeen,
+  });
 }
 
-async function readFile(url) {
+/* ---- Writing (collector only) ----
+   Adds any story not already on the shelf. A story already there keeps its
+   original copy, so an edited headline doesn't shuffle it around. */
+export async function storeArticles(bucket, label, articles) {
+  if (!archiveEnabled() || !articles?.length) return { added: 0 };
+  const now = Date.now();
+  const cutoff = now - RETENTION_DAYS * DAY;
+  const fresh = [];
+  const seen = new Set();
+  for (const a of articles) {
+    if (!a?.link || seen.has(a.link)) continue;
+    seen.add(a.link);
+    let t = new Date(a.pubDate).getTime();
+    if (!Number.isFinite(t)) t = now;
+    if (t < cutoff) continue;
+    fresh.push({ a, t });
+  }
+  if (!fresh.length) return { added: 0 };
+
+  const z = `z:${bucket}`, h = `h:${bucket}`;
+  const [scores] = await pipeline([["ZMSCORE", z, ...fresh.map((f) => f.a.link)]]);
+  const toAdd = fresh.filter((_, i) => scores?.[i] === null || scores?.[i] === undefined);
+  if (!toAdd.length) return { added: 0 };
+
+  const iso = new Date(now).toISOString();
+  const zadd = ["ZADD", z];
+  const hset = ["HSET", h];
+  for (const { a, t } of toAdd) {
+    // An undated story is dated by when we first saw it, once, and keeps it.
+    const stored = a.undated ? { ...a, pubDate: iso } : a;
+    zadd.push(a.undated ? now : t, a.link);
+    hset.push(a.link, slim(stored, iso));
+  }
+  await pipeline([zadd, hset, ["HSET", "archive:buckets", bucket, JSON.stringify({ name: label, lastAdded: iso })]]);
+  return { added: toAdd.length };
+}
+
+/* ---- Reading (every feed request) ----
+   Everything on these shelves published since `sinceMs`. Two round trips:
+   which links are in the window, then the stories themselves. Kept in
+   memory for a few minutes, since the CDN may ask for the same town several
+   times in a row for its three tabs. */
+const readMemo = new Map();
+const READ_MEMO_MS = 4 * 60 * 1000;
+
+export async function readArticles(buckets, sinceMs, perBucket = 400) {
+  if (!archiveEnabled() || !buckets.length) return { articles: [], buckets: 0 };
+  const since = Math.floor(sinceMs / 600000) * 600000;       // round to 10 min so the memo hits
+  const key = `${buckets.slice().sort().join(",")}|${since}`;
+  const hit = readMemo.get(key);
+  if (hit && Date.now() - hit.at < READ_MEMO_MS) return hit.value;
+
   try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const ranges = await pipeline(buckets.map((b) => ["ZREVRANGEBYSCORE", `z:${b}`, "+inf", since, "LIMIT", 0, perBucket]));
+    const wanted = buckets.map((b, i) => ({ b, links: ranges[i] || [] })).filter((x) => x.links.length);
+    const bodies = wanted.length ? await pipeline(wanted.map((x) => ["HMGET", `h:${x.b}`, ...x.links])) : [];
+    const articles = [];
+    wanted.forEach((x, i) => {
+      for (const raw of bodies[i] || []) {
+        if (!raw) continue;
+        try { articles.push({ ...JSON.parse(raw), bucket: x.b }); } catch { /* skip a damaged entry */ }
+      }
+    });
+    const value = { articles, buckets: wanted.length };
+    readMemo.set(key, { at: Date.now(), value });
+    return value;
+  } catch (err) {
+    console.warn("[debrief.to] archive read failed:", err?.message);
+    return { articles: [], buckets: 0, error: err?.message };
+  }
+}
+
+/* ---- Active towns ----
+   A town is added the first time anyone picks it, and stays. Returns true
+   when this call is what added it, so the feed route can seed its shelf
+   straight away instead of waiting for the next collector run. */
+const knownActive = new Set();
+export async function activateTown(slug) {
+  if (!archiveEnabled() || !slug || knownActive.has(slug)) return false;
+  try {
+    const [added] = await pipeline([["ZADD", "archive:active", "NX", Date.now(), slug]]);
+    knownActive.add(slug);
+    return added === 1;
+  } catch {
+    return false;
+  }
+}
+
+export async function activeTowns() {
+  if (!archiveEnabled()) return [];
+  try {
+    const [slugs] = await pipeline([["ZRANGE", "archive:active", 0, -1]]);
+    return slugs || [];
   } catch {
     return [];
   }
 }
 
-/* Add today's new articles to today's file. Anything already there (matched on
-   its link) keeps the timestamp it was first seen with, so an article doesn't
-   jump up the page because a publisher edited it. */
-export async function appendToday(articles, town = "shared") {
-  if (!enabled() || !Array.isArray(articles) || articles.length === 0) return { written: 0 };
-  const day = torontoDay();
-  const key = pathFor(day, town);
-  try {
-    const { blobs } = await list({ prefix: key, limit: 1 });
-    const existing = blobs?.[0] ? await readFile(blobs[0].url) : [];
-    const byLink = new Map(existing.map((a) => [a.link, a]));
-    let added = 0;
-    for (const a of articles) {
-      if (!a?.link) continue;
-      if (byLink.has(a.link)) continue;
-      byLink.set(a.link, slim(a));
-      added++;
-    }
-    if (added === 0) return { written: 0 };
-    await put(key, JSON.stringify([...byLink.values()]), {
-      access: "public",
-      contentType: "application/json",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      cacheControlMaxAge: 60,
+/* ---- The 45-day rule ----
+   Once a day, every publication's shelf loses anything published more than
+   45 days ago, and a shelf left empty is forgotten entirely. */
+export async function trimAll() {
+  if (!archiveEnabled()) return { removed: 0 };
+  const cutoff = Date.now() - RETENTION_DAYS * DAY;
+  const [buckets] = await pipeline([["HKEYS", "archive:buckets"]]);
+  let removed = 0;
+  for (let i = 0; i < (buckets || []).length; i += 25) {
+    const slice = buckets.slice(i, i + 25);
+    const old = await pipeline(slice.map((b) => ["ZRANGEBYSCORE", `z:${b}`, "-inf", `(${cutoff}`, "LIMIT", 0, 2000]));
+    const cmds = [];
+    slice.forEach((b, j) => {
+      const links = old[j] || [];
+      if (links.length) {
+        cmds.push(["HDEL", `h:${b}`, ...links]);
+        cmds.push(["ZREMRANGEBYSCORE", `z:${b}`, "-inf", `(${cutoff}`]);
+        removed += links.length;
+      }
     });
-    return { written: added };
-  } catch (err) {
-    console.warn("[debrief.to] archive write failed:", err?.message);
-    return { written: 0, error: err?.message };
+    if (cmds.length) await pipeline(cmds);
+    const sizes = await pipeline(slice.map((b) => ["ZCARD", `z:${b}`]));
+    const empty = slice.filter((_, j) => !sizes[j]);
+    if (empty.length) await pipeline([["HDEL", "archive:buckets", ...empty], ...empty.map((b) => ["DEL", `h:${b}`])]);
+  }
+  return { removed };
+}
+
+/* ---- The collector's notebook ---- */
+export async function getState() {
+  if (!archiveEnabled()) return {};
+  try {
+    const [flat] = await pipeline([["HGETALL", "archive:state"]]);
+    const out = {};
+    for (let i = 0; i < (flat || []).length; i += 2) out[flat[i]] = flat[i + 1];
+    return out;
+  } catch {
+    return {};
   }
 }
 
-/* Everything we have from the last `days` days. Today's file is skipped —
-   the live feed is a fresher copy of the same thing. */
-export async function readBack(days, town = "shared") {
-  if (!enabled() || !days || days < 1) return { articles: [], days: 0 };
-  const wanted = new Set();
-  const today = torontoDay();
-  for (let i = 1; i <= days; i++) {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() - i);
-    const day = torontoDay(d);
-    if (day !== today) wanted.add(day);
-  }
-  try {
-    const prefix = town && town !== "shared" ? `${PREFIX}${town}/` : PREFIX;
-    const { blobs } = await list({ prefix, limit: 400 });
-    const files = (blobs || []).filter((b) => {
-      const m = b.pathname.match(/(\d{4}-\d{2}-\d{2})\.json$/);
-      // For the shared archive, ignore the per-town subfolders
-      if (town === "shared" && b.pathname.slice(PREFIX.length).includes("/")) return false;
-      return m && wanted.has(m[1]);
-    });
-    const lists = await Promise.all(files.map((b) => readFile(b.url)));
-    return { articles: lists.flat(), days: files.length };
-  } catch (err) {
-    console.warn("[debrief.to] archive read failed:", err?.message);
-    return { articles: [], days: 0, error: err?.message };
-  }
+export async function setState(fields) {
+  if (!archiveEnabled()) return;
+  const cmd = ["HSET", "archive:state"];
+  for (const [k, v] of Object.entries(fields)) cmd.push(k, typeof v === "string" ? v : JSON.stringify(v));
+  await pipeline([cmd]);
 }
 
-/* Delete anything past the retention window. Runs on the same pass as a write,
-   so it costs nothing extra and the archive can't grow without limit. */
-export async function trim() {
-  if (!enabled()) return { deleted: 0 };
-  const cutoff = new Date();
-  cutoff.setUTCDate(cutoff.getUTCDate() - RETENTION_DAYS);
-  const cutoffDay = torontoDay(cutoff);
+/* ---- For /api/health ---- */
+export async function archiveStats() {
+  if (!archiveEnabled()) return { enabled: false, backend: archiveBackend() };
   try {
-    const { blobs } = await list({ prefix: PREFIX, limit: 1000 });
-    const old = (blobs || []).filter((b) => {
-      const m = b.pathname.match(/(\d{4}-\d{2}-\d{2})\.json$/);
-      return m && m[1] < cutoffDay;
-    });
-    if (old.length === 0) return { deleted: 0 };
-    await del(old.map((b) => b.url));
-    return { deleted: old.length };
+    const [bucketMap, active, state] = await pipeline([
+      ["HGETALL", "archive:buckets"],
+      ["ZCARD", "archive:active"],
+      ["HGETALL", "archive:state"],
+    ]);
+    const buckets = [];
+    for (let i = 0; i < (bucketMap || []).length; i += 2) buckets.push(bucketMap[i]);
+    const sizes = buckets.length ? await pipeline(buckets.map((b) => ["ZCARD", `z:${b}`])) : [];
+    const oldest = buckets.length ? await pipeline(buckets.map((b) => ["ZRANGE", `z:${b}`, 0, 0, "WITHSCORES"])) : [];
+    const oldestMs = Math.min(...oldest.map((o) => Number(o?.[1])).filter(Number.isFinite));
+    const st = {};
+    for (let i = 0; i < (state || []).length; i += 2) st[state[i]] = state[i + 1];
+    let lastRun = null;
+    try { lastRun = st.lastRun ? JSON.parse(st.lastRun) : null; } catch { lastRun = st.lastRun; }
+    return {
+      enabled: true,
+      backend: archiveBackend(),
+      retentionDays: RETENTION_DAYS,
+      activeTowns: active || 0,
+      publications: buckets.length,
+      storiesStored: sizes.reduce((n, x) => n + (Number(x) || 0), 0),
+      oldestStoryDaysAgo: Number.isFinite(oldestMs) ? Math.floor((Date.now() - oldestMs) / DAY) : null,
+      lastCollectorRun: lastRun,
+      lastTrimDay: st.lastTrimDay || null,
+    };
   } catch (err) {
-    console.warn("[debrief.to] archive trim failed:", err?.message);
-    return { deleted: 0, error: err?.message };
+    return { enabled: true, backend: archiveBackend(), error: err?.message };
   }
-}
-
-export function archiveEnabled() {
-  return enabled();
 }

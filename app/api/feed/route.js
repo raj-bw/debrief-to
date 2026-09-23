@@ -1,11 +1,13 @@
 import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
 import { topicsFor, placesFor } from "../../lib/topics";
 import { clusterStories } from "../../lib/cluster";
-import { appendToday, readBack, trim, archiveEnabled } from "../../lib/archive";
+import { archiveEnabled, readArticles, bucketFor, activateTown, storeArticles } from "../../lib/archive";
+import { SOURCES } from "../../lib/sources";
+import { buildArticles } from "../../lib/articles";
 // How a story is judged — what gets left out and what only gets labelled —
 // lives in its own file, because those rules are published on the About page
 // and deserve to be readable and testable on their own.
-import { isPaywalled, shouldSkip, isOpinion, isBlotter } from "../../lib/filters";
+import { isBlotter } from "../../lib/filters";
 // RSS, WordPress API and the rest all come in through one door, shared with
 // /api/health so that page tests exactly what readers depend on.
 import { fetchItems } from "../../lib/fetch-feed";
@@ -29,105 +31,17 @@ const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
    which see the dates; this cut can't. */
 const PER_SOURCE_LIMIT = 40;
 
-/* The standing source list: everything that isn't tied to the reader's own
-   town. The town's own publisher is added on top of this, and comes from the
-   registry in app/lib/towns.js.
+// The standing source list lives in app/lib/sources.js, shared with the collector.
 
-   `place` is where a newsroom's patch is. It decides which place tab a story
-   lands in by default, and which newsroom wins when several cover the same
-   story — the most local one was there. */
-const SOURCES = [
-  // --- Toronto ---
-  { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"], color: "#E03C31", place: "Toronto" },
-  { name: "TorontoToday",    urls: ["https://www.torontotoday.ca/rss/local", "https://www.torontotoday.ca/rss/local-news", "https://www.torontotoday.ca/rss"], color: "#0F7B6C", place: "Toronto", kind: "village" },
-  { name: "The Green Line",  urls: ["https://thegreenline.to/feed/", "https://thegreenline.to/rss"], color: "#4C8C2B", place: "Toronto" },
-  { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"], color: "#3A9B7A", place: "Toronto" },
-  { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"], color: "#0F2E4A", place: "Toronto" },
-  { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", place: "Toronto" },
-  // --- Ontario ---
-  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/rss/news", "https://www.thetrillium.ca/rss"], color: "#7B2D8E", place: "Ontario" },
-  { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"], color: "#2D6A4F", place: "Ontario" },
-  // --- Canada-wide reporting (the "Canada" place chip) ---
-  { name: "National Observer", urls: ["https://www.nationalobserver.com/front/rss", "https://www.nationalobserver.com/rss.xml"], color: "#0B7285", place: "Canada" },
-  { name: "The Breach",      urls: ["https://breachmedia.ca/feed/"], color: "#1565C0", place: "Canada" },
-  { name: "IJF",             urls: ["https://theijf.org/rss.xml", "https://theijf.org/feed", "https://theijf.org/rss"], color: "#8B5E00", place: "Canada" },
-  { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", place: "Canada" },
-  { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", place: "Canada" },
-  { name: "Canadaland",      urls: ["https://www.canadaland.com/feed/"], color: "#C62828", place: "Canada" },
-  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"], color: "#D4872C", place: "Canada" },
-];
-
-function stripHtml(html) {
-  if (!html) return "";
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&hellip;/g, "…")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function extractImage(item) {
-  if (item.image) return item.image;   // WordPress API items carry it directly
-  if (item.enclosure?.url && /\.(jpg|jpeg|png|webp|gif)/i.test(item.enclosure.url)) {
-    return item.enclosure.url;
-  }
-  const mc = item.mediaContent?.[0];
-  if (mc?.$?.url) return mc.$.url;
-  if (item.mediaThumbnail?.$?.url) return item.mediaThumbnail.$.url;
-  const html = item.contentEncoded || item.content || item.description || "";
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (match) return match[1];
-  return null;
-}
 
 async function fetchSource(src) {
-  let got;
   try {
-    got = await fetchItems(src);
+    const got = await fetchItems(src);
+    return buildArticles(src, got.items, { limit: PER_SOURCE_LIMIT });
   } catch (err) {
     console.warn(`[debrief.to] ${src.name} -> ${err?.message}`);
     return { __error: src.name, message: err?.message || "all candidate URLs failed" };
   }
-  const articles = [];
-  for (const item of (got.items || []).slice(0, 40)) {
-    const raw = item.contentSnippet || item.content || item.description || "";
-    const base = {
-      title: stripHtml(item.title || ""),
-      link: item.link || "",
-      description: stripHtml(raw).slice(0, 320),
-      pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
-      source: src.name,
-      sourceColor: src.color,
-      sourcePlace: src.place,
-      paywall: isPaywalled(src, item.link || ""),
-      image: extractImage(item),
-    };
-    if (!base.link || !base.title) continue;
-    if (shouldSkip(src, base)) continue;
-    articles.push({
-      ...base,
-      opinion: isOpinion(base),
-      // What the story is about, and where it is about — worked out per
-      // article, so one newsroom's output can land in several tabs.
-      topics: topicsFor(base, item),
-      // `places` is filled in after every feed is back, because the name of
-      // the local tab isn't settled until we know whether the town's own
-      // publisher answered.
-    });
-    if (articles.length >= PER_SOURCE_LIMIT) break;
-  }
-  return articles;
 }
 
 /* ---- Keeping the feed digestible ----
@@ -137,6 +51,10 @@ async function fetchSource(src) {
    newsroom a turn before anyone gets a second slot. ---- */
 
 const PER_SOURCE_PER_DAY = 5;
+/* The reader's own newsroom gets more room: it's what they came for. At 5 a
+   day, a busy local paper's morning stories dropped off the page as the
+   afternoon's arrived — which read as stories disappearing. */
+const HOME_PER_DAY = 15;
 const BLOTTER_PER_DAY = 2;
 
 // Day in Toronto time, so "today" means what a reader in Newmarket means by it
@@ -197,8 +115,7 @@ function rehydrate(a, colorBySource) {
     ...a,
     sourceColor: colorBySource.get(a.source) || "#6B665F",
     topics: Array.isArray(a.topics) ? a.topics : [],
-    places: Array.isArray(a.places) ? a.places : (a.sourcePlace ? [a.sourcePlace] : []),
-    image: null,
+    image: a.image || null,
   };
 }
 
@@ -217,8 +134,17 @@ export async function GET(request) {
   // The town's own publisher sits alongside the standing list.
   const townSources = (town.feeds || []).map((f) => ({ ...f, place: "home" }));
   const allSources = [...townSources, ...SOURCES];
+  const colorBySource = new Map(allSources.map((s) => [s.name, s.color]));
+  const windowStart = Date.now() - (days + 1) * 86400000;
 
-  const results = await Promise.all(allSources.map((s) => fetchSource(s)));
+  /* Live feeds and the archive, side by side. The archive is read for every
+     tab, Today included: a busy newsroom's morning story has often rolled
+     out of its live feed by evening, and before this it simply vanished. */
+  const townBuckets = townSources.map(bucketFor);
+  const [results, stored] = await Promise.all([
+    Promise.all(allSources.map((s) => fetchSource(s))),
+    archiveEnabled() ? readArticles(["shared", ...townBuckets], windowStart) : Promise.resolve({ articles: [] }),
+  ]);
   const errors = [];
   const live = [];
   for (const r of results) {
@@ -226,16 +152,41 @@ export async function GET(request) {
     else if (r?.__error) errors.push({ source: r.__error, message: r.message });
   }
 
-  /* If the town's own publisher didn't answer, fall back to the region's — the
-     same thing that happens for a town with no publisher at all, just decided
-     at request time rather than in the registry. A feed can break for a
-     morning; that shouldn't leave someone staring at an empty local tab.
+  /* A town becomes active the first time anyone picks it, and the collector
+     looks after it from then on. On that first visit, what we just fetched
+     is stored too, so its archive starts today rather than at the next run. */
+  if (town.label && townSources.length && archiveEnabled()) {
+    const isNew = await activateTown(town.slug);
+    if (isNew) {
+      await Promise.all(townSources.map((src, i) =>
+        storeArticles(townBuckets[i], src.name, live.filter((a) => a.source === src.name)).catch(() => null)));
+    }
+  }
 
+  /* Archived stories are re-tagged with today's rules, not the ones in force
+     when they were saved — otherwise a rule change (a new chip, a wider
+     topic) would only ever reach new stories. Stories from the town's own
+     shelves are the town's local news. "National" was the old name for the
+     Canada place. */
+  const homeBuckets = new Set(townBuckets);
+  const older = (stored.articles || []).map((a) => {
+    const r = rehydrate(a, colorBySource);
+    if (homeBuckets.has(a.bucket)) r.sourcePlace = "home";
+    else if (r.sourcePlace === "National") r.sourcePlace = "Canada";
+    r.topics = [...new Set([...(r.topics || []), ...topicsFor(r, null)])];
+    return r;
+  });
+
+  /* If the town's own publisher has nothing — not live, not in the archive
+     for this window — fall back to the region's. A feed can break for a
+     morning; that shouldn't leave someone staring at an empty local tab.
      The tab takes the region's name when this happens, because that is what
      the reader is actually getting. */
   const regionFeeds = town.regionFeeds || [];
-  const sameAsTown = (f) => townSources.some((t) => t.urls?.[0] === f.urls?.[0]);
-  if (townSources.length && !usingRegion && !live.some((a) => a.sourcePlace === "home")) {
+  const sameAsTown = (f) => townBuckets.includes(bucketFor(f));
+  const inWindowAt = (a) => { const t = new Date(a.pubDate).getTime(); return !Number.isFinite(t) || t >= windowStart; };
+  const hasHome = () => live.some((a) => a.sourcePlace === "home") || older.some((a) => a.sourcePlace === "home" && inWindowAt(a));
+  if (townSources.length && !usingRegion && !hasHome()) {
     const spares = regionFeeds.filter((f) => !sameAsTown(f)).map((f) => ({ ...f, place: "home" }));
     if (spares.length) {
       const rescued = await Promise.all(spares.map((s) => fetchSource(s)));
@@ -252,44 +203,7 @@ export async function GET(request) {
 
   // Now that the local tab's name is settled, work out where each story belongs.
   for (const a of live) a.places = placesFor(a, a.sourcePlace, homePlace);
-
-  // Put today's catch in the archive before anything is filtered away, so the
-  // record is of what was published, not of what fitted on the page.
-  let archived = { written: 0 };
-  if (archiveEnabled()) {
-    archived = await appendToday(live.filter((a) => a.sourcePlace !== "home"), "shared");
-    if (townSources.length) {
-      await appendToday(live.filter((a) => a.sourcePlace === "home"), town.slug);
-    }
-    // Clearing out old files costs nothing here and keeps the archive bounded.
-    if (Math.random() < 0.1) await trim();
-  }
-
-  // For a week or month view, bring back what the publishers' feeds have
-  // already forgotten.
-  let older = [];
-  let archiveDays = 0;
-  if (days > 1 && archiveEnabled()) {
-    const colorBySource = new Map(allSources.map((s) => [s.name, s.color]));
-    const [shared, local] = await Promise.all([
-      readBack(days, "shared"),
-      townSources.length ? readBack(days, town.slug) : Promise.resolve({ articles: [], days: 0 }),
-    ]);
-    /* Archived stories are re-tagged with today's rules, not the ones in
-       force when they were saved — otherwise a rule change (a new chip, a
-       wider topic) would only ever reach new stories. Topics a story was
-       saved with are kept, since the feed categories behind some of them
-       aren't in the archive; places are worked out again from scratch.
-       "National" was the old name for the Canada place. */
-    older = [...shared.articles, ...local.articles].map((a) => {
-      const r = rehydrate(a, colorBySource);
-      const src = r.sourcePlace === "National" ? "Canada" : r.sourcePlace;
-      r.places = placesFor(r, src, homePlace);
-      r.topics = [...new Set([...(r.topics || []), ...topicsFor(r, null)])];
-      return r;
-    });
-    archiveDays = Math.max(shared.days, local.days);
-  }
+  for (const a of older) a.places = placesFor(a, a.sourcePlace, homePlace);
 
   // One article, one card: the live feed wins over the archived copy.
   const byLink = new Map();
@@ -308,7 +222,6 @@ export async function GET(request) {
      stops appearing in Today and shows up in This Week or This Month
      instead — which is the honest answer, and the reason it is worth
      carrying weeklies and small-town papers at all. ---- */
-  const windowStart = Date.now() - (days + 1) * 86400000;
   const inWindow = (a) => {
     const t = new Date(a.pubDate).getTime();
     return Number.isFinite(t) ? t >= windowStart : true;   // undated: keep
@@ -320,7 +233,15 @@ export async function GET(request) {
   // 1. fold stories several newsrooms covered into a single card
   articles = clusterStories(articles);
   // 2. no newsroom gets more than PER_SOURCE_PER_DAY stories on any given day
-  articles = capPerDay(articles, (a) => a.source, PER_SOURCE_PER_DAY);
+  {
+    const seen = new Map();
+    articles = articles.filter((a) => {
+      const key = a.source + "|" + dayKey(a.pubDate);
+      const n = (seen.get(key) || 0) + 1;
+      seen.set(key, n);
+      return n <= (a.sourcePlace === "home" ? HOME_PER_DAY : PER_SOURCE_PER_DAY);
+    });
+  }
   // 3. crime-blotter items are capped for the whole feed, not per source
   const blotterKept = capPerDay(articles.filter(isBlotter), () => "blotter", BLOTTER_PER_DAY);
   const blotterSet = new Set(blotterKept.map((a) => a.link));
@@ -346,7 +267,7 @@ export async function GET(request) {
     },
     range: rangeKey,
     // So the page can be honest about why a month view looks thin
-    archive: { enabled: archiveEnabled(), days: archiveDays, written: archived.written || 0 },
+    archive: { enabled: archiveEnabled(), stored: older.length },
   };
 
   // If every source failed, say so and don't let the CDN keep this empty result.
