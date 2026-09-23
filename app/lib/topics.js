@@ -162,6 +162,21 @@ function feedCategories(item) {
 
 /* The topics an article belongs to. Usually none, sometimes one, occasionally
    several — all three methods contribute and the results are merged. */
+/* A fingerprint of the headline rules above. Stories are filed with the
+   fingerprint of the rules that tagged them, so a page can skip re-tagging a
+   story whose rules haven't changed — and any edit to the rules changes the
+   fingerprint, so every older story is re-tagged by the new rules
+   automatically. Nobody has to remember to bump a number. */
+export const TOPIC_RULES_VERSION = (() => {
+  const text = JSON.stringify(
+    [TOPICS, TOPIC_PATHS, TOPIC_FEED_CATEGORIES, TOPIC_TITLE_PATTERNS, TOPIC_TITLE_UNLESS_PROVINCIAL, TOPIC_TITLE_PAIRS, PROVINCIAL],
+    (_, v) => (v instanceof RegExp ? `${v.source}/${v.flags}` : v),
+  );
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(36);
+})();
+
 export function topicsFor(article, item) {
   const path = pathOf(article.link);
   const title = article.title || "";

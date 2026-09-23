@@ -15,8 +15,8 @@ import {
    Who calls it:
      - Vercel Cron, once a day (the most the free plan allows). The floor:
        it runs as long as the project exists.
-     - A GitHub Action, every three hours, for freshness. Busy newsrooms
-       roll stories out of their feeds in under a day.
+     - A GitHub Action, every hour. Readers read only from the archive, so
+       this is how fresh the site is: a story appears within the hour.
    Either alone keeps the archive whole; together they cover for each other.
 
    What it collects: the standing sources, plus every publication — own and

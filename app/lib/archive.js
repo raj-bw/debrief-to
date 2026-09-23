@@ -41,6 +41,8 @@
    Every function fails quietly. If the archive is unreachable, or was never
    set up, the site still shows the live feed. ---- */
 
+import { TOPIC_RULES_VERSION } from "./topics";
+
 export const RETENTION_DAYS = 33;
 const DAY = 86400000;
 
@@ -191,6 +193,7 @@ function slim(a) {
     source: a.source,
     sourcePlace: a.sourcePlace,
     topics: a.topics?.length ? a.topics : undefined,
+    tv: TOPIC_RULES_VERSION,          // which version of the topic rules tagged it
     paywall: a.paywall || undefined,
     opinion: a.opinion || undefined,
     image: a.image || undefined,
@@ -231,6 +234,7 @@ export async function storeArticles(bucket, label, articles) {
     hset.push(a.link, slim(stored));
   }
   await pipeline([zadd, hset, ["HSET", "archive:buckets", bucket, JSON.stringify({ name: label, lastAdded: iso })]]);
+  readMemo.clear();   // so the next read on this server sees what was just filed
   return { added: toAdd.length };
 }
 
@@ -242,15 +246,17 @@ export async function storeArticles(bucket, label, articles) {
 const readMemo = new Map();
 const READ_MEMO_MS = 4 * 60 * 1000;
 
-export async function readArticles(buckets, sinceMs, perBucket = 400) {
+export async function readArticles(buckets, sinceMs, limits = 400) {
   if (!archiveEnabled() || !buckets.length) return { articles: [], buckets: 0 };
+  // `limits` is one number for every shelf, or { shared: 4000, default: 800 }.
+  const limitFor = (b) => (typeof limits === "number" ? limits : (limits[b] ?? limits.default ?? 400));
   const since = Math.floor(sinceMs / 600000) * 600000;       // round to 10 min so the memo hits
-  const key = `${buckets.slice().sort().join(",")}|${since}`;
+  const key = `${buckets.slice().sort().join(",")}|${since}|${JSON.stringify(limits)}`;
   const hit = readMemo.get(key);
   if (hit && Date.now() - hit.at < READ_MEMO_MS) return hit.value;
 
   try {
-    const ranges = await pipeline(buckets.map((b) => ["ZREVRANGEBYSCORE", `z:${b}`, "+inf", since, "LIMIT", 0, perBucket]));
+    const ranges = await pipeline(buckets.map((b) => ["ZREVRANGEBYSCORE", `z:${b}`, "+inf", since, "LIMIT", 0, limitFor(b)]));
     const wanted = buckets.map((b, i) => ({ b, links: ranges[i] || [] })).filter((x) => x.links.length);
     const bodies = wanted.length ? await pipeline(wanted.map((x) => ["HMGET", `h:${x.b}`, ...x.links])) : [];
     const articles = [];
@@ -265,10 +271,24 @@ export async function readArticles(buckets, sinceMs, perBucket = 400) {
     });
     const value = { articles, buckets: wanted.length };
     readMemo.set(key, { at: Date.now(), value });
+    if (readMemo.size > 500) readMemo.delete(readMemo.keys().next().value);
     return value;
   } catch (err) {
     console.warn("[debrief.to] archive read failed:", err?.message);
     return { articles: [], buckets: 0, error: err?.message };
+  }
+}
+
+/* How many stories each shelf holds in all, whatever their dates. Tells the
+   feed apart "this paper was quiet today" (shelf has stories, just none
+   this recent) from "we've never managed to collect it" (shelf empty). */
+export async function shelfSizes(buckets) {
+  if (!archiveEnabled() || !buckets.length) return buckets.map(() => 0);
+  try {
+    const sizes = await pipeline(buckets.map((b) => ["ZCARD", `z:${b}`]));
+    return sizes.map((n) => Number(n) || 0);
+  } catch {
+    return buckets.map(() => null);
   }
 }
 

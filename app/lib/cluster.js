@@ -161,13 +161,22 @@ export function clusterStories(articles) {
   const rareNames = names.map((set) => new Set([...set].filter(isRare)));
   const rareWords = words.map((set) => new Set([...set].filter(isRare)));
 
+  /* Only stories within 48 hours of each other can match, so compare each
+     story with its neighbours in time rather than with every other story.
+     With a month of news (several thousand stories) comparing every pair was
+     most of the server's work on each page; this does the same matching for
+     a small fraction of it. Stories without a usable date aren't matched —
+     they never could be, as the 48-hour test always failed for them. */
   const { find, union } = makeFinder(articles.length);
-  for (let i = 0; i < articles.length; i++) {
-    if (rareNames[i].size < 1) continue;                            // no name, no story
-    for (let j = i + 1; j < articles.length; j++) {
-      if (rareNames[j].size < 1) continue;
+  const order = articles.map((_, i) => i)
+    .filter((i) => Number.isFinite(times[i]) && rareNames[i].size >= 1)   // no name, no story
+    .sort((x, y) => times[y] - times[x] || x - y);
+  for (let p = 0; p < order.length; p++) {
+    const i = order[p];
+    for (let q = p + 1; q < order.length; q++) {
+      const j = order[q];
+      if (times[i] - times[j] > FORTY_EIGHT_HOURS) break;            // everything further is older still
       if (articles[i].source === articles[j].source) continue;      // a newsroom doesn't corroborate itself
-      if (Math.abs(times[i] - times[j]) > FORTY_EIGHT_HOURS) continue;
 
       // Two signals are needed, and at least one of them must be a name.
       // A shared name alone means only that two stories mention the same

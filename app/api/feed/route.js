@@ -1,7 +1,7 @@
 import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
-import { topicsFor, placesFor } from "../../lib/topics";
+import { topicsFor, placesFor, TOPIC_RULES_VERSION } from "../../lib/topics";
 import { clusterStories } from "../../lib/cluster";
-import { archiveEnabled, readArticles, bucketFor, activateTown, storeArticles } from "../../lib/archive";
+import { archiveEnabled, readArticles, shelfSizes, bucketFor, activateTown, storeArticles } from "../../lib/archive";
 import { SOURCES } from "../../lib/sources";
 import { buildArticles } from "../../lib/articles";
 // How a story is judged — what gets left out and what only gets labelled —
@@ -17,11 +17,21 @@ import { fetchItems } from "../../lib/fetch-feed";
 // which served weeks-old articles to the first visitor after a quiet stretch.)
 export const dynamic = "force-dynamic";
 
-// How long Vercel's CDN may reuse a copy of the feed:
-//   - fresh for 10 minutes
-//   - then up to 20 more minutes it may serve the old copy while it fetches a new one
-// Each town and time range is a separate address, so each gets its own copy.
-const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
+// How long Vercel's CDN may reuse a copy of the feed. Each town and time
+// range is a separate address, so each gets its own copy.
+//   Today: fresh for 10 minutes, then up to 20 more while a new one is made.
+//   This Week / This Month: 30 minutes, then up to an hour more — a week of
+//   news barely changes in half an hour, and every copy reused is server
+//   time saved.
+const CDN_CACHE = {
+  today: "public, s-maxage=600, stale-while-revalidate=1200",
+  long: "public, s-maxage=1800, stale-while-revalidate=3600",
+};
+
+/* How many stories to take from each shelf. The standing sources share one
+   shelf, so a month of them is a few thousand; the per-day caps below cut
+   that to what's shown. */
+const SHELF_LIMITS = { shared: 4000, default: 800 };
 
 // How many articles any one source may contribute to a single fetch.
 /* How many stories any one source may contribute before the date window is
@@ -57,13 +67,13 @@ const PER_SOURCE_PER_DAY = 5;
 const HOME_PER_DAY = 15;
 const BLOTTER_PER_DAY = 2;
 
-// Day in Toronto time, so "today" means what a reader in Newmarket means by it
+// Day in Toronto time, so "today" means what a reader in Newmarket means by it.
+// One formatter, made once: building a new one for every story was a large
+// share of the work on a month-long page.
+const TORONTO_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", year: "numeric", month: "2-digit", day: "2-digit" });
 function dayKey(iso) {
-  try {
-    return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
-  } catch {
-    return "unknown";
-  }
+  const t = new Date(iso);
+  return Number.isFinite(t.getTime()) ? TORONTO_DAY.format(t) : "unknown";
 }
 
 // Keep at most `max` items per day for each key (list must already be newest first)
@@ -86,7 +96,8 @@ function fairShare(list) {
     rank.set(a.source, n + 1);
     return { a, round: n };
   });
-  ranked.sort((x, y) => x.round - y.round || new Date(y.a.pubDate) - new Date(x.a.pubDate));
+  const ts = new Map(list.map((a) => [a, new Date(a.pubDate).getTime() || 0]));
+  ranked.sort((x, y) => x.round - y.round || ts.get(y.a) - ts.get(x.a));
   return ranked.map((r) => r.a);
 }
 
@@ -119,11 +130,35 @@ function rehydrate(a, colorBySource) {
   };
 }
 
+/* The finished page, kept for a few minutes on this server. The CDN keeps
+   copies too, but each of its regions keeps its own, so the same town and
+   tab can be asked for several times in a few minutes; this answers the
+   repeats without doing the work again. */
+const PAGE_MEMO = new Map();
+const PAGE_MEMO_MS = { today: 4 * 60 * 1000, long: 12 * 60 * 1000 };
+
+function respond(body, rangeKey) {
+  return Response.json(body, {
+    headers: {
+      // Only Vercel's CDN reads this one.
+      "Vercel-CDN-Cache-Control": rangeKey === "today" ? CDN_CACHE.today : CDN_CACHE.long,
+      // Browsers: always check back with the server instead of reusing an old copy.
+      "Cache-Control": "public, max-age=0, must-revalidate",
+    },
+  });
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const townSlug = searchParams.get("town") || DEFAULT_TOWN;
   const rangeKey = (searchParams.get("range") || "today").toLowerCase();
   const days = RANGE_DAYS[rangeKey] || 1;
+
+  const memoKey = `${townSlug.toLowerCase()}|${rangeKey}`;
+  const memoHit = PAGE_MEMO.get(memoKey);
+  if (memoHit && Date.now() - memoHit.at < PAGE_MEMO_MS[rangeKey === "today" ? "today" : "long"]) {
+    return respond(memoHit.body, rangeKey);
+  }
 
   // The reader's local tab: their town if it has a publisher, otherwise the
   // region that covers it.
@@ -136,28 +171,65 @@ export async function GET(request) {
   const allSources = [...townSources, ...SOURCES];
   const colorBySource = new Map(allSources.map((s) => [s.name, s.color]));
   const windowStart = Date.now() - (days + 1) * 86400000;
-
-  /* Live feeds and the archive, side by side. The archive is read for every
-     tab, Today included: a busy newsroom's morning story has often rolled
-     out of its live feed by evening, and before this it simply vanished. */
   const townBuckets = townSources.map(bucketFor);
-  const [results, stored] = await Promise.all([
-    Promise.all(allSources.map((s) => fetchSource(s))),
-    archiveEnabled() ? readArticles(["shared", ...townBuckets], windowStart) : Promise.resolve({ articles: [] }),
-  ]);
-  const errors = [];
-  const live = [];
-  for (const r of results) {
-    if (Array.isArray(r)) live.push(...r);
-    else if (r?.__error) errors.push({ source: r.__error, message: r.message });
+
+  /* ---- Where the stories come from ----
+     Readers read from the archive. The collector visits every publisher
+     every hour and files what it finds, so a page view is a database lookup
+     rather than thirty publishers asked and thirty feeds parsed — about
+     twenty times less server work, which is what keeps the site inside the
+     free plan as readers arrive.
+
+     Publishers are only asked directly in three cases:
+       - the archive is down or not set up (the site must still work);
+       - a town is being picked for the very first time (its shelf is empty
+         until the next collector run, so fetch it now and file it);
+       - a town's shelves are empty altogether (never collected — a new
+         feed, or one that failed on its first visit). */
+  const regionSources = (town.regionFeeds || [])
+    .filter((f) => !townBuckets.includes(bucketFor(f)))
+    .map((f) => ({ ...f, place: "home" }));
+  const regionBuckets = regionSources.map(bucketFor);
+  regionSources.forEach((s) => colorBySource.set(s.name, s.color));
+
+  let archiveOk = archiveEnabled();
+  let stored = { articles: [] };
+  if (archiveOk) {
+    stored = await readArticles(["shared", ...townBuckets, ...regionBuckets], windowStart, SHELF_LIMITS);
+    if (stored.error) archiveOk = false;
   }
 
-  /* A town becomes active the first time anyone picks it, and the collector
-     looks after it from then on. On that first visit, what we just fetched
-     is stored too, so its archive starts today rather than at the next run. */
-  if (town.label && townSources.length && archiveEnabled()) {
-    const isNew = await activateTown(town.slug);
-    if (isNew) {
+  const errors = [];
+  const live = [];
+  const fetchLive = async (sources) => {
+    const results = await Promise.all(sources.map((s) => fetchSource(s)));
+    for (const r of results) {
+      if (Array.isArray(r)) live.push(...r);
+      else if (r?.__error) errors.push({ source: r.__error, message: r.message });
+    }
+  };
+
+  let askedTownLive = false;     // publishers were asked directly for this town
+  if (!archiveOk) {
+    await fetchLive(allSources);
+  } else {
+    // A town becomes active the first time anyone picks it, and stays so.
+    const isNew = town.label && townSources.length ? await activateTown(town.slug) : false;
+    const storedHome = stored.articles.some((a) => townBuckets.includes(a.bucket));
+    let neverCollected = false;
+    if (!isNew && townSources.length && !storedHome) {
+      const sizes = await shelfSizes(townBuckets);
+      neverCollected = sizes.every((n) => n === 0);
+    }
+    const sharedEmpty = !stored.articles.some((a) => a.bucket === "shared");
+    const toFetch = [
+      ...(isNew || neverCollected ? townSources : []),
+      ...(sharedEmpty ? SOURCES : []),      // only before the collector's first run
+    ];
+    if (toFetch.length) await fetchLive(toFetch);
+    askedTownLive = isNew || neverCollected;
+    // File what was just fetched for the town, so its shelf starts now.
+    if (isNew || neverCollected) {
       await Promise.all(townSources.map((src, i) =>
         storeArticles(townBuckets[i], src.name, live.filter((a) => a.source === src.name)).catch(() => null)));
     }
@@ -169,35 +241,33 @@ export async function GET(request) {
      shelves are the town's local news. "National" was the old name for the
      Canada place. */
   const homeBuckets = new Set(townBuckets);
-  const older = (stored.articles || []).map((a) => {
+  const regionSet = new Set(regionBuckets);
+  const retag = (a) => {
     const r = rehydrate(a, colorBySource);
-    if (homeBuckets.has(a.bucket)) r.sourcePlace = "home";
+    if (homeBuckets.has(a.bucket) || regionSet.has(a.bucket)) r.sourcePlace = "home";
     else if (r.sourcePlace === "National") r.sourcePlace = "Canada";
-    r.topics = [...new Set([...(r.topics || []), ...topicsFor(r, null)])];
+    // Re-tag only stories filed under older rules (see TOPIC_RULES_VERSION).
+    if (a.tv !== TOPIC_RULES_VERSION) r.topics = [...new Set([...(r.topics || []), ...topicsFor(r, null)])];
+    delete r.tv;
     return r;
-  });
+  };
+  let older = stored.articles.filter((a) => !regionSet.has(a.bucket)).map(retag);
 
-  /* If the town's own publisher has nothing — not live, not in the archive
-     for this window — fall back to the region's. A feed can break for a
-     morning; that shouldn't leave someone staring at an empty local tab.
-     The tab takes the region's name when this happens, because that is what
-     the reader is actually getting. */
-  const regionFeeds = town.regionFeeds || [];
-  const sameAsTown = (f) => townBuckets.includes(bucketFor(f));
+  /* If the town's own publisher has nothing in this window, the region's
+     publisher stands in, and the tab takes the region's name, because that
+     is what the reader is actually getting. (A town with no publisher of its
+     own is already set up this way by resolveTown.) */
   const inWindowAt = (a) => { const t = new Date(a.pubDate).getTime(); return !Number.isFinite(t) || t >= windowStart; };
   const hasHome = () => live.some((a) => a.sourcePlace === "home") || older.some((a) => a.sourcePlace === "home" && inWindowAt(a));
-  if (townSources.length && !usingRegion && !hasHome()) {
-    const spares = regionFeeds.filter((f) => !sameAsTown(f)).map((f) => ({ ...f, place: "home" }));
-    if (spares.length) {
-      const rescued = await Promise.all(spares.map((s) => fetchSource(s)));
-      for (const r of rescued) {
-        if (Array.isArray(r)) live.push(...r);
-        else if (r?.__error) errors.push({ source: r.__error, message: r.message });
-      }
-      if (live.some((a) => a.sourcePlace === "home")) {
-        homePlace = town.regionName;
-        usingRegion = true;
-      }
+  if (townSources.length && !usingRegion && !hasHome() && regionSources.length) {
+    const fromShelf = stored.articles.filter((a) => regionSet.has(a.bucket)).map(retag);
+    if (fromShelf.length) older = older.concat(fromShelf);
+    // Nothing on the region's shelf yet either: on a town's first visit (or
+    // with the archive down) ask the region's publisher directly.
+    else if (!archiveOk || askedTownLive) await fetchLive(regionSources);
+    if (hasHome()) {
+      homePlace = town.regionName;
+      usingRegion = true;
     }
   }
 
@@ -228,7 +298,11 @@ export async function GET(request) {
   };
   articles = articles.filter(inWindow);
 
-  articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  {
+    const ts = new Map(articles.map((a) => [a, new Date(a.pubDate).getTime()]));
+    const at = (a) => (Number.isFinite(ts.get(a)) ? ts.get(a) : -Infinity);   // undated last
+    articles.sort((a, b) => at(b) - at(a));
+  }
 
   // 1. fold stories several newsrooms covered into a single card
   articles = clusterStories(articles);
@@ -275,12 +349,11 @@ export async function GET(request) {
     return Response.json(body, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
-  return Response.json(body, {
-    headers: {
-      // Only Vercel's CDN reads this one.
-      "Vercel-CDN-Cache-Control": CDN_CACHE,
-      // Browsers: always check back with the server instead of reusing an old copy.
-      "Cache-Control": "public, max-age=0, must-revalidate",
-    },
-  });
+  // Keep it only if it came from the archive as usual — a page patched
+  // together from live fetches during an outage shouldn't be repeated.
+  if (archiveOk) {
+    PAGE_MEMO.set(memoKey, { at: Date.now(), body });
+    if (PAGE_MEMO.size > 300) PAGE_MEMO.delete(PAGE_MEMO.keys().next().value);
+  }
+  return respond(body, rangeKey);
 }
