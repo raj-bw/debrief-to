@@ -55,7 +55,7 @@ export async function GET(request) {
 
   /* The archive's own report: how many towns are active, how many
      publications and stories are stored, the oldest story (which should
-     settle at about 45 days), and what the collector did last time it ran.
+     settle at about 33 days), and what the collector did last time it ran.
      If lastCollectorRun is more than a day old, the schedules have stopped. */
   const archive = await archiveStats();
 

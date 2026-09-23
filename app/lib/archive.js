@@ -12,7 +12,7 @@
    - A town becomes active the first time anyone picks it, and stays active.
      From then on its publications are collected every run, every day.
 
-   - Each publication has its own shelf. Anything older than 45 days is
+   - Each publication has its own shelf. Anything older than 33 days is
      removed from that publication's shelf once a day, so storage stays
      bounded however long the site runs.
 
@@ -25,8 +25,8 @@
 
    The limit that matters is size: the free Redis plan is 30 MB. A story
    takes about 850 bytes stored (measured), so that's roughly 30,000
-   stories — the standing sources plus a dozen or so busy towns at 45 days. If
-   it ever fills past 85%, the collector trims the oldest days early (never
+   stories — the standing sources plus roughly 20 busy towns at the 33
+   days kept (just over the Month tab's 31-day window). If it ever fills past 85%, the collector trims the oldest days early (never
    below three weeks) rather than let writes fail; /api/health shows how
    full it is and what retention is actually in force.
 
@@ -41,7 +41,7 @@
    Every function fails quietly. If the archive is unreachable, or was never
    set up, the site still shows the live feed. ---- */
 
-export const RETENTION_DAYS = 45;
+export const RETENTION_DAYS = 33;
 const DAY = 86400000;
 
 /* ---- Where the database is ----
@@ -298,9 +298,9 @@ export async function activeTowns() {
   }
 }
 
-/* ---- The 45-day rule ----
+/* ---- The 33-day rule ----
    Once a day, every publication's shelf loses anything published more than
-   45 days ago, and a shelf left empty is forgotten entirely. */
+   33 days ago (a little over the Month tab), and a shelf left empty is forgotten entirely. */
 export async function trimAll(days = RETENTION_DAYS) {
   if (!archiveEnabled()) return { removed: 0 };
   const cutoff = Date.now() - days * DAY;

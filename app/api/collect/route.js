@@ -4,7 +4,7 @@ import { fetchItems } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
 import {
   archiveEnabled, archiveBackend, bucketFor, storeArticles, activeTowns,
-  trimAll, makeRoom, getState, setState, torontoDay,
+  trimAll, makeRoom, getState, setState, torontoDay, RETENTION_DAYS,
 } from "../../lib/archive";
 
 /* ---- The collector ----
@@ -22,7 +22,7 @@ import {
    What it collects: the standing sources, plus every publication — own and
    regional — of every town anyone has ever picked. Newmarket always.
 
-   Once a Toronto day it also applies the 45-day rule to every shelf.
+   Once a Toronto day it also applies the 33-day rule to every shelf.
 
    Protection: if CRON_SECRET is set in Vercel, callers must send it (Vercel
    Cron does so automatically; the GitHub Action reads it from a repository
@@ -118,13 +118,13 @@ export async function GET(request) {
   })();
   await Promise.all([...Array.from({ length: CONCURRENCY }, worker), bloxRun]);
 
-  // The 45-day rule, once a day.
+  // The 33-day rule, once a day.
   let trimmed = null;
   const today = torontoDay();
   if (state.lastTrimDay !== today) {
     try {
       trimmed = await trimAll();
-      await setState({ lastTrimDay: today, retentionInForce: String(room?.retentionDays ?? 45) });
+      await setState({ lastTrimDay: today, retentionInForce: String(room?.retentionDays ?? RETENTION_DAYS) });
     }
     catch (err) { trimmed = { error: err?.message }; }
   }
