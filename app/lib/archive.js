@@ -41,16 +41,35 @@
 export const RETENTION_DAYS = 45;
 const DAY = 86400000;
 
-const REST_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "";
-const REST_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "";
+/* Where Upstash's settings live. Connecting it through Vercel adds
+   KV_REST_API_URL and KV_REST_API_TOKEN — unless a custom prefix was chosen
+   when connecting, which gives e.g. STORAGE_KV_REST_API_URL. Upstash's own
+   dashboard names them UPSTASH_REDIS_REST_URL / _TOKEN. Any of these works:
+   the first URL setting found is used, with the token of the same prefix. */
+function findRest() {
+  const keys = Object.keys(process.env);
+  const urlKey = keys.find((k) => /(^|_)KV_REST_API_URL$/.test(k))
+    || keys.find((k) => /(^|_)UPSTASH_REDIS_REST_URL$/.test(k));
+  if (!urlKey) return { url: "", token: "", urlKey: null };
+  const tokenKey = urlKey.replace(/URL$/, "TOKEN");
+  return { url: process.env[urlKey] || "", token: process.env[tokenKey] || "", urlKey, tokenKey };
+}
+const REST = findRest();
+const REST_URL = REST.url;
+const REST_TOKEN = REST.token;
 
 export function archiveEnabled() {
   return Boolean(REST_URL && REST_TOKEN);
 }
 
 export function archiveBackend() {
-  if (!archiveEnabled()) return "none — add Upstash Redis in the Vercel Marketplace";
-  return process.env.KV_REST_API_URL ? "upstash redis (KV_REST_API_*)" : "upstash redis (UPSTASH_REDIS_REST_*)";
+  if (archiveEnabled()) return `upstash redis (${REST.urlKey})`;
+  // Names only, never values: enough to see what's missing or misnamed.
+  const seen = Object.keys(process.env).filter((k) => /KV|REDIS|UPSTASH/i.test(k)).sort();
+  if (REST.urlKey && !REST_TOKEN) return `found ${REST.urlKey} but no ${REST.tokenKey} — check the token setting`;
+  return seen.length
+    ? `not connected — saw these settings, none usable: ${seen.join(", ")}`
+    : "not connected — no Upstash settings in this deployment. Add Upstash Redis in the Vercel Marketplace, connect it to this project for Production, then redeploy.";
 }
 
 // The date in Toronto, because "today" should mean what a reader in Newmarket
