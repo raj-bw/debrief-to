@@ -1,25 +1,53 @@
+# Keeps the archive filling, every three hours, whether or not anyone visits.
+#
+# The collector (/api/collect) visits every publication for every active town
+# and stores what's new. Vercel runs it once a day on its own (vercel.json);
+# the free plan allows no more than that. Busy newsrooms roll stories out of
+# their feeds in less than a day, so this runs it every three hours as well.
+# Either one alone keeps the archive whole; together they cover for each other.
+#
+# Setup, once:
+#   1. In Vercel: Settings → Environment Variables → add CRON_SECRET (any long
+#      random string). Vercel's own daily run sends it automatically.
+#   2. In GitHub: Settings → Secrets and variables → Actions → New repository
+#      secret → name CRON_SECRET, same value.
+# Without the secret the collector still runs, but at most every 20 minutes.
+#
+# GitHub pauses scheduled workflows in a repository with no activity for 60
+# days. The last step prevents that, so this keeps running untended.
+
 name: Keep the archive filling
 
 on:
   schedule:
-    # Times are UTC. Roughly 7am, 1pm and 7pm Toronto time.
-    - cron: "0 11,17,23 * * *"
-  workflow_dispatch: {}
+    - cron: "17 */3 * * *"   # every three hours, at 17 past (quieter than :00)
+  workflow_dispatch: {}       # "Run workflow" button in the Actions tab
+
+permissions:
+  actions: write              # only for the keepalive step
 
 jobs:
-  ping:
+  collect:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Load the feed so today's stories are archived
+      - name: Run the collector
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          set -e
-          for range in today week month; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" \
-              "https://debrief.to/api/feed?town=newmarket&range=$range")
-            echo "range=$range -> HTTP $code"
-          done
+          auth=()
+          if [ -n "$CRON_SECRET" ]; then auth=(-H "Authorization: Bearer $CRON_SECRET"); fi
+          code=$(curl -sS --max-time 320 -o out.json -w "%{http_code}" "${auth[@]}" "https://debrief.to/api/collect")
+          head -c 3000 out.json; echo
+          echo "collector answered HTTP $code"
+          if [ "$code" = "401" ]; then echo "::error::CRON_SECRET in GitHub doesn't match the one in Vercel"; exit 1; fi
+          if [ "$code" != "200" ]; then echo "::error::collector did not finish (HTTP $code)"; exit 1; fi
 
-      - name: Report which feeds are answering
+      # limit=1 checks one feed only, so this report doesn't knock on every
+      # publisher at once (that burst is what trips Metroland's 429s).
+      - name: Report the archive's state
         run: |
-          curl -s "https://debrief.to/api/health" | head -c 2000
-          echo
+          curl -sS --max-time 60 "https://debrief.to/api/health?limit=1" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('archive'), indent=1))"
+
+      - name: Stop GitHub pausing this schedule
+        uses: gautamkrishnar/keepalive-workflow@v2
