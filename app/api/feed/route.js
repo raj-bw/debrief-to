@@ -22,7 +22,12 @@ export const dynamic = "force-dynamic";
 const CDN_CACHE = "public, s-maxage=600, stale-while-revalidate=1200";
 
 // How many articles any one source may contribute to a single fetch.
-const PER_SOURCE_LIMIT = 8;
+/* How many stories any one source may contribute before the date window is
+   applied. This used to be 8, which for a daily paper is about half a day —
+   so This Week and This Month quietly showed the same few hours as Today.
+   Balance between newsrooms is kept later, by the per-day cap and fairShare,
+   which see the dates; this cut can't. */
+const PER_SOURCE_LIMIT = 40;
 
 /* The standing source list: everything that isn't tied to the reader's own
    town. The town's own publisher is added on top of this, and comes from the
@@ -34,13 +39,13 @@ const PER_SOURCE_LIMIT = 8;
 const SOURCES = [
   // --- Toronto ---
   { name: "CBC Toronto",     urls: ["https://www.cbc.ca/cmlink/rss-canada-toronto", "https://www.cbc.ca/webfeed/rss/rss-canada-toronto"], color: "#E03C31", place: "Toronto" },
-  { name: "TorontoToday",    urls: ["https://www.torontotoday.ca/local/feed", "https://www.torontotoday.ca/feed", "https://www.torontotoday.ca/rss"], color: "#0F7B6C", place: "Toronto", kind: "village" },
+  { name: "TorontoToday",    urls: ["https://www.torontotoday.ca/rss/local", "https://www.torontotoday.ca/rss/local-news", "https://www.torontotoday.ca/rss"], color: "#0F7B6C", place: "Toronto", kind: "village" },
   { name: "The Green Line",  urls: ["https://thegreenline.to/feed/", "https://thegreenline.to/rss"], color: "#4C8C2B", place: "Toronto" },
   { name: "thelocal.to",     urls: ["https://thelocal.to/feed/"], color: "#3A9B7A", place: "Toronto" },
   { name: "Spacing Toronto", urls: ["https://spacing.ca/toronto/feed/"], color: "#0F2E4A", place: "Toronto" },
   { name: "Toronto Star",    urls: ["https://www.thestar.com/search/?f=rss&t=article&c=news%2Fgta*&l=20&s=start_time&sd=desc", "https://www.thestar.com/feeds.articles.gta.rss"], color: "#003DA5", place: "Toronto" },
   // --- Ontario ---
-  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/local/feed", "https://www.thetrillium.ca/feed", "https://www.thetrillium.ca/rss"], color: "#7B2D8E", place: "Ontario" },
+  { name: "The Trillium",    urls: ["https://www.thetrillium.ca/rss/news", "https://www.thetrillium.ca/rss"], color: "#7B2D8E", place: "Ontario" },
   { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"], color: "#2D6A4F", place: "Ontario" },
   // --- National reporting ---
   { name: "National Observer", urls: ["https://www.nationalobserver.com/front/rss", "https://www.nationalobserver.com/rss.xml"], color: "#0B7285", place: "National" },

@@ -386,8 +386,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <Rule title="What we filter out.">
             We remove syndicated wire copy that isn&apos;t about your community, sports and entertainment sections,
             weather posts, video clips, event promotions, obituaries, press releases, paid placements, and columns
-            syndicated across a newspaper chain. Local editorials and letters stay, labelled Opinion. Papers that
-            charge after a few free articles are labelled Sub. In every case we are filtering
+            syndicated across a newspaper chain. Local editorials and letters stay, labelled Opinion. Stories their
+            own publisher marks as subscriber-only are labelled Sub. In every case we are filtering
             by <em>format</em>, not by subject. A story is never removed because of what it is about or what
             conclusion it reaches.
           </Rule>

@@ -21,8 +21,23 @@
      blox      Metroland and Torstar's platform, asked for its news section
 
    `owner` is shown on the About page. Left blank where we haven't confirmed
-   it, rather than guessed. `paywall` marks metered dailies, labelled "Sub"
-   like the Toronto Star. ---- */
+   it, rather than guessed.
+
+   `paywall` is set only where we checked. Each paper's own article pages
+   carry a standard marker (schema.org isAccessibleForFree) that tells
+   search engines whether a story is free, and on 23 September 2026 we read
+   it on 6–10 recent stories per paper. Every paper was consistent across
+   its own stories, but not across its chain:
+     paid  — every Torstar daily, and Postmedia's Nugget, Ottawa Citizen and
+             Timmins Daily Press
+     free  — Postmedia's Brantford Expositor, Sarnia Observer, Simcoe
+             Reformer, Northern News and Mid-North Monitor
+     no marker — the Postmedia papers read through the WordPress API (London
+             Free Press and its town sections, the Whig, Windsor Star and the
+             rest). Opened as a first-time reader, stories read in full.
+   So only the "paid" group is labelled Sub. The first version of this file
+   labelled every Postmedia and Torstar title Sub, which put the label on
+   free stories. ---- */
 
 export const PUBLISHERS = [
   { name: "Aurora Today", village: "auroratoday.ca", owner: "Village Media", serves: ["Aurora"] },
@@ -82,36 +97,36 @@ export const PUBLISHERS = [
   { name: "St. Marys Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["St Marys", "St. Marys"], serves: ["St. Marys"] },
   { name: "Paris Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["Paris Independent"], serves: ["Brant"] },
   { name: "West Northumberland", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["West Northumberland"], serves: ["Cobourg", "Port Hope"] },
-  { name: "Brantford Expositor", urls: ["https://www.brantfordexpositor.ca/feed"], owner: "Postmedia", paywall: true, serves: ["Brant", "Brantford"] },
-  { name: "Northern News", urls: ["https://www.northernnews.ca/feed"], owner: "Postmedia", paywall: true, home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
+  { name: "Brantford Expositor", urls: ["https://www.brantfordexpositor.ca/feed"], owner: "Postmedia", serves: ["Brant", "Brantford"] },
+  { name: "Northern News", urls: ["https://www.northernnews.ca/feed"], owner: "Postmedia", home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
   { name: "North Bay Nugget", urls: ["https://www.nugget.ca/feed"], owner: "Postmedia", paywall: true, serves: ["North Bay"] },
   { name: "Ottawa Citizen", urls: ["https://www.ottawacitizen.com/feed"], owner: "Postmedia", paywall: true, serves: ["Ottawa"] },
-  { name: "Sarnia Observer", urls: ["https://www.theobserver.ca/feed"], owner: "Postmedia", paywall: true, home: "Sarnia", area: "Sarnia-Lambton", serves: ["Dawn-Euphemia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
-  { name: "Simcoe Reformer", urls: ["https://www.simcoereformer.ca/feed"], owner: "Postmedia", paywall: true, serves: ["Norfolk", "Tillsonburg"] },
+  { name: "Sarnia Observer", urls: ["https://www.theobserver.ca/feed"], owner: "Postmedia", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Dawn-Euphemia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
+  { name: "Simcoe Reformer", urls: ["https://www.simcoereformer.ca/feed"], owner: "Postmedia", serves: ["Norfolk", "Tillsonburg"] },
   { name: "Timmins Daily Press", urls: ["https://www.timminspress.com/feed"], owner: "Postmedia", paywall: true, serves: ["Timmins"] },
   { name: "Mid-North Monitor", urls: ["https://www.midnorthmonitor.com/feed"], owner: "Postmedia", serves: ["Espanola", "Sables-Spanish Rivers"] },
-  { name: "Kingston Whig-Standard", wp: { api: "https://www.thewhig.com", categoryId: 5, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Kingston"] },
-  { name: "Windsor Star", wp: { api: "https://windsorstar.com", categoryId: 2382, category: "news" }, owner: "Postmedia", paywall: true, home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Pelee", "Tecumseh", "Windsor"] },
-  { name: "London Free Press", wp: { api: "https://lfpress.com", categoryId: 12, category: "news" }, owner: "Postmedia", paywall: true, home: "London", area: "London and area", serves: ["Adelaide Metcalfe", "London", "Lucan Biddulph", "Strathroy-Caradoc", "Thames Centre"] },
-  { name: "Goderich Signal-Star", wp: { api: "https://lfpress.com", categoryId: 5, category: "goderich" }, owner: "Postmedia", paywall: true, serves: ["Ashfield-Colborne-Wawanosh", "Bluewater", "Goderich"] },
-  { name: "Clinton News-Record", wp: { api: "https://lfpress.com", categoryId: 6, category: "clinton" }, owner: "Postmedia", paywall: true, serves: ["Central Huron"] },
-  { name: "Mitchell Advocate", wp: { api: "https://lfpress.com", categoryId: 7, category: "mitchell" }, owner: "Postmedia", paywall: true, serves: ["West Perth"] },
-  { name: "Seaforth Huron Expositor", wp: { api: "https://lfpress.com", categoryId: 8, category: "seaforth-huron" }, owner: "Postmedia", paywall: true, serves: ["Huron East"] },
-  { name: "Woodstock Sentinel-Review", wp: { api: "https://lfpress.com", categoryId: 9, category: "woodstock" }, owner: "Postmedia", paywall: true, home: "Woodstock", area: "Oxford County", serves: ["Blandford-Blenheim", "East Zorra-Tavistock", "Ingersoll", "Norwich", "South-West Oxford", "Tillsonburg", "Woodstock", "Zorra"] },
-  { name: "St. Thomas Times-Journal", wp: { api: "https://lfpress.com", categoryId: 10, category: "st-thomas" }, owner: "Postmedia", paywall: true, home: "St. Thomas", area: "Elgin County", serves: ["Aylmer", "Bayham", "Central Elgin", "Dutton/Dunwich", "Malahide", "Southwold", "St. Thomas", "West Elgin"] },
-  { name: "Strathroy Age Dispatch", wp: { api: "https://lfpress.com", categoryId: 11, category: "strathroy" }, owner: "Postmedia", paywall: true, serves: ["Strathroy-Caradoc"] },
-  { name: "Chatham Daily News", wp: { api: "https://www.chathamdailynews.ca", categoryId: 7, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Chatham-Kent"] },
-  { name: "Belleville Intelligencer", wp: { api: "https://www.intelligencer.ca", categoryId: 8, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Belleville", "Quinte West"] },
-  { name: "Owen Sound Sun Times", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 9, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Chatsworth", "Georgian Bluffs", "Owen Sound"] },
-  { name: "Shoreline Beacon", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6120, category: "port-elgin" }, owner: "Postmedia", paywall: true, serves: ["Arran-Elderslie", "Saugeen Shores"] },
-  { name: "Kincardine News", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6123, category: "kincardine" }, owner: "Postmedia", paywall: true, serves: ["Kincardine"] },
-  { name: "Hanover Post", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6124, category: "hanover" }, owner: "Postmedia", paywall: true, serves: ["Hanover", "Southgate", "West Grey"] },
-  { name: "Lucknow Sentinel", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6121, category: "lucknow" }, owner: "Postmedia", paywall: true, serves: ["Huron-Kinloss"] },
-  { name: "Wiarton Echo", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6122, category: "wiarton" }, owner: "Postmedia", paywall: true, serves: ["South Bruce Peninsula"] },
-  { name: "Cornwall Standard-Freeholder", wp: { api: "https://www.standard-freeholder.com", categoryId: 4, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Cornwall"] },
-  { name: "Brockville Recorder and Times", wp: { api: "https://www.recorder.ca", categoryId: 3, category: "news" }, owner: "Postmedia", paywall: true, home: "Brockville", area: "Brockville and area", serves: ["Athens", "Augusta", "Brockville", "Front of Yonge", "Prescott", "Rideau Lakes"] },
-  { name: "Gananoque Reporter", wp: { api: "https://www.recorder.ca", categoryId: 4774, category: "gananoque" }, owner: "Postmedia", paywall: true, serves: ["Gananoque", "Leeds and the Thousand Islands"] },
-  { name: "Pembroke Observer", wp: { api: "https://www.pembrokeobserver.com", categoryId: 9, category: "news" }, owner: "Postmedia", paywall: true, home: "Pembroke", area: "Upper Ottawa Valley", serves: ["Admaston/Bromley", "Bonnechere Valley", "Brudenell, Lyndoch and Raglan", "Deep River", "Greater Madawaska", "Head, Clara and Maria", "Horton", "Killaloe, Hagarty, Richards", "Laurentian Hills", "Laurentian Valley", "Madawaska Valley", "McNab/Braeside", "North Algona Wilberforce", "Pembroke", "Petawawa", "Renfrew"] },
+  { name: "Kingston Whig-Standard", wp: { api: "https://www.thewhig.com", categoryId: 5, category: "news" }, owner: "Postmedia", serves: ["Kingston"] },
+  { name: "Windsor Star", wp: { api: "https://windsorstar.com", categoryId: 2382, category: "news" }, owner: "Postmedia", home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Pelee", "Tecumseh", "Windsor"] },
+  { name: "London Free Press", wp: { api: "https://lfpress.com", categoryId: 12, category: "news" }, owner: "Postmedia", home: "London", area: "London and area", serves: ["Adelaide Metcalfe", "London", "Lucan Biddulph", "Strathroy-Caradoc", "Thames Centre"] },
+  { name: "Goderich Signal-Star", wp: { api: "https://lfpress.com", categoryId: 5, category: "goderich" }, owner: "Postmedia", serves: ["Ashfield-Colborne-Wawanosh", "Bluewater", "Goderich"] },
+  { name: "Clinton News-Record", wp: { api: "https://lfpress.com", categoryId: 6, category: "clinton" }, owner: "Postmedia", serves: ["Central Huron"] },
+  { name: "Mitchell Advocate", wp: { api: "https://lfpress.com", categoryId: 7, category: "mitchell" }, owner: "Postmedia", serves: ["West Perth"] },
+  { name: "Seaforth Huron Expositor", wp: { api: "https://lfpress.com", categoryId: 8, category: "seaforth-huron" }, owner: "Postmedia", serves: ["Huron East"] },
+  { name: "Woodstock Sentinel-Review", wp: { api: "https://lfpress.com", categoryId: 9, category: "woodstock" }, owner: "Postmedia", home: "Woodstock", area: "Oxford County", serves: ["Blandford-Blenheim", "East Zorra-Tavistock", "Ingersoll", "Norwich", "South-West Oxford", "Tillsonburg", "Woodstock", "Zorra"] },
+  { name: "St. Thomas Times-Journal", wp: { api: "https://lfpress.com", categoryId: 10, category: "st-thomas" }, owner: "Postmedia", home: "St. Thomas", area: "Elgin County", serves: ["Aylmer", "Bayham", "Central Elgin", "Dutton/Dunwich", "Malahide", "Southwold", "St. Thomas", "West Elgin"] },
+  { name: "Strathroy Age Dispatch", wp: { api: "https://lfpress.com", categoryId: 11, category: "strathroy" }, owner: "Postmedia", serves: ["Strathroy-Caradoc"] },
+  { name: "Chatham Daily News", wp: { api: "https://www.chathamdailynews.ca", categoryId: 7, category: "news" }, owner: "Postmedia", serves: ["Chatham-Kent"] },
+  { name: "Belleville Intelligencer", wp: { api: "https://www.intelligencer.ca", categoryId: 8, category: "news" }, owner: "Postmedia", serves: ["Belleville", "Quinte West"] },
+  { name: "Owen Sound Sun Times", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 9, category: "news" }, owner: "Postmedia", serves: ["Chatsworth", "Georgian Bluffs", "Owen Sound"] },
+  { name: "Shoreline Beacon", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6120, category: "port-elgin" }, owner: "Postmedia", serves: ["Arran-Elderslie", "Saugeen Shores"] },
+  { name: "Kincardine News", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6123, category: "kincardine" }, owner: "Postmedia", serves: ["Kincardine"] },
+  { name: "Hanover Post", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6124, category: "hanover" }, owner: "Postmedia", serves: ["Hanover", "Southgate", "West Grey"] },
+  { name: "Lucknow Sentinel", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6121, category: "lucknow" }, owner: "Postmedia", serves: ["Huron-Kinloss"] },
+  { name: "Wiarton Echo", wp: { api: "https://www.owensoundsuntimes.com", categoryId: 6122, category: "wiarton" }, owner: "Postmedia", serves: ["South Bruce Peninsula"] },
+  { name: "Cornwall Standard-Freeholder", wp: { api: "https://www.standard-freeholder.com", categoryId: 4, category: "news" }, owner: "Postmedia", serves: ["Cornwall"] },
+  { name: "Brockville Recorder and Times", wp: { api: "https://www.recorder.ca", categoryId: 3, category: "news" }, owner: "Postmedia", home: "Brockville", area: "Brockville and area", serves: ["Athens", "Augusta", "Brockville", "Front of Yonge", "Prescott", "Rideau Lakes"] },
+  { name: "Gananoque Reporter", wp: { api: "https://www.recorder.ca", categoryId: 4774, category: "gananoque" }, owner: "Postmedia", serves: ["Gananoque", "Leeds and the Thousand Islands"] },
+  { name: "Pembroke Observer", wp: { api: "https://www.pembrokeobserver.com", categoryId: 9, category: "news" }, owner: "Postmedia", home: "Pembroke", area: "Upper Ottawa Valley", serves: ["Admaston/Bromley", "Bonnechere Valley", "Brudenell, Lyndoch and Raglan", "Deep River", "Greater Madawaska", "Head, Clara and Maria", "Horton", "Killaloe, Hagarty, Richards", "Laurentian Hills", "Laurentian Valley", "Madawaska Valley", "McNab/Braeside", "North Algona Wilberforce", "Pembroke", "Petawawa", "Renfrew"] },
   { name: "Niagara Falls Review", blox: "niagarafallsreview.ca", owner: "Torstar (NordStar Capital)", paywall: true, serves: ["Fort Erie", "Niagara Falls", "Wainfleet"] },
   { name: "St. Catharines Standard", blox: "stcatharinesstandard.ca", owner: "Torstar (NordStar Capital)", paywall: true, home: "St. Catharines", area: "Niagara Region", serves: ["Grimsby", "Lincoln", "Port Colborne", "St. Catharines", "West Lincoln"] },
   { name: "Welland Tribune", blox: "wellandtribune.ca", owner: "Torstar (NordStar Capital)", paywall: true, serves: ["Welland"] },

@@ -18,7 +18,7 @@ export const maxDuration = 60;
 
 async function check(feed) {
   try {
-    const { items, url, via } = await fetchItems(feed);
+    const { items, url, via } = await fetchItems(feed, { fresh: true });
     const newest = items[0]?.isoDate || items[0]?.pubDate || null;
     return {
       name: feed.name, ok: true, url, items: items.length, newest,

@@ -27,7 +27,14 @@ import { PUBLISHERS } from "./publishers";
 function villageMedia(name, host, color) {
   return {
     name,
-    urls: [`https://www.${host}/local/feed`, `https://www.${host}/feed`, `https://www.${host}/rss`],
+    /* The main /rss is 20 items, and on a typical morning 17 of them are
+       Canadian Press wire copy that the filters rightly drop — so it reaches
+       back five hours and leaves two or three local stories. Newmarket's tab
+       was showing three stories in every range for exactly this reason.
+       /rss/local-news is the same 20 items drawn only from local sections,
+       reaching back a day and a half. TorontoToday calls its section
+       "local". /rss stays last as the fallback. */
+    urls: [`https://www.${host}/rss/local-news`, `https://www.${host}/rss/local`, `https://www.${host}/rss`],
     color,
     kind: "village", // these carry syndicated wire copy that gets filtered out
     owner: "Village Media",

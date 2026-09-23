@@ -17,7 +17,10 @@ const WIRE_PATHS = [
   // Not wire copy, but not news either. Obituaries and death notices are the
   // biggest single category of non-news on these sites, and running a stranger's
   // funeral notice next to a council story serves nobody.
-  "/obituaries/", "/obituary/", "/deaths/",
+  "/obituaries/", "/obituary/", "/deaths/", "/in-memoriam/",
+  // The "Good morning, Newmarket" roundup: weather and links to stories we
+  // already carry, not a story of its own.
+  "/good-morning/",
   "/local-entertainment/", "/local-sports/",
   // Paid placements dressed as articles
   "/spotlight/", "/local-sponsored/", "/sponsored/", "/classifieds/", "/deals/",

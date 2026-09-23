@@ -132,19 +132,48 @@ async function fetchWpJson(src) {
   return { items, url: postsFor(id), via: result.via };
 }
 
+/* ---- Remembering what each source said ----
+   Today, This Week and This Month are separate requests. Before this, each
+   one asked every publisher afresh, so if a publisher refused one of them —
+   Metroland and Torstar rate-limit with 429s — that tab lost the whole
+   source while the others kept it, and Today could show more stories than
+   This Week. Now each source's answer is kept for a few minutes and shared
+   by every tab, and if a publisher refuses, the last good answer (up to six
+   hours old) stands in rather than a hole.
+
+   This lives in the server's memory, so it is per instance and disappears
+   on a cold start — the CDN and the archive are the durable layers. It only
+   has to smooth over the minutes between requests, and it does. */
+const FRESH_MS = 9 * 60 * 1000;
+const STALE_MS = 6 * 60 * 60 * 1000;
+const memo = new Map();       // key -> { at, result }
+const inflight = new Map();   // key -> Promise, so simultaneous tabs share one fetch
+
+function keyOf(src) {
+  const where = src.kind === "wpjson" ? `${src.api}#${src.categoryId}#${src.category}` : (src.urls || []).join("|");
+  return `${where}|${(src.onlyCategories || []).join(",")}`;
+}
+
 /* ---- The one entry point ----
-   Returns { items, url, via } from the first URL that answers, or throws the
-   last error. `onlyCategories` keeps items the publisher tagged with one of
-   those names — Grant Haven publishes three papers through one feed and
-   labels each story with the paper it belongs to. */
-export async function fetchItems(src) {
+   Returns { items, url, via } from the first URL that answers with stories,
+   or throws the last error. An answer with no stories counts as "try the
+   next URL" — a section feed that exists but is empty would otherwise win
+   and hide the one that works. `onlyCategories` keeps items the publisher
+   tagged with one of those names — Grant Haven publishes three papers
+   through one feed and labels each story with the paper it belongs to.
+
+   { fresh: true } skips the memory, for /api/health, which must see what
+   the publisher says right now. */
+async function fetchFresh(src) {
   if (src.kind === "wpjson") return fetchWpJson(src);
 
   let lastErr = null;
+  let empty = null;
   for (const url of src.urls || []) {
     try {
       const { feed, via } = await parseWithRetry(url);
       let items = feed.items || [];
+      if (items.length === 0) { empty ||= { items, url, via }; continue; }
       if (src.onlyCategories?.length) {
         const want = src.onlyCategories.map((c) => c.toLowerCase());
         items = items.filter((it) => (it.categories || []).some((c) =>
@@ -155,5 +184,29 @@ export async function fetchItems(src) {
       lastErr = err;
     }
   }
+  if (empty) return empty;
   throw lastErr || new Error("all candidate URLs failed");
+}
+
+export async function fetchItems(src, { fresh = false } = {}) {
+  if (fresh) return fetchFresh(src);
+  const key = keyOf(src);
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.at < FRESH_MS) return hit.result;
+  if (inflight.has(key)) return inflight.get(key);
+
+  const p = (async () => {
+    try {
+      const result = await fetchFresh(src);
+      if (result.items.length) memo.set(key, { at: Date.now(), result });
+      return result;
+    } catch (err) {
+      if (hit && Date.now() - hit.at < STALE_MS) return { ...hit.result, via: "stale" };
+      throw err;
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+  inflight.set(key, p);
+  return p;
 }
