@@ -22,13 +22,13 @@ const PUBLISHERS = [
   { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true, funding: "commercial", owner: "Torstar, owned by NordStar Capital" },
   { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true, funding: "commercial", owner: "Village Media" },
   { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader" },
-  { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "National", funding: "reader" },
-  { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "National", funding: "reader" },
-  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "National", funding: "reader" },
-  { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "National", funding: "reader" },
-  { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "National", funding: "reader" },
-  { name: "Canadaland", color: "#C62828", url: "https://www.canadaland.com", place: "National", funding: "reader" },
-  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "National", funding: "reader" },
+  { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "Canada", funding: "reader" },
+  { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "Canada", funding: "reader" },
+  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader" },
+  { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "Canada", funding: "reader" },
+  { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "Canada", funding: "reader" },
+  { name: "Canadaland", color: "#C62828", url: "https://www.canadaland.com", place: "Canada", funding: "reader" },
+  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader" },
 ];
 
 const FUNDING_LABEL = { reader: "Reader-funded", public: "Publicly funded", commercial: "Commercially owned" };
@@ -50,9 +50,13 @@ function buildCategories(homeLabel) {
     ...(homeLabel ? [{ label: homeLabel, icon: "\u{1F4CD}", group: "place", kind: "place", color: "#1A73E8", home: true }] : []),
     { label: "Toronto", icon: "\u{1F3D9}", group: "place", kind: "place", color: "#0F7B6C" },
     { label: "Ontario", icon: "\u{1F341}", group: "place", kind: "place", color: "#7B2D8E" },
+    // Canada-wide reporting: The Maple, The Breach, IJF and the rest. Before
+    // this chip existed their stories showed only with no filters on, which
+    // anyone with a hometown chip selected never saw.
+    { label: "Canada", icon: "\u{1F1E8}\u{1F1E6}", group: "place", kind: "place", color: "#A8324A" },
     { label: "Environment", icon: "\u{1F33F}", group: "topic", kind: "topic", color: "#2D6A4F" },
     { label: "Investigative", icon: "\u{1F50D}", group: "topic", kind: "topic", color: "#8B5E00" },
-    { label: "National Politics", icon: "\u{1F1E8}\u{1F1E6}", group: "topic", kind: "topic", color: "#B3261E" },
+    { label: "National Politics", icon: "\u{1F3DB}", group: "topic", kind: "topic", color: "#B3261E" },
     { label: "Urbanism & Transit", icon: "\u{1F687}", group: "topic", kind: "topic", color: "#0F2E4A" },
   ];
 }
@@ -331,7 +335,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
   const groups = [
     { label: "Toronto", note: "City and neighbourhood reporting" },
     { label: "Ontario", note: "Provincial politics and the environment beat" },
-    { label: "National", note: "Independent and investigative newsrooms" },
+    { label: "Canada", note: "Independent and investigative newsrooms" },
   ];
 
   return (

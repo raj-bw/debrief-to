@@ -47,14 +47,14 @@ const SOURCES = [
   // --- Ontario ---
   { name: "The Trillium",    urls: ["https://www.thetrillium.ca/rss/news", "https://www.thetrillium.ca/rss"], color: "#7B2D8E", place: "Ontario" },
   { name: "The Narwhal",     urls: ["https://thenarwhal.ca/feed/"], color: "#2D6A4F", place: "Ontario" },
-  // --- National reporting ---
-  { name: "National Observer", urls: ["https://www.nationalobserver.com/front/rss", "https://www.nationalobserver.com/rss.xml"], color: "#0B7285", place: "National" },
-  { name: "The Breach",      urls: ["https://breachmedia.ca/feed/"], color: "#1565C0", place: "National" },
-  { name: "IJF",             urls: ["https://theijf.org/rss.xml", "https://theijf.org/feed", "https://theijf.org/rss"], color: "#8B5E00", place: "National" },
-  { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", place: "National" },
-  { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", place: "National" },
-  { name: "Canadaland",      urls: ["https://www.canadaland.com/feed/"], color: "#C62828", place: "National" },
-  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"], color: "#D4872C", place: "National" },
+  // --- Canada-wide reporting (the "Canada" place chip) ---
+  { name: "National Observer", urls: ["https://www.nationalobserver.com/front/rss", "https://www.nationalobserver.com/rss.xml"], color: "#0B7285", place: "Canada" },
+  { name: "The Breach",      urls: ["https://breachmedia.ca/feed/"], color: "#1565C0", place: "Canada" },
+  { name: "IJF",             urls: ["https://theijf.org/rss.xml", "https://theijf.org/feed", "https://theijf.org/rss"], color: "#8B5E00", place: "Canada" },
+  { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", place: "Canada" },
+  { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", place: "Canada" },
+  { name: "Canadaland",      urls: ["https://www.canadaland.com/feed/"], color: "#C62828", place: "Canada" },
+  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"], color: "#D4872C", place: "Canada" },
 ];
 
 function stripHtml(html) {
@@ -275,7 +275,19 @@ export async function GET(request) {
       readBack(days, "shared"),
       townSources.length ? readBack(days, town.slug) : Promise.resolve({ articles: [], days: 0 }),
     ]);
-    older = [...shared.articles, ...local.articles].map((a) => rehydrate(a, colorBySource));
+    /* Archived stories are re-tagged with today's rules, not the ones in
+       force when they were saved — otherwise a rule change (a new chip, a
+       wider topic) would only ever reach new stories. Topics a story was
+       saved with are kept, since the feed categories behind some of them
+       aren't in the archive; places are worked out again from scratch.
+       "National" was the old name for the Canada place. */
+    older = [...shared.articles, ...local.articles].map((a) => {
+      const r = rehydrate(a, colorBySource);
+      const src = r.sourcePlace === "National" ? "Canada" : r.sourcePlace;
+      r.places = placesFor(r, src, homePlace);
+      r.topics = [...new Set([...(r.topics || []), ...topicsFor(r, null)])];
+      return r;
+    });
     archiveDays = Math.max(shared.days, local.days);
   }
 

@@ -117,7 +117,7 @@ function contentWords(title) {
 
 /* How local a story is, for deciding which version of it to show.
    The most local newsroom wins: they were there. */
-const PLACE_RANK = { home: 0, Toronto: 1, Ontario: 2, National: 3 };
+const PLACE_RANK = { home: 0, Toronto: 1, Ontario: 2, Canada: 3, National: 3 };
 function localness(article) {
   const p = article.sourcePlace;
   return PLACE_RANK[p] !== undefined ? PLACE_RANK[p] : 3;
