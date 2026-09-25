@@ -353,202 +353,23 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         </div>
       </header>
 
+      {/* The full About page (mission, how stories are chosen, privacy, the
+          newsroom list and who funds them) is being rewritten. Until it's
+          back, a short summary. The previous text is kept in the project
+          docs: claude/about-page-draft.md */}
       <main style={{ maxWidth: 720, margin: "0 auto", padding: "48px clamp(16px, 4vw, 24px) 96px" }}>
-
-        <h1 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(24px, 5.5vw, 32px)", fontWeight: 700, color: c.title, lineHeight: 1.3, margin: "0 0 22px" }}>
-          Most people aren&apos;t disengaged because they don&apos;t care. They&apos;re disengaged because they&apos;re overwhelmed.
-        </h1>
-
-        <P>
-          When everything feels like a crisis at once — housing, transit, climate, the cost of living — it&apos;s
-          exhausting before you even start. And getting accurate information about your own community turns out to
-          be surprisingly hard. Credible local reporting sits behind paywalls. Social media fills the gap with
-          whatever the algorithm decides you should see. The result is a lot of confusion and a lot of misplaced
-          certainty.
-        </P>
-        <P>
-          Debrief.TO is a free, simple answer to one question: <strong style={{ color: c.title, fontWeight: 600 }}>what
-          is actually happening where I live?</strong>
-        </P>
-        <P>
-          It gathers headlines from local and independent newsrooms across Ontario and puts them on one page, in one
-          place, in the order they were published. Nothing is hidden behind a login. Nothing is ranked by how much
-          outrage it generated. You read the headline here and then you go read the story on the publisher&apos;s own
-          site, where it belongs.
-        </P>
-
-        <Section heading="How stories are chosen">
-          <P>
-            This site exists because opaque algorithms decide too much of what people see. It would be hypocritical
-            not to show you ours.
-          </P>
-          <Rule title="Where stories come from.">
-            We publish from a hand-picked list of newsrooms — local papers, independent outlets, and investigative
-            non-profits doing real reporting in Ontario communities. Choosing that list is the only genuinely
-            editorial decision here, and it is made by a person, in public, further down this page.
-          </Rule>
-          <Rule title="What we filter out.">
-            We remove syndicated wire copy that isn&apos;t about your community, sports and entertainment sections,
-            weather posts, video clips, event promotions, obituaries, press releases, paid placements, and columns
-            syndicated across a newspaper chain. Local editorials and letters stay, labelled Opinion. Stories their
-            own publisher marks as subscriber-only are labelled Sub. In every case we are filtering
-            by <em>format</em>, not by subject. A story is never removed because of what it is about or what
-            conclusion it reaches.
-          </Rule>
-          <Rule title="Council agendas.">
-            In 119 Ontario towns, your local tab also lists the next few council and committee meetings, with a
-            link to each agenda, straight from the town&apos;s own official portal. They sit in their own box,
-            marked as official records, and never mix with the news: a council agenda is what the town says it
-            will discuss, not reporting on what happened.
-          </Rule>
-          <Rule title="What we never do.">
-            We don&apos;t rank stories by popularity. We don&apos;t track what you read. We don&apos;t promote a story
-            because it&apos;s getting clicks or bury one because it isn&apos;t. There is no personalization, no
-            engagement scoring, and no algorithm learning what keeps you here longer.
-          </Rule>
-          <Rule title="Where the line sits.">
-            We are not in the business of deciding which news people are allowed to see — that would make this site
-            the very thing it was built to work around. But tabloid churn and manufactured outrage aren&apos;t
-            journalism, and they have no place here. Our aim is a page you can read in five minutes and come away
-            better informed than when you started, rather than more agitated.
-          </Rule>
-          <Rule title="Labels, not judgments.">
-            Where a story sits behind a paywall, we mark it <em>Subscription</em> so you know before you click. Where
-            a piece is commentary rather than reporting, we mark it <em>Opinion</em>. Where several newsrooms
-            covered the same story, we show it once and say who else was on it. We tell you what something is; what
-            you do with it is yours to decide.
-          </Rule>
-        </Section>
-
-        <Section heading="Your privacy">
-          <P>
-            Your town, your saved articles, and your settings live in your own browser. They are never sent to us,
-            because there is no account and no profile to send them to. We can&apos;t see what you read, and
-            we&apos;ve built it that way deliberately.
-          </P>
-        </Section>
-
-        <Section heading="Where the news comes from">
-          <P>
-            {homeLabel
-              ? <>Your local tab, <strong style={{ color: c.title, fontWeight: 600 }}>{homeLabel}</strong>, draws on{" "}
-                  {localFeeds.map((f, i) => (
-                    <span key={f.name}>
-                      {i > 0 ? (i === localFeeds.length - 1 ? " and " : ", ") : ""}
-                      <strong style={{ color: c.title, fontWeight: 600 }}>{f.name}</strong>
-                      {f.owner ? <span style={{ color: c.muted }}> ({f.owner})</span> : null}
-                    </span>
-                  ))}
-                  {localFeeds.length ? "" : "its local newsroom"}. Alongside it:</>
-              : <>There isn&apos;t a newsroom covering your town in the list yet, so you&apos;re seeing Ontario-wide reporting. If you know one we should carry, tell us. In the meantime:</>}
-          </P>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 20 }}>
-            {groups.map((g) => (
-              <div key={g.label}>
-                <p style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: c.muted, margin: "0 0 8px" }}>
-                  {g.label} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>· {g.note}</span>
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 10px" }}>
-                  {PUBLISHERS.filter((p) => p.place === g.label).map((p) => (
-                    <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, textDecoration: "none", color: dm ? lightenForDark(p.color) : p.color, border: `1px solid ${getCatTint(p.color, dm ? 0.5 : 0.28)}`, background: getCatTint(p.color, dm ? 0.16 : 0.07), borderRadius: 18, padding: "6px 12px" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: dm ? lightenForDark(p.color) : p.color, display: "inline-block" }} />
-                      {p.name}
-                      {p.paywall && <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px", opacity: 0.75 }}>Sub</span>}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ borderLeft: `3px solid ${dm ? "#3E6B57" : "#CDE3D7"}`, paddingLeft: 16, margin: "0 0 20px" }}>
-            <p style={{ fontSize: 14.5, lineHeight: 1.7, color: c.body, margin: "0 0 10px" }}>
-              <strong style={{ color: c.title, fontWeight: 600 }}>Who pays for them.</strong> Choosing this list is
-              the one editorial decision here, so it&apos;s fair to ask who funds the newsrooms on it. Broadly:
-            </p>
-            {["reader", "public", "commercial"].map((kind) => {
-              const names = PUBLISHERS.filter((p) => p.funding === kind).map((p) => p.name);
-              if (names.length === 0) return null;
-              return (
-                <p key={kind} style={{ fontSize: 14, lineHeight: 1.65, color: c.body, margin: "0 0 8px" }}>
-                  <strong style={{ color: c.title, fontWeight: 600 }}>{FUNDING_LABEL[kind]}</strong>
-                  <span style={{ color: c.muted }}> ({names.length})</span> — {names.join(", ")}.
-                </p>
-              );
-            })}
-            {(() => {
-              /* Who owns whom. The thing worth knowing is not that a newsroom
-                 has an owner — they all do — but when several on this list
-                 share one, because that is when "four newsrooms covered it"
-                 means less than it looks. Built from the data, so it stays
-                 right as the list grows. */
-              const byOwner = {};
-              PUBLISHERS.forEach((pub) => { if (pub.owner) (byOwner[pub.owner] ||= []).push(pub.name); });
-              const owned = Object.entries(byOwner);
-              const independent = PUBLISHERS.filter((pub) => !pub.owner).map((pub) => pub.name);
-              if (owned.length === 0) return null;
-              return (
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: c.body, margin: "12px 0 0" }}>
-                  <strong style={{ color: c.title, fontWeight: 600 }}>Who owns them.</strong>{" "}
-                  {owned.map(([owner, names], i) => (
-                    <span key={owner}>
-                      {i > 0 ? " " : ""}{names.join(" and ")} {names.length > 1 ? "are" : "is"} {owner}.
-                    </span>
-                  ))}
-                  {independent.length > 0 && ` The other ${independent.length} are independently owned, each by itself.`}
-                </p>
-              );
-            })()}
-            {(() => {
-              /* The same question for the local newsrooms, across Ontario.
-                 Counted from the registry, so it can't drift from what the
-                 site actually carries. Owners we haven't confirmed are
-                 counted as that, not assumed independent. */
-              const { total, byOwner, unconfirmed } = localOwnership();
-              const chains = Object.entries(byOwner).sort((a, b) => b[1] - a[1]);
-              return (
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: c.body, margin: "12px 0 0" }}>
-                  <strong style={{ color: c.title, fontWeight: 600 }}>Across Ontario</strong>, the local tabs draw on {total} newsrooms.{" "}
-                  {chains.map(([owner, n], i) => (
-                    <span key={owner}>{i > 0 ? (i === chains.length - 1 ? " and " : ", ") : ""}{n} {n === 1 ? "is" : "are"} {owner}</span>
-                  ))}
-                  {chains.length ? ". " : ""}
-                  {unconfirmed > 0 && <>The other {unconfirmed} are owned outside those companies; we&apos;re confirming each one.</>}
-                </p>
-              );
-            })()}
-            <p style={{ fontSize: 13.5, lineHeight: 1.65, color: c.muted, margin: "10px 0 0" }}>
-              Reader-funded covers memberships, donations and subscriptions, and includes registered non-profits and
-              charities. These are funding models, not verdicts: a commercially owned newsroom can do excellent
-              reporting, and a reader-funded one can still have a point of view. Every newsroom publishes its own
-              funding on its own site, and the links above go there.
-            </p>
-          </div>
-
-          <P>
-            Every headline belongs to the newsroom that reported it, and every link goes to their site. Local
-            journalism only survives if people read it at the source — if something here is worth your time, the best
-            thing you can do is go read it there, and subscribe if you can.
-          </P>
-          <p style={{ fontSize: 14.5, lineHeight: 1.7, color: c.muted, margin: "0 0 15px" }}>
-            <strong style={{ color: c.body, fontWeight: 600 }}>Publishers:</strong>{" "}
-            if you&apos;d rather not appear here, email{" "}
-            <a href="mailto:hello@debrief.to" style={{ color: c.accent }}>hello@debrief.to</a>{" "}
-            and you&apos;ll be removed, no questions asked.
+        <div style={{ textAlign: "center", padding: "64px 24px", background: c.cardBg, borderRadius: 12, border: `1px solid ${c.cardBorder}` }}>
+          <h1 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(22px, 5vw, 28px)", fontWeight: 700, color: c.title, margin: "0 0 12px" }}>
+            About this page is on its way
+          </h1>
+          <p style={{ fontSize: 15.5, lineHeight: 1.7, color: c.body, margin: "0 auto 12px", maxWidth: 480 }}>
+            Debrief.TO collects headlines from local and independent newsrooms across Ontario, free and in one
+            place, and links straight to the people who reported them.
           </p>
-        </Section>
-
-        <Section heading="Who made this">
-          <P>
-            Debrief.TO was built by Raj, in Newmarket, as part of the BUILD program with Apathy is Boring. It started
-            as a small attempt to solve one problem: access to credible local information shouldn&apos;t depend on how
-            many subscriptions you can afford.
-          </P>
-          <p style={{ fontSize: 15.5, lineHeight: 1.75, margin: 0 }}>
-            <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>
+          <p style={{ fontSize: 15.5, lineHeight: 1.7, color: c.body, margin: "0 auto", maxWidth: 480 }}>
+            Coming next: our mission, and exactly how stories are chosen.
           </p>
-        </Section>
-
+        </div>
       </main>
     </div>
   );
@@ -972,7 +793,7 @@ export default function Home() {
               rather than publications they were misleading too. The full list
               of newsrooms lives on the About page. */}
           {showSources && (
-            <div style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <div style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 6 }}>
               {/* When there is no local tab there is no chip to hang the Change
                   control off, and the reader would be stuck with a town they
                   can't change. So it stands on its own instead. */}
@@ -983,7 +804,7 @@ export default function Home() {
                     background: dm ? "#3A2E1C" : "#F6ECD9",
                     border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
                     color: dm ? "#E8C98A" : "#8A5A12",
-                    borderRadius: 20, padding: "11px 16px", fontSize: 15, fontFamily: "inherit", cursor: "pointer", lineHeight: 1 }}>
+                    borderRadius: 20, padding: "8px 12px", fontSize: 14, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   Set your town
                 </button>
@@ -994,13 +815,13 @@ export default function Home() {
                 const showDivider = prevCat && prevCat.group !== cat.group;
                 return (
                   <React.Fragment key={cat.label}>
-                    {showDivider && <div className="cat-divider" style={{ width: 1.5, height: 26, background: dm ? t.desc : t.border, margin: "0 8px", borderRadius: 1 }} />}
+                    {showDivider && <div className="cat-divider" style={{ width: 1.5, height: 26, background: dm ? t.desc : t.border, margin: "0 4px", borderRadius: 1 }} />}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} style={{ padding: "11px 18px", borderRadius: 20, fontSize: 15, fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, lineHeight: 1, fontWeight: isActive ? 600 : 500,
+                      <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} style={{ padding: "8px 11px", borderRadius: 20, fontSize: 14, whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1, fontWeight: isActive ? 600 : 500,
                         background: isActive ? (dm ? cat.color : getCatTint(cat.color, 0.12)) : "transparent",
                         color: isActive ? (dm ? "#FFF" : cat.color) : (dm ? "#D0CCC6" : t.textSec),
                         border: `1.5px solid ${isActive ? (dm ? cat.color : getCatTint(cat.color, 0.3)) : (dm ? "#3C3C3C" : t.border)}` }}>
-                        <span style={{ fontSize: 16, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
+                        <span style={{ fontSize: 14, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
                         <span>{cat.label}</span>
                         {isActive && <span style={{ fontSize: 13, opacity: 0.6, marginLeft: 2 }}>{"×"}</span>}
                       </button>
@@ -1017,7 +838,7 @@ export default function Home() {
                             background: dm ? "#3A2E1C" : "#F6ECD9",
                             border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
                             color: dm ? "#E8C98A" : "#8A5A12",
-                            borderRadius: 20, padding: "11px 13px", fontSize: 13, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, transition: "all 0.15s ease" }}
+                            borderRadius: 20, padding: "8px 10px", fontSize: 13, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap", transition: "all 0.15s ease" }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#4A3A22" : "#F0E0C2"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = dm ? "#3A2E1C" : "#F6ECD9"; }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
@@ -1212,7 +1033,7 @@ export default function Home() {
           All content belongs to the newsroom that reported it — click through to read it there, and subscribe if you can.
         </p>
         <button onClick={() => setPage("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
-          Who we publish, and how stories are chosen
+          About Debrief.TO
         </button>
       </footer>
     </div>
