@@ -24,7 +24,14 @@ const STANDING = [
   { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", place: "Canada" },
   { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", place: "Canada" },
   { name: "Canadaland",      urls: ["https://www.canadaland.com/feed/"], color: "#C62828", place: "Canada" },
-  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2", "https://thewalrus.ca/rss"], color: "#D4872C", place: "Canada" },
+  /* The Walrus serves its RSS to browsers and refuses servers (403 from
+     Vercel on every attempt, though the same feed opens normally at home).
+     Its WordPress API is a separate door that may be screened differently,
+     so it is tried next, minus the magazine's sponsored "Paid Post" items.
+     /api/health?scope=standing reports which door answered. */
+  { name: "The Walrus",      urls: ["https://thewalrus.ca/feed/", "https://thewalrus.ca/feed/?type=rss2"], color: "#D4872C", place: "Canada",
+    excludeCategories: ["Paid Post"],
+    fallback: { kind: "wpjson", api: "https://thewalrus.ca", allPosts: true, excludeCategory: "paid-post" } },
 ];
 
 // `shared` puts every standing source on one archive shelf: every reader's

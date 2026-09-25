@@ -108,6 +108,23 @@ async function fetchWpJson(src) {
   const fields = "link,title,excerpt,date_gmt,jetpack_featured_media_url,featured_media_details";
   const postsFor = (id) => `${api}/wp-json/wp/v2/posts?per_page=20&categories=${id}&_fields=${fields}`;
 
+  /* A magazine rather than a newspaper: everything it publishes, minus one
+     category it names (The Walrus labels sponsored content "Paid Post"). */
+  if (src.allPosts) {
+    const skip = src.excludeCategory ? await resolveCategory(api, src.excludeCategory).catch(() => null) : null;
+    const url = `${api}/wp-json/wp/v2/posts?per_page=20${skip ? `&categories_exclude=${skip}` : ""}&_fields=${fields}`;
+    const result = await getJson(url);
+    if (!Array.isArray(result.data)) throw new Error("WordPress API did not return a list");
+    const home = hostOf(api);
+    const items = result.data.filter((p) => hostOf(p.link) === home).map((p) => ({
+      title: p.title?.rendered || "", link: p.link,
+      isoDate: p.date_gmt ? `${p.date_gmt}Z` : undefined,
+      contentSnippet: p.excerpt?.rendered || "", categories: [],
+      image: p.jetpack_featured_media_url || p.featured_media_details?.url || null,
+    }));
+    return { items, url, via: result.via };
+  }
+
   // The verified id first; if a site ever renumbers, fall back to the slug.
   let id = src.categoryId || null;
   let result = id ? await getJson(postsFor(id)).catch(() => null) : null;
@@ -179,12 +196,25 @@ async function fetchFresh(src) {
         items = items.filter((it) => (it.categories || []).some((c) =>
           want.includes(String(typeof c === "string" ? c : c?._ || "").toLowerCase().trim())));
       }
+      // And the reverse: drop anything the publisher files under a named
+      // category, such as a magazine's sponsored "Paid Post".
+      if (src.excludeCategories?.length) {
+        const drop = src.excludeCategories.map((c) => c.toLowerCase());
+        items = items.filter((it) => !(it.categories || []).some((c) =>
+          drop.includes(String(typeof c === "string" ? c : c?._ || "").toLowerCase().trim())));
+      }
       return { items, url, via };
     } catch (err) {
       lastErr = err;
     }
   }
   if (empty) return empty;
+  /* A second way in, for publishers whose RSS refuses servers but whose
+     WordPress API may not (see The Walrus in sources.js). */
+  if (src.fallback) {
+    try { return await fetchFresh({ ...src.fallback, name: src.name, onlyCategories: src.onlyCategories }); }
+    catch (err) { lastErr = new Error(`${lastErr?.message || "RSS failed"}; API: ${err?.message}`); }
+  }
   throw lastErr || new Error("all candidate URLs failed");
 }
 

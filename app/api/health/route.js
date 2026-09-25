@@ -1,3 +1,4 @@
+import { SOURCES } from "../../lib/sources";
 import { publisherFeeds } from "../../lib/towns";
 // The same door the live feed uses, so a green light here means readers get it.
 import { fetchItems } from "../../lib/fetch-feed";
@@ -19,9 +20,10 @@ export const maxDuration = 60;
 async function check(feed) {
   try {
     const { items, url, via } = await fetchItems(feed, { fresh: true });
+    const door = feed.fallback && url && !(feed.urls || []).includes(url) ? "api" : "rss";
     const newest = items[0]?.isoDate || items[0]?.pubDate || null;
     return {
-      name: feed.name, ok: true, url, items: items.length, newest,
+      name: feed.name, ok: true, url, items: items.length, newest, door,
       // "honest" means the first attempt was refused and the plain-named
       // retry got through: the Cloudflare question, answered per feed.
       via,
@@ -43,7 +45,12 @@ export async function GET(request) {
   // what most towns actually fall back to.
   // There are over a hundred and fifty feeds now, so they can be checked in
   // pages: ?towns=1&offset=40&limit=40. Without paging, everything at once.
-  const all = publisherFeeds(wantTowns ? "town" : "region");
+  // ?scope=standing checks the Toronto, Ontario and Canada newsrooms every
+  // reader gets (and reports whether a publisher answered by RSS or by its
+  // WordPress API — see The Walrus).
+  const all = searchParams.get("scope") === "standing"
+    ? SOURCES
+    : publisherFeeds(wantTowns ? "town" : "region");
   const offset = Number(searchParams.get("offset") || 0);
   const limit = Number(searchParams.get("limit") || all.length);
   const targets = all.slice(offset, offset + limit);
@@ -60,7 +67,7 @@ export async function GET(request) {
   const archive = await archiveStats();
 
   return Response.json({
-    checked: wantTowns ? "town feeds" : "region feeds",
+    checked: searchParams.get("scope") === "standing" ? "standing sources" : wantTowns ? "town feeds" : "region feeds",
     summary: `${ok.length} of ${results.length} answering${failed.length ? `, ${failed.length} failing` : ""}${stale.length ? `, ${stale.length} stale` : ""}`,
     page: { offset, limit: targets.length, of: all.length, next: offset + targets.length < all.length ? offset + targets.length : null },
     neededHonestName: ok.filter((r) => r.via === "honest").map((r) => r.name),

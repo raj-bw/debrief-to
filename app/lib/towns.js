@@ -167,7 +167,7 @@ const TOWN_FEEDS = {
   "Parry Sound": [metroland("ParrySound.com", "parrysound.com", "#3D5A80")],
   "Waterloo": [metroland("Waterloo Chronicle", "waterloochronicle.ca", "#6B4AA8")],
 
-  "Ottawa": [feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40")],
+  "Ottawa": [{ ...feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40"), owner: "CBC/Radio-Canada" }],
 };
 
 /* Regions with a newsroom that covers the whole area. Keyed by census
@@ -197,7 +197,7 @@ const DIVISION_FEEDS = {
   "Parry Sound": { label: "Parry Sound District", feeds: [metroland("ParrySound.com", "parrysound.com", "#3D5A80")] },
   "Timiskaming": { label: "Timiskaming District", feeds: [feed("The Temiskaming Speaker", ["https://northernontario.ca/feed", "https://northernontario.ca/rss"], "#5C7A29")] },
   "Frontenac": { label: "Frontenac County", feeds: [feed("Kingstonist", ["https://www.kingstonist.com/feed", "https://www.kingstonist.com/rss"], "#A85A2B")] },
-  "Ottawa": { label: "Ottawa", feeds: [feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40")] },
+  "Ottawa": { label: "Ottawa", feeds: [{ ...feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40"), owner: "CBC/Radio-Canada" }] },
 };
 
 export const DEFAULT_TOWN = "newmarket";
@@ -454,10 +454,12 @@ export const PLACE_COUNT = PLACES.places.length;
 export function localOwnership() {
   const byName = new Map();
   const collect = (f) => { if (!byName.has(f.name)) byName.set(f.name, f.owner || null); };
-  for (const list of Object.values(TOWN_FEEDS)) list.forEach(collect);
+  for (const [name, list] of Object.entries(TOWN_FEEDS)) if (name !== "Toronto") list.forEach(collect);
   for (const list of Object.values(TOWN_EXTRA)) list.forEach(collect);
   for (const a of Object.values(AREA_FEEDS)) a.feeds.forEach(collect);
-  for (const d of Object.values(DIVISION_FEEDS)) d.feeds.forEach(collect);
+  // Toronto is left out: it has no local tab (TorontoToday is one of the
+  // Toronto newsrooms every reader gets), so counting it here double-counted.
+  for (const [name, d] of Object.entries(DIVISION_FEEDS)) if (name !== "Toronto") d.feeds.forEach(collect);
   const byOwner = {};
   let unconfirmed = 0;
   for (const owner of byName.values()) {
