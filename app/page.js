@@ -793,7 +793,7 @@ export default function Home() {
               rather than publications they were misleading too. The full list
               of newsrooms lives on the About page. */}
           {showSources && (
-            <div style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <div style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 }}>
               {/* When there is no local tab there is no chip to hang the Change
                   control off, and the reader would be stuck with a town they
                   can't change. So it stands on its own instead. */}
@@ -804,7 +804,7 @@ export default function Home() {
                     background: dm ? "#3A2E1C" : "#F6ECD9",
                     border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
                     color: dm ? "#E8C98A" : "#8A5A12",
-                    borderRadius: 20, padding: "8px 12px", fontSize: 14, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap" }}>
+                    borderRadius: 22, padding: "10px 14px", fontSize: 15, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap" }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   Set your town
                 </button>
@@ -815,13 +815,13 @@ export default function Home() {
                 const showDivider = prevCat && prevCat.group !== cat.group;
                 return (
                   <React.Fragment key={cat.label}>
-                    {showDivider && <div className="cat-divider" style={{ width: 1.5, height: 26, background: dm ? t.desc : t.border, margin: "0 4px", borderRadius: 1 }} />}
+                    {showDivider && <div className="cat-divider" style={{ width: 1.5, height: 26, background: dm ? t.desc : t.border, margin: "0 6px", borderRadius: 1 }} />}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} style={{ padding: "8px 11px", borderRadius: 20, fontSize: 14, whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1, fontWeight: isActive ? 600 : 500,
+                      <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} style={{ padding: "10px 14px", borderRadius: 22, fontSize: 15, whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1, fontWeight: isActive ? 600 : 500,
                         background: isActive ? (dm ? cat.color : getCatTint(cat.color, 0.12)) : "transparent",
                         color: isActive ? (dm ? "#FFF" : cat.color) : (dm ? "#D0CCC6" : t.textSec),
                         border: `1.5px solid ${isActive ? (dm ? cat.color : getCatTint(cat.color, 0.3)) : (dm ? "#3C3C3C" : t.border)}` }}>
-                        <span style={{ fontSize: 14, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
+                        <span style={{ fontSize: 15, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
                         <span>{cat.label}</span>
                         {isActive && <span style={{ fontSize: 13, opacity: 0.6, marginLeft: 2 }}>{"×"}</span>}
                       </button>
@@ -838,7 +838,7 @@ export default function Home() {
                             background: dm ? "#3A2E1C" : "#F6ECD9",
                             border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
                             color: dm ? "#E8C98A" : "#8A5A12",
-                            borderRadius: 20, padding: "8px 10px", fontSize: 13, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap", transition: "all 0.15s ease" }}
+                            borderRadius: 22, padding: "10px 13px", fontSize: 14, fontFamily: "inherit", cursor: "pointer", lineHeight: 1, whiteSpace: "nowrap", transition: "all 0.15s ease" }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#4A3A22" : "#F0E0C2"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = dm ? "#3A2E1C" : "#F6ECD9"; }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
