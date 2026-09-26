@@ -506,6 +506,18 @@ export default function Home() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [townSlug, hydrated]);
+
+  /* Toronto's council, for anyone who selects the Toronto chip — whatever
+     their own town is. Fetched only when asked for. */
+  const [torontoCouncil, setTorontoCouncil] = useState(null);
+  const wantToronto = activeCategories.includes("Toronto");
+  useEffect(() => {
+    if (!hydrated || !wantToronto || torontoCouncil) return;
+    fetch("/api/council?town=toronto")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available }); })
+      .catch(() => {});
+  }, [hydrated, wantToronto, torontoCouncil]);
   const CATEGORIES = buildCategories(home.label);
 
   const chooseTown = (slug) => {
@@ -862,34 +874,49 @@ export default function Home() {
           {fetchedAt && !loading && ` · Updated ${timeAgo(fetchedAt)}`}
         </div>
 
-        {council.meetings.length > 0 && !searchQuery && (activeCats.length === 0 || activeCats.includes(home.label)) && (
-          <section aria-label={`Coming up at ${council.town} council`} style={{ marginBottom: 24, padding: "16px 18px", borderRadius: 12, background: dm ? "#1F2A2F" : "#F3F7FA", border: `1px solid ${dm ? "#2F4450" : "#D6E4EC"}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
-              <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: t.text }}>
-                Coming up at {council.town} council
-              </p>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", color: t.textSec }}>
-                Official agendas · not news
-              </span>
-            </div>
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-              {council.meetings.map((m) => (
-                <li key={m.start + m.name} style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "2px 10px", fontSize: 14, lineHeight: 1.45, color: t.text }}>
-                  <span style={{ fontWeight: 600 }}>{m.name}</span>
-                  <span style={{ color: t.textSec }}>{m.when.replace(/, \d{4} @/, " ·")}</span>
-                  {m.agenda
-                    ? <a href={m.agenda} target="_blank" rel="noopener noreferrer" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>Agenda</a>
-                    : <span style={{ color: t.textSec, fontSize: 13 }}>Agenda not posted yet</span>}
-                </li>
-              ))}
-            </ul>
-            {council.portal && (
-              <a href={council.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: t.textSec }}>
-                All meetings, minutes and video on the town&apos;s site →
-              </a>
-            )}
-          </section>
-        )}
+        {!searchQuery && (() => {
+          /* Council boxes: the reader's own town when the feed is unfiltered or
+             their town's chip is on; Toronto's when the Toronto chip is on.
+             Toronto's box shows even when nothing is scheduled, saying so,
+             because the reader asked for it by name. */
+          const boxes = [];
+          const homeTown = council.town;
+          if (council.meetings.length > 0 && (activeCats.length === 0 || activeCats.includes(home.label))) boxes.push({ ...council, showEmpty: false });
+          if (wantToronto && torontoCouncil?.available && homeTown !== "Toronto") boxes.push({ ...torontoCouncil, showEmpty: true });
+          else if (wantToronto && homeTown === "Toronto" && council.meetings.length === 0 && torontoCouncil?.available) boxes.push({ ...torontoCouncil, showEmpty: true });
+          return boxes.map((box) => (
+            <section key={box.town} aria-label={`Coming up at ${box.town} council`} style={{ marginBottom: 24, padding: "16px 18px", borderRadius: 12, background: dm ? "#1F2A2F" : "#F3F7FA", border: `1px solid ${dm ? "#2F4450" : "#D6E4EC"}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: t.text }}>
+                  Coming up at {box.town} council
+                </p>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", color: t.textSec }}>
+                  Official agendas · not news
+                </span>
+              </div>
+              {box.meetings.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>No council or committee meetings are scheduled in the next three weeks.</p>
+              ) : (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {box.meetings.map((m) => (
+                    <li key={m.start + m.name} style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "2px 10px", fontSize: 14, lineHeight: 1.45, color: t.text }}>
+                      <span style={{ fontWeight: 600 }}>{m.name}</span>
+                      <span style={{ color: t.textSec }}>{m.when.replace(/, \d{4} @/, " ·").replace(/, \d{4}$/, "")}</span>
+                      {m.agenda
+                        ? <a href={m.agenda} target="_blank" rel="noopener noreferrer" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>Agenda</a>
+                        : <span style={{ color: t.textSec, fontSize: 13 }}>Agenda not posted yet</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {box.portal && (
+                <a href={box.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: t.textSec }}>
+                  All meetings, minutes and video on {box.town === "Toronto" ? "the City of Toronto" : "the town"}&apos;s site →
+                </a>
+              )}
+            </section>
+          ));
+        })()}
 
         {loading ? (
           <div style={gridStyle}>

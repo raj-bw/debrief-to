@@ -1,5 +1,6 @@
 import { resolveTown } from "../../lib/towns";
 import { councilPortal } from "../../lib/councils";
+import { torontoMeetings, TORONTO_PORTAL } from "../../lib/toronto-council";
 
 /* ---- Coming up at council ----
    The next few weeks of meetings for the reader's own municipality, with a
@@ -51,6 +52,18 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const town = resolveTown(searchParams.get("town") || "");
   const base = councilPortal(town.townName);
+
+  /* Toronto runs its own system (TMMIS) rather than eSCRIBE. */
+  if (town.townName === "Toronto") {
+    try {
+      const meetings = await torontoMeetings({ daysAhead: DAYS_AHEAD, max: MAX_MEETINGS });
+      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings },
+        { headers: { "Cache-Control": "public, max-age=0", "Vercel-CDN-Cache-Control": CDN_CACHE } });
+    } catch (err) {
+      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings: [], error: err?.message },
+        { headers: { "Cache-Control": "no-store" } });
+    }
+  }
 
   if (!base) {
     return Response.json({ town: town.townName, available: false, meetings: [] },
