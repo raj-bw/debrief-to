@@ -903,7 +903,7 @@ export default function Home() {
                       <span style={{ fontWeight: 600 }}>{m.name}</span>
                       <span style={{ color: t.textSec }}>{m.when.replace(/, \d{4} @/, " ·").replace(/, \d{4}$/, "")}</span>
                       {m.agenda
-                        ? <a href={m.agenda} target="_blank" rel="noopener noreferrer" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>Agenda</a>
+                        ? <a href={m.agenda} target="_blank" rel="noopener noreferrer" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>{m.linkLabel || "Agenda"}</a>
                         : <span style={{ color: t.textSec, fontSize: 13 }}>Agenda not posted yet</span>}
                     </li>
                   ))}

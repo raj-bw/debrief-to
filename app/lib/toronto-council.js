@@ -73,8 +73,80 @@ function when(ms) {
 let memo = null;
 const MEMO_MS = 60 * 60 * 1000;
 
+/* ---- First choice: the City's Open Data portal ----
+   "City Council and Committees Meeting Schedule Reports" is the same
+   schedule TMMIS shows — committee, date, start time, room — published as an
+   open dataset and updated as meetings are set. Unlike TMMIS, whose server
+   refuses requests from hosting networks (it answered browsers but not
+   Vercel), the Open Data API is built to be read by other servers.
+
+   Each term of council is its own resource ("…-2022-2026", "…-2026-2030"),
+   so the newest one is looked up each time rather than written in here. */
+const CKAN = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action";
+const PACKAGE = "city-council-and-committees-meeting-schedule-reports";
+
+async function termResources() {
+  const pkg = await getJson(`${CKAN}/package_show?id=${PACKAGE}`);
+  return (pkg.result?.resources || [])
+    .filter((r) => r.datastore_active && /meeting-schedule-all-committees-(\d{4})-(\d{4})/.test(r.name || ""))
+    .sort((a, b) => String(b.name).localeCompare(String(a.name)))   // newest term first
+    .slice(0, 2);                                                   // plus the outgoing one, around an election
+}
+
+// "13:30 PM" and "09:30 AM" — the hour is already 24-hour; the suffix is decoration.
+function clock(t) {
+  const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  if (/pm/i.test(t) && h < 12) h += 12;
+  if (/am/i.test(t) && h === 12) h = 0;
+  return { h, min: Number(m[2]) };
+}
+
+async function fromOpenData({ daysAhead, max }) {
+  const resources = await termResources();
+  if (!resources.length) throw new Error("no schedule resource on the Open Data portal");
+  const day = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+  const today = day(Date.now());
+  const last = day(Date.now() + daysAhead * 86400000);
+
+  const rows = (await Promise.all(resources.map((r) =>
+    getJson(`${CKAN}/datastore_search?resource_id=${r.id}&limit=150&sort=${encodeURIComponent("Date desc")}`)
+      .then((j) => j.result?.records || []).catch(() => [])))).flat();
+
+  const seen = new Set();
+  return rows
+    .map((r) => ({ name: String(r.Committee || "").trim(), date: String(r.Date || "").slice(0, 10), time: clock(r["Start Time"]), where: String(r.Location || "").trim() }))
+    .filter((r) => r.name && r.date >= today && r.date <= last && !SKIP.test(r.name))
+    .filter((r) => { const k = `${r.name}|${r.date}`; return seen.has(k) ? false : seen.add(k); })
+    .sort((a, b) => a.date.localeCompare(b.date) || ((a.time?.h ?? 0) * 60 + (a.time?.min ?? 0)) - ((b.time?.h ?? 0) * 60 + (b.time?.min ?? 0)))
+    .slice(0, max)
+    .map((r) => {
+      const [y, mo, d] = r.date.split("-").map(Number);
+      const dayName = new Date(Date.UTC(y, mo - 1, d, 12)).toLocaleDateString("en-CA", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      const t = r.time ? new Date(Date.UTC(2000, 0, 1, r.time.h, r.time.min)).toLocaleTimeString("en-CA", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }) : null;
+      return {
+        name: r.name,
+        when: t ? `${dayName} @ ${t}` : dayName,
+        start: `${r.date}T${r.time ? String(r.time.h).padStart(2, "0") + ":" + String(r.time.min).padStart(2, "0") : "00:00"}`,
+        where: r.where,
+        // The dataset has no meeting ids, so the link is to the City's meeting portal.
+        agenda: TORONTO_PORTAL,
+        linkLabel: "Agenda and details",
+        page: TORONTO_PORTAL,
+      };
+    });
+}
+
 export async function torontoMeetings({ daysAhead = 21, max = 6 } = {}) {
   if (memo && Date.now() - memo.at < MEMO_MS) return memo.value;
+  try {
+    const value = await fromOpenData({ daysAhead, max });
+    memo = { at: Date.now(), value };
+    return value;
+  } catch (err) {
+    console.warn("[debrief.to] Toronto Open Data schedule failed, trying TMMIS:", err?.message);
+  }
   const bodies = await currentBodies();
   if (!bodies.length) throw new Error("no council bodies listed");
   // Compare calendar days in Toronto, so a meeting dated today still counts
