@@ -18,6 +18,13 @@ body {
   .filter-divider { margin: 0 2px !important; }
 }
 
+/* About page: each region's local newsrooms fold away. The browser's own
+   disclosure triangle is swapped for a chevron that turns when a region opens. */
+.region-summary { list-style: none; cursor: pointer; }
+.region-summary::-webkit-details-marker { display: none; }
+.region-chevron { flex-shrink: 0; transition: transform 0.15s ease; }
+details[open] > .region-summary .region-chevron { transform: rotate(90deg); }
+
 /* The Change-town button keeps its pencil but drops its label on small
    screens, so the place chips still fit across a phone. */
 @media (max-width: 640px) {

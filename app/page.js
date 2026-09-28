@@ -420,11 +420,21 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             </div>
           ))}
 
+          {/* Local newsrooms start collapsed: the lists are long, and most
+              readers only want their own region. */}
           {regions.map((r) => (
             <div key={r.name}>
               <Divider thin />
-              <H3>Local newsrooms: {r.name}</H3>
-              <Newsrooms list={r.list} />
+              <details>
+                <summary className="region-summary">
+                  <H3>
+                    <svg className="region-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c.muted} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+                    Local newsrooms: {r.name}
+                    <span style={{ fontSize: 14, fontWeight: 400, color: c.muted }}>({r.list.length})</span>
+                  </H3>
+                </summary>
+                <Newsrooms list={r.list} />
+              </details>
             </div>
           ))}
           <p style={{ fontSize: 13, color: c.muted, margin: "16px 0 0", fontStyle: "italic" }}>
@@ -461,9 +471,10 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>What is filtered out</H2>
           <P>
-            We remove wire copy that is not about Ontario, sports, entertainment, weather, obituaries, press releases,
-            sponsored content and columns syndicated across newspaper chains. Filtering is based on the type of item,
-            never on its subject or viewpoint.
+            We remove these types of items: sports, entertainment, weather, obituaries, press releases, sponsored
+            content and columns syndicated across newspaper chains. We also remove national and world stories from
+            news agencies such as The Canadian Press, which many local papers republish. Filtering is based on the
+            type of item, never on its subject or viewpoint.
           </P>
           <H3>Labels</H3>
           <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
