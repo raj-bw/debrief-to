@@ -1,0 +1,170 @@
+/* ---- Regions for the About page's newsroom list ----
+   Each local newsroom, by the region of Ontario it mainly serves. The groups
+   follow Statistics Canada's economic regions for Ontario (checked
+   September 2026), combined into five readable groups:
+
+     Greater Toronto, Hamilton and Niagara  Toronto + Hamilton–Niagara Peninsula
+                                            (which includes Brant and Haldimand–Norfolk)
+     Central Ontario                        Muskoka–Kawarthas, Simcoe, Dufferin
+     Eastern Ontario                        Ottawa + Kingston–Pembroke (incl. Hastings)
+     Southwestern Ontario                   Waterloo, Wellington, London, Windsor–Sarnia,
+                                            Stratford–Bruce Peninsula
+     Northern Ontario                       Northeast + Northwest (incl. Parry Sound)
+
+   A newsroom added to towns.js or publishers.js without an entry here still
+   appears on the About page, under "Other Ontario newsrooms", so nothing is
+   ever silently left off the list. ---- */
+
+export const REGION_ORDER = [
+  "Greater Toronto, Hamilton and Niagara",
+  "Central Ontario",
+  "Eastern Ontario",
+  "Southwestern Ontario",
+  "Northern Ontario",
+];
+
+export const NEWSROOM_REGION = {
+  // Greater Toronto, Hamilton and Niagara
+  "Aurora Today": "Greater Toronto, Hamilton and Niagara",
+  "Brampton Guardian": "Greater Toronto, Hamilton and Niagara",
+  "Brantford Expositor": "Greater Toronto, Hamilton and Niagara",
+  "Burlington Today": "Greater Toronto, Hamilton and Niagara",
+  "Caledon Enterprise": "Greater Toronto, Hamilton and Niagara",
+  "Dundas Today": "Greater Toronto, Hamilton and Niagara",
+  "DurhamRegion": "Greater Toronto, Hamilton and Niagara",
+  "Flamborough Today": "Greater Toronto, Hamilton and Niagara",
+  "Halton Hills Today": "Greater Toronto, Hamilton and Niagara",
+  "InsideHalton": "Greater Toronto, Hamilton and Niagara",
+  "Milton Today": "Greater Toronto, Hamilton and Niagara",
+  "Mississauga.com": "Greater Toronto, Hamilton and Niagara",
+  "Newmarket Today": "Greater Toronto, Hamilton and Niagara",
+  "Niagara Falls Review": "Greater Toronto, Hamilton and Niagara",
+  "Niagara This Week": "Greater Toronto, Hamilton and Niagara",
+  "Niagara-on-the-Lake Local": "Greater Toronto, Hamilton and Niagara",
+  "Oakville News": "Greater Toronto, Hamilton and Niagara",
+  "Paris Independent": "Greater Toronto, Hamilton and Niagara",
+  "Pelham Today": "Greater Toronto, Hamilton and Niagara",
+  "Simcoe Reformer": "Greater Toronto, Hamilton and Niagara",
+  "St. Catharines Standard": "Greater Toronto, Hamilton and Niagara",
+  "The Hamilton Spectator": "Greater Toronto, Hamilton and Niagara",
+  "Thorold News": "Greater Toronto, Hamilton and Niagara",
+  "Welland Tribune": "Greater Toronto, Hamilton and Niagara",
+  "YorkRegion.com": "Greater Toronto, Hamilton and Niagara",
+  // Central Ontario
+  "Barrie Today": "Central Ontario",
+  "Bradford Today": "Central Ontario",
+  "Collingwood Today": "Central Ontario",
+  "Haliburton Echo": "Central Ontario",
+  "Innisfil Today": "Central Ontario",
+  "Kawartha411": "Central Ontario",
+  "Midland Today": "Central Ontario",
+  "MuskokaRegion": "Central Ontario",
+  "NorthumberlandNews": "Central Ontario",
+  "Orangeville Citizen": "Central Ontario",
+  "Orangeville.com": "Central Ontario",
+  "Orillia Matters": "Central Ontario",
+  "Peterborough Examiner": "Central Ontario",
+  "Shelburne Free Press": "Central Ontario",
+  "Simcoe.com": "Central Ontario",
+  "The Highlander": "Central Ontario",
+  "West Northumberland": "Central Ontario",
+  // Eastern Ontario
+  "Arnprior Today": "Eastern Ontario",
+  "Bancroft This Week": "Eastern Ontario",
+  "Belleville Intelligencer": "Eastern Ontario",
+  "Brockville Recorder and Times": "Eastern Ontario",
+  "CBC Ottawa": "Eastern Ontario",
+  "Cornwall Standard-Freeholder": "Eastern Ontario",
+  "Countylive": "Eastern Ontario",
+  "Eganville Leader": "Eastern Ontario",
+  "Gananoque Reporter": "Eastern Ontario",
+  "InsideOttawaValley": "Eastern Ontario",
+  "Kingston Whig-Standard": "Eastern Ontario",
+  "Kingstonist": "Eastern Ontario",
+  "My Bancroft Now": "Eastern Ontario",
+  "My Kemptville Now": "Eastern Ontario",
+  "Ottawa Citizen": "Eastern Ontario",
+  "Pembroke Observer": "Eastern Ontario",
+  "Quinte News": "Eastern Ontario",
+  "Renfrew Today": "Eastern Ontario",
+  "Seaway News": "Eastern Ontario",
+  "The Morrisburg Leader": "Eastern Ontario",
+  "The Napanee Beaver": "Eastern Ontario",
+  "The Review": "Eastern Ontario",
+  // Southwestern Ontario
+  "Aylmer Express": "Southwestern Ontario",
+  "Bayshore Broadcasting": "Southwestern Ontario",
+  "Bruce Peninsula Press": "Southwestern Ontario",
+  "Cambridge Today": "Southwestern Ontario",
+  "Chatham Daily News": "Southwestern Ontario",
+  "CK News Today": "Southwestern Ontario",
+  "CKNX News Today": "Southwestern Ontario",
+  "Clinton News-Record": "Southwestern Ontario",
+  "EloraFergus Today": "Southwestern Ontario",
+  "Exeter Lakeshore Times": "Southwestern Ontario",
+  "Goderich Signal-Star": "Southwestern Ontario",
+  "Guelph Today": "Southwestern Ontario",
+  "Hanover Post": "Southwestern Ontario",
+  "Kincardine News": "Southwestern Ontario",
+  "Kitchener Today": "Southwestern Ontario",
+  "London Free Press": "Southwestern Ontario",
+  "Lucknow Sentinel": "Southwestern Ontario",
+  "Mitchell Advocate": "Southwestern Ontario",
+  "My Stratford Now": "Southwestern Ontario",
+  "Owen Sound Sun Times": "Southwestern Ontario",
+  "Sarnia Observer": "Southwestern Ontario",
+  "Seaforth Huron Expositor": "Southwestern Ontario",
+  "Shoreline Beacon": "Southwestern Ontario",
+  "St. Marys Independent": "Southwestern Ontario",
+  "St. Thomas Times-Journal": "Southwestern Ontario",
+  "Stratford Today": "Southwestern Ontario",
+  "Strathroy Age Dispatch": "Southwestern Ontario",
+  "The Independent": "Southwestern Ontario",
+  "Waterloo Chronicle": "Southwestern Ontario",
+  "Waterloo Region Record": "Southwestern Ontario",
+  "Wellington Advertiser": "Southwestern Ontario",
+  "Wiarton Echo": "Southwestern Ontario",
+  "Windsor Star": "Southwestern Ontario",
+  "Wingham Advance Times": "Southwestern Ontario",
+  "Woodstock Sentinel-Review": "Southwestern Ontario",
+  "Woolwich Observer": "Southwestern Ontario",
+  // Northern Ontario
+  "BayToday": "Northern Ontario",
+  "Elliot Lake Today": "Northern Ontario",
+  "Fort Frances Times": "Northern Ontario",
+  "Manitoulin Expositor": "Northern Ontario",
+  "Mid-North Monitor": "Northern Ontario",
+  "My Parry Sound Now": "Northern Ontario",
+  "North Bay Nugget": "Northern Ontario",
+  "Northern News": "Northern Ontario",
+  "ParrySound.com": "Northern Ontario",
+  "SooToday": "Northern Ontario",
+  "Sudbury.com": "Northern Ontario",
+  "TBNewsWatch": "Northern Ontario",
+  "The Chronicle-Journal": "Northern Ontario",
+  "The Temiskaming Speaker": "Northern Ontario",
+  "Timmins Daily Press": "Northern Ontario",
+  "TimminsToday": "Northern Ontario",
+  "Your Kenora": "Northern Ontario",
+};
+
+/* Homepages that can't be read off the feed address. Postmedia's smaller
+   papers are fetched through a sister paper's WordPress API (London Free
+   Press, Owen Sound Sun Times, Brockville Recorder), but each still has its
+   own address, which is what a reader should be sent to. */
+export const HOMEPAGE_OVERRIDE = {
+  "CBC Ottawa": "https://www.cbc.ca/news/canada/ottawa",
+  "Goderich Signal-Star": "https://www.goderichsignalstar.com",
+  "Clinton News-Record": "https://www.clintonnewsrecord.com",
+  "Mitchell Advocate": "https://www.mitchelladvocate.com",
+  "Seaforth Huron Expositor": "https://www.seaforthhuronexpositor.com",
+  "Woodstock Sentinel-Review": "https://www.woodstocksentinelreview.com",
+  "St. Thomas Times-Journal": "https://www.stthomastimesjournal.com",
+  "Strathroy Age Dispatch": "https://www.strathroyagedispatch.com",
+  "Shoreline Beacon": "https://www.shorelinebeacon.com",
+  "Kincardine News": "https://www.kincardinenews.com",
+  "Hanover Post": "https://www.thepost.on.ca",
+  "Lucknow Sentinel": "https://www.lucknowsentinel.com",
+  "Wiarton Echo": "https://www.wiartonecho.com",
+  "Gananoque Reporter": "https://www.gananoquereporter.com",
+};

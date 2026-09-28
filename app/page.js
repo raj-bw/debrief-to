@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { townOptions, DEFAULT_TOWN, resolveTown, localOwnership } from "./lib/towns";
+import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
+import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
 
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
@@ -315,27 +316,60 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
     muted: dm ? "#9A958E" : "#6B665F",
     accent: dm ? "#7FD3A8" : "#2D6A4F",
   };
-  const Section = ({ heading, children }) => (
-    <section style={{ marginBottom: 36 }}>
-      {heading && (
-        <h3 style={{ fontFamily: "'Georgia', serif", fontSize: 21, fontWeight: 700, color: c.title, margin: "0 0 14px" }}>{heading}</h3>
-      )}
-      {children}
-    </section>
+  /* Type and spacing. Section headings are large and bold; a thin rule
+     separates every section, and every topic within "How stories are sorted". */
+  const H2 = ({ children }) => (
+    <h2 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(22px, 4.6vw, 26px)", fontWeight: 700, color: c.title, lineHeight: 1.25, margin: "0 0 14px" }}>{children}</h2>
   );
-  const P = ({ children }) => (
-    <p style={{ fontSize: 15.5, lineHeight: 1.75, color: c.body, margin: "0 0 15px" }}>{children}</p>
+  const H3 = ({ children, icon }) => (
+    <h3 style={{ fontSize: 17, fontWeight: 700, color: c.title, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 8 }}>
+      {icon && <span aria-hidden="true" style={{ fontSize: 17 }}>{icon}</span>}{children}
+    </h3>
   );
-  const Rule = ({ title, children }) => (
-    <p style={{ fontSize: 15.5, lineHeight: 1.75, color: c.body, margin: "0 0 15px" }}>
-      <strong style={{ color: c.title, fontWeight: 600 }}>{title}</strong> {children}
-    </p>
+  const P = ({ children, muted }) => (
+    <p style={{ fontSize: 15.5, lineHeight: 1.75, color: muted ? c.muted : c.body, margin: "0 0 14px" }}>{children}</p>
+  );
+  const Divider = ({ thin }) => (
+    <hr style={{ border: 0, borderTop: `1px solid ${thin ? (dm ? "#2E2E2E" : "#EEEBE6") : c.cardBorder}`, margin: thin ? "18px 0" : "34px 0" }} />
+  );
+  const Strong = ({ children }) => <strong style={{ color: c.title, fontWeight: 600 }}>{children}</strong>;
+  const Sub = () => (
+    <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "1px 6px", borderRadius: 8, color: dm ? "#E0B978" : "#8A5A12", background: dm ? "#3A2E1C" : "#F6ECD9", border: `1px solid ${dm ? "#5A4526" : "#E8D5B0"}`, whiteSpace: "nowrap" }}>Subscription</span>
   );
 
-  const groups = [
-    { label: "Toronto", note: "City and neighbourhood reporting" },
-    { label: "Ontario", note: "Provincial politics and the environment beat" },
-    { label: "Canada", note: "Independent and investigative newsrooms" },
+  /* A list of newsrooms as a run of linked names, spaced rather than
+     separated by dots (dots end up at the start of wrapped lines). Every
+     name goes to the newsroom's own site. */
+  const Newsrooms = ({ list }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 4, columnGap: 20, fontSize: 15, lineHeight: 1.8, color: c.body }}>
+      {list.map((n) => (
+        <span key={n.name} style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+          <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ color: c.body, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>{n.label || n.name}</a>
+          {n.paywall && <Sub />}
+        </span>
+      ))}
+    </div>
+  );
+
+  // Toronto, Ontario and Canada: the newsrooms every reader sees.
+  const LONG_NAMES = { IJF: "Investigative Journalism Foundation (IJF)" };
+  const standing = (place) => PUBLISHERS.filter((p) => p.place === place).map((p) => ({ ...p, label: LONG_NAMES[p.name] }));
+
+  // Local newsrooms, by region, straight from the registry the towns use.
+  const byRegion = {};
+  for (const n of localNewsrooms()) {
+    const region = NEWSROOM_REGION[n.name] || "Other Ontario newsrooms";
+    (byRegion[region] ||= []).push({ ...n, url: HOMEPAGE_OVERRIDE[n.name] || n.url });
+  }
+  const regions = [...REGION_ORDER, "Other Ontario newsrooms"]
+    .filter((r) => byRegion[r]?.length)
+    .map((r) => ({ name: r, list: byRegion[r].sort((a, b) => a.name.localeCompare(b.name)) }));
+
+  const topics = [
+    { name: "Environment", icon: "\u{1F33F}", text: "Climate, energy, conservation, pollution and land use." },
+    { name: "Investigative", icon: "\u{1F50D}", text: "Long-form and investigative reporting, mostly from non-profit and independent newsrooms." },
+    { name: "National Politics", icon: "\u{1F3DB}", text: "Federal government, Parliament, elections and national policy." },
+    { name: "Urbanism & Transit", icon: "\u{1F687}", text: "Housing, planning, development, public transit and roads." },
   ];
 
   return (
@@ -353,23 +387,127 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         </div>
       </header>
 
-      {/* The full About page (mission, how stories are chosen, privacy, the
-          newsroom list and who funds them) is being rewritten. Until it's
-          back, a short summary. The previous text is kept in the project
-          docs: claude/about-page-draft.md */}
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: "48px clamp(16px, 4vw, 24px) 96px" }}>
-        <div style={{ textAlign: "center", padding: "64px 24px", background: c.cardBg, borderRadius: 12, border: `1px solid ${c.cardBorder}` }}>
-          <h1 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(22px, 5vw, 28px)", fontWeight: 700, color: c.title, margin: "0 0 12px" }}>
-            About this page is on its way
-          </h1>
-          <p style={{ fontSize: 15.5, lineHeight: 1.7, color: c.body, margin: "0 auto 12px", maxWidth: 480 }}>
-            Debrief.TO collects headlines from local and independent newsrooms across Ontario, free and in one
-            place, and links straight to the people who reported them.
+      <main style={{ maxWidth: 760, margin: "0 auto", padding: "44px clamp(16px, 4vw, 24px) 96px" }}>
+
+        <section>
+          <H2>About Debrief.TO</H2>
+          <P>
+            Debrief.TO is a free news reader for Ontario. It collects headlines from local and independent newsrooms
+            and shows them on one page, newest first. Each headline links to the original story on the publisher&apos;s website.
+          </P>
+          <P>There is no account, no paywall on our side, and no personalized or popularity-based ranking.</P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Where the news comes from</H2>
+          <P>
+            Stories come from a fixed list of newsrooms: local papers, independent outlets and non-profit investigative
+            publications. The list is chosen by hand and published below. It is the only editorial decision the site makes.
+          </P>
+          <P>
+            Every reader sees the Toronto, Ontario and Canada newsrooms. Your local tab adds the newsroom that covers
+            your town{homeLabel ? <> (currently <Strong>{homeLabel}</Strong>)</> : null}. If your town has no newsroom on the list, it shows the one covering your region.
+          </P>
+          <P muted>Newsrooms marked <Sub /> publish some or all of their stories for subscribers only.</P>
+
+          {["Toronto", "Ontario", "Canada"].map((place) => (
+            <div key={place}>
+              <Divider thin />
+              <H3>{place}</H3>
+              <Newsrooms list={standing(place)} />
+            </div>
+          ))}
+
+          {regions.map((r) => (
+            <div key={r.name}>
+              <Divider thin />
+              <H3>Local newsrooms: {r.name}</H3>
+              <Newsrooms list={r.list} />
+            </div>
+          ))}
+          <p style={{ fontSize: 13, color: c.muted, margin: "16px 0 0", fontStyle: "italic" }}>
+            Regions follow Statistics Canada&apos;s economic regions for Ontario.
           </p>
-          <p style={{ fontSize: 15.5, lineHeight: 1.7, color: c.body, margin: "0 auto", maxWidth: 480 }}>
-            Coming next: our mission, and exactly how stories are chosen.
-          </p>
-        </div>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>How stories are sorted</H2>
+          <P>
+            <Strong>Places.</Strong> Each story is filed under one or more places: your town, Toronto, Ontario or Canada.
+            The place is based on where the newsroom reports from and what the story is about. A federal story from a
+            Toronto newsroom, for example, appears under both Toronto and Canada.
+          </P>
+          <P>
+            <Strong>Topics.</Strong> Topics are assigned to each story individually, regardless of where it comes from.
+            A story is tagged when the publisher files it in a matching section, or when its headline uses a clear term
+            for the subject. A story can carry more than one topic, but it appears only once when several of its topics
+            are selected.
+          </P>
+          {topics.map((tp) => (
+            <div key={tp.name}>
+              <Divider thin />
+              <H3 icon={tp.icon}>{tp.name}</H3>
+              <P>{tp.text}</P>
+            </div>
+          ))}
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>What is filtered out</H2>
+          <P>
+            We remove wire copy that is not about Ontario, sports, entertainment, weather, obituaries, press releases,
+            sponsored content and columns syndicated across newspaper chains. Filtering is based on the type of item,
+            never on its subject or viewpoint.
+          </P>
+          <H3>Labels</H3>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
+            <li style={{ marginBottom: 6 }}><Strong>Subscription</Strong> marks stories the publisher lists as subscriber-only.</li>
+            <li style={{ marginBottom: 6 }}><Strong>Opinion</Strong> marks commentary.</li>
+            <li>
+              <Strong>Also covered by</Strong> appears when several newsrooms report the same story. The story is shown
+              once, from the most local newsroom; where two are equally local, from the one that published first. The
+              other newsrooms are named beneath it.
+            </li>
+          </ul>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Council agendas</H2>
+          <P>
+            For towns with an online meeting portal, the local tab lists upcoming council and committee meetings, with a
+            link to each agenda. These are official municipal records and are kept separate from news stories.
+          </P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Privacy</H2>
+          <P>
+            Your town, saved stories and settings are stored only in your browser. Debrief.TO has no accounts and does
+            not track what you read.
+          </P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Publishers and contact</H2>
+          <P>
+            Every story belongs to the newsroom that published it. Publishers who would like to be removed can
+            email <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
+          </P>
+          <P>Debrief.TO was built in Newmarket as part of the BUILD program with Apathy is Boring.</P>
+        </section>
+
       </main>
     </div>
   );

@@ -469,6 +469,23 @@ export function localOwnership() {
   return { total: byName.size, byOwner, unconfirmed };
 }
 
+/* Every local newsroom, once, for the About page's list: its name, its
+   homepage, and whether its stories are subscriber-only. Built from the same
+   registry the towns use, so the published list can't drift from what the
+   site actually carries. Toronto is left out for the same reason as above. */
+export function localNewsrooms() {
+  const byName = new Map();
+  const home = (f) => {
+    try { return new URL((f.urls || [])[0] || f.api).origin; } catch { return null; }
+  };
+  const collect = (f) => { if (!byName.has(f.name)) byName.set(f.name, { name: f.name, url: home(f), paywall: Boolean(f.paywall) }); };
+  for (const [name, list] of Object.entries(TOWN_FEEDS)) if (name !== "Toronto") list.forEach(collect);
+  for (const list of Object.values(TOWN_EXTRA)) list.forEach(collect);
+  for (const a of Object.values(AREA_FEEDS)) a.feeds.forEach(collect);
+  for (const [name, d] of Object.entries(DIVISION_FEEDS)) if (name !== "Toronto") d.feeds.forEach(collect);
+  return [...byName.values()];
+}
+
 /* Exposed so /api/health can check every feed we actually rely on, without
    having to know how towns resolve to publishers. One entry per distinct
    request, so a Durham town section and the Durham regional feed are
