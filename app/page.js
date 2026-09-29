@@ -944,7 +944,8 @@ export default function Home() {
 
   // Add to Home Screen. The card in the feed shows on phones from the second
   // visit on (the first already asks for a town), until the reader adds the
-  // site or says not now. The footer link is always there as a way back to it.
+  // site. "Not now" hides it for 24 hours; it comes back on the first visit
+  // after that. The footer link is always there as a way back to it.
   const install = useInstall();
   const [installCardOpen, setInstallCardOpen] = useState(false);
   const [showInstallSheet, setShowInstallSheet] = useState(false);
@@ -953,12 +954,16 @@ export default function Home() {
       const visits = Number(localStorage.getItem("cp_visits") || 0) + 1;
       localStorage.setItem("cp_visits", String(visits));
       const phone = window.matchMedia("(pointer: coarse)").matches;
-      if (phone && visits >= 2 && !localStorage.getItem("cp_installDismissed")) setInstallCardOpen(true);
+      // When "Not now" was last tapped. Older visits stored "1" here, which
+      // reads as long ago, so those readers simply see the card again.
+      const dismissedAt = Number(localStorage.getItem("cp_installDismissed") || 0);
+      const snoozed = Date.now() - dismissedAt < 24 * 60 * 60 * 1000;
+      if (phone && visits >= 2 && !snoozed) setInstallCardOpen(true);
     } catch {}
   }, []);
   const dismissInstallCard = () => {
     setInstallCardOpen(false);
-    try { localStorage.setItem("cp_installDismissed", "1"); } catch {}
+    try { localStorage.setItem("cp_installDismissed", String(Date.now())); } catch {}
   };
   const startInstall = () => (install.platform === "ios" ? setShowInstallSheet(true) : install.prompt());
 
@@ -1107,11 +1112,13 @@ export default function Home() {
 
             {/* Right side of the row: Editor's Picks and the free-to-read switch */}
             <div className="row-right" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {/* The same red as the Saved button, so the site's two "your reading"
+                  places share a colour */}
               <button onClick={() => setShowPicks(!showPicks)} aria-pressed={showPicks}
                 style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "11px clamp(11px, 2.8vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
-                  background: showPicks ? "#2D6A4F" : "transparent",
-                  color: showPicks ? "#FFF" : (dm ? "#7FD3A8" : "#2D6A4F"),
-                  border: `1.5px solid ${showPicks ? "#2D6A4F" : (dm ? "#3E6B57" : t.inputBorder)}` }}>
+                  background: showPicks ? "#C0354A" : "transparent",
+                  color: showPicks ? "#FFF" : (dm ? "#F2788C" : "#C0354A"),
+                  border: `1.5px solid ${showPicks ? "#C0354A" : (dm ? "#6A3345" : "#D9A1AC")}` }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill={showPicks ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 {PICKS_LABEL}
               </button>
@@ -1206,7 +1213,7 @@ export default function Home() {
         </div>
 
         {showPicks && (
-          <div role="note" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 14, lineHeight: 1.55, background: dm ? "#23302A" : "#EEF5F1", border: `1px solid ${dm ? "#35503F" : "#CDE3D7"}`, color: t.text }}>
+          <div role="note" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 14, lineHeight: 1.55, background: dm ? "#35222A" : "#FCF0F2", border: `1px solid ${dm ? "#5A3040" : "#F0D0D7"}`, color: t.text }}>
             <strong>{PICKS_LABEL}</strong> are stories chosen by Debrief.TO as worth reading in full. Each stays here for {PICKS_DAYS} days after it was published.
           </div>
         )}
