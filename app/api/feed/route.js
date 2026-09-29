@@ -1,5 +1,5 @@
 import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
-import { topicsFor, placesFor, TOPIC_RULES_VERSION } from "../../lib/topics";
+import { topicsFor, placesFor, settleTopics, TOPIC_RULES_VERSION } from "../../lib/topics";
 import { clusterStories } from "../../lib/cluster";
 import { archiveEnabled, readArticles, shelfSizes, bucketFor, activateTown, storeArticles } from "../../lib/archive";
 import { SOURCES } from "../../lib/sources";
@@ -247,7 +247,7 @@ export async function GET(request) {
     if (homeBuckets.has(a.bucket) || regionSet.has(a.bucket)) r.sourcePlace = "home";
     else if (r.sourcePlace === "National") r.sourcePlace = "Canada";
     // Re-tag only stories filed under older rules (see TOPIC_RULES_VERSION).
-    if (a.tv !== TOPIC_RULES_VERSION) r.topics = [...new Set([...(r.topics || []), ...topicsFor(r, null)])];
+    if (a.tv !== TOPIC_RULES_VERSION) r.topics = settleTopics(r, [...new Set([...(r.topics || []), ...topicsFor(r, null)])]);
     delete r.tv;
     return r;
   };

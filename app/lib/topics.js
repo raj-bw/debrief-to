@@ -69,8 +69,11 @@ const TOPIC_TITLE_PATTERNS = {
   ],
   "National Politics": [
     /\bhouse of commons\b/i, /\bparliament\b/i, /\bfederal (?:government|budget|election|minister|cabinet)\b/i,
-    /\bprime minister\b/i, /\bqueen'?s park\b/i, /\bprovincial (?:government|budget|election)\b/i,
-    /\bmpps?\b/i, /\bmps?\b(?!\s*(?:h|g))/i, /\bby-?election\b/i, /\bcabinet minister\b/i,
+    /\bprime minister\b/i,
+    /\bmps?\b/i, /\bby-?election\b/i, /\bcabinet minister\b/i,
+    /* Provincial terms (Queen's Park, MPPs, "provincial government / budget /
+       election") moved to the Ontario place on 29 Sept 2026: National
+       Politics now means federal politics only, as the About page says. */
     /* Widened 23 Sept 2026. Headlines about federal politics mostly name the
        people, not the institution: "Carney downplays Trump's threat..." had
        no topic at all. Names are limited to the prime minister and the
@@ -132,7 +135,9 @@ const TOPIC_TITLE_PAIRS = {
    often to be reliable. ---- */
 const PLACE_TITLE_PATTERNS = {
   "Toronto": [/\btoronto\b/i, /\bthe gta\b/i, /\bscarborough\b/i, /\betobicoke\b/i, /\bnorth york\b/i, /\beast york\b/i],
-  "Ontario": [/\bontario\b/i, /\bqueen'?s park\b/i, /\bdoug ford\b/i, /\bprovince of ontario\b/i],
+  "Ontario": [/\bontario\b/i, /\bqueen'?s park\b/i, /\bdoug ford\b/i, /\bprovince of ontario\b/i,
+    // Provincial politics, wherever it is reported: "Newmarket MPP announces..."
+    /\bmpps?\b/i, /\bprovincial (?:government|budget|election|legislature)\b/i],
   /* A local newsroom's story about the country as a whole also belongs in
      Canada. Kept to phrases about the country itself. The bare word matched
      "Canada-wide warrant", "StubHub Canada" and "Canada Day" in a month of
@@ -198,7 +203,27 @@ export function topicsFor(article, item) {
     if (article.sourcePlace !== "Ontario" && !PROVINCIAL.test(title)
       && (TOPIC_TITLE_UNLESS_PROVINCIAL[topic] || []).some((re) => re.test(title))) { found.add(topic); }
   }
-  return [...found];
+  return settleTopics(article, [...found]);
+}
+
+/* ---- Provincial stories are not National Politics ----
+   A section called /politics/ or a Trillium story from Queen's Park can look
+   political without being federal. Unless the headline itself names federal
+   politics (Parliament, the prime minister, a federal minister...), a story
+   that is provincial — by its headline, or because it comes from an Ontario
+   newsroom — loses the National Politics tag. It still appears under the
+   Ontario place. Also applied to archived stories when they are re-tagged. */
+function isFederalTitle(title) {
+  return (TOPIC_TITLE_PATTERNS["National Politics"] || []).some((re) => re.test(title))
+    || (TOPIC_TITLE_PAIRS["National Politics"] || []).some(([a, b]) => a.test(title) && b.test(title));
+}
+export function settleTopics(article, topics) {
+  if (!topics.includes("National Politics")) return topics;
+  const title = article.title || "";
+  const provincial = PROVINCIAL.test(title) || article.sourcePlace === "Ontario";
+  // City politics too: a /politics/ section also holds mayoral races and council votes.
+  const municipal = /\b(?:mayor|mayoral|city council|councill?or|council votes?|city hall|ward)\b/i.test(title);
+  return (provincial || municipal) && !isFederalTitle(title) ? topics.filter((t) => t !== "National Politics") : topics;
 }
 
 /* The places an article belongs to. `homePlace` is whatever the reader's local

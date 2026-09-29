@@ -368,7 +368,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
   const topics = [
     { name: "Environment", icon: "\u{1F33F}", text: "Climate, energy, conservation, pollution and land use." },
     { name: "Investigative", icon: "\u{1F50D}", text: "Long-form and investigative reporting, mostly from non-profit and independent newsrooms." },
-    { name: "National Politics", icon: "\u{1F3DB}", text: "Federal government, Parliament, elections and national policy." },
+    { name: "National Politics", icon: "\u{1F3DB}", text: "Federal government, Parliament, federal elections and national policy. Provincial politics is filed under Ontario." },
     { name: "Urbanism & Transit", icon: "\u{1F687}", text: "Housing, planning, development, public transit and roads." },
   ];
 
@@ -420,20 +420,20 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             </div>
           ))}
 
-          {/* Local newsrooms start collapsed: the lists are long, and most
-              readers only want their own region. */}
+          {/* Local newsrooms: one collapsible group per region, all closed when
+              the page opens, so the page reads as a page rather than a list. */}
           {regions.map((r) => (
             <div key={r.name}>
               <Divider thin />
-              <details>
-                <summary className="region-summary">
-                  <H3>
-                    <svg className="region-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c.muted} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
-                    Local newsrooms: {r.name}
-                    <span style={{ fontSize: 14, fontWeight: 400, color: c.muted }}>({r.list.length})</span>
-                  </H3>
+              <details className="newsroom-group">
+                <summary style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, fontSize: 17, fontWeight: 700, color: c.title }}>
+                  <svg className="newsroom-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, transition: "transform 0.15s ease" }}><polyline points="9 6 15 12 9 18"/></svg>
+                  <span>Local newsrooms: {r.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: c.muted }}>({r.list.length})</span>
                 </summary>
-                <Newsrooms list={r.list} />
+                <div style={{ marginTop: 10, paddingLeft: 24 }}>
+                  <Newsrooms list={r.list} />
+                </div>
               </details>
             </div>
           ))}
@@ -471,10 +471,10 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>What is filtered out</H2>
           <P>
-            We remove these types of items: sports, entertainment, weather, obituaries, press releases, sponsored
-            content and columns syndicated across newspaper chains. We also remove national and world stories from
-            news agencies such as The Canadian Press, which many local papers republish. Filtering is based on the
-            type of item, never on its subject or viewpoint.
+            We remove stories that local papers republish from national news agencies, such as The Canadian Press,
+            when they are not about Ontario. We also remove the following: sports, entertainment, weather, obituaries, press
+            releases, sponsored content and columns syndicated across newspaper chains. Filtering is based on the type
+            of item, never on its subject or viewpoint.
           </P>
           <H3>Labels</H3>
           <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
@@ -516,11 +516,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             Every story belongs to the newsroom that published it. Publishers who would like to be removed can
             email <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
           </P>
-          <P>
-            Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
-            part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>. Its goal is to help
-            Ontarians find local and independent news, free and in one place.
-          </P>
+          <P>Debrief.TO was built in Newmarket as part of the BUILD program with Apathy is Boring.</P>
         </section>
 
       </main>
