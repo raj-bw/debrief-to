@@ -980,17 +980,19 @@ export default function Home() {
     skeleton: dm ? "#333" : "#EBE8E3",
   };
 
+  // Bright yellow in both themes, so it stands out from the white story cards
+  // it sits between. Text stays dark on it for contrast.
   const installCardEl = installCardOpen && install.platform && (
-    <div style={{ gridColumn: "1 / -1", background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16, display: "flex", alignItems: "flex-start", gap: 14, boxShadow: dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)" }}>
-      <img src="/icons/apple-touch-icon.png" alt="" width={48} height={48} style={{ borderRadius: 11, border: `1px solid ${t.cardBorder}`, flexShrink: 0 }} />
+    <div style={{ gridColumn: "1 / -1", background: "#FFD84D", border: "1.5px solid #E6B800", borderRadius: 14, padding: 16, display: "flex", alignItems: "flex-start", gap: 14, boxShadow: dm ? "0 4px 16px rgba(0,0,0,0.35)" : "0 4px 14px rgba(230,184,0,0.25)" }}>
+      <img src="/icons/apple-touch-icon.png" alt="" width={48} height={48} style={{ borderRadius: 11, border: "1px solid rgba(0,0,0,0.15)", flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: t.title, marginBottom: 2 }}>Put Debrief.TO on your Home Screen</div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: t.textSec }}>It opens full-screen, like an app. No app store needed.</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1A1A1A", marginBottom: 2 }}>Put Debrief.TO on your Home Screen</div>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: "#4A3F1A" }}>It opens full-screen, like an app. No app store needed.</div>
         <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-          <button onClick={startInstall} style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "1.5px solid #2D6A4F" }}>
+          <button onClick={startInstall} style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#1A1A1A", color: "#FFF", border: "1.5px solid #1A1A1A" }}>
             {install.platform === "ios" ? "Show me how" : "Add to Home Screen"}
           </button>
-          <button onClick={dismissInstallCard} style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", background: "transparent", color: t.textSec, border: `1.5px solid ${t.cardBorder}` }}>
+          <button onClick={dismissInstallCard} style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", background: "transparent", color: "#4A3F1A", border: "1.5px solid rgba(0,0,0,0.3)" }}>
             Not now
           </button>
         </div>
