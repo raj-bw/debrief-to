@@ -296,7 +296,101 @@ function SiteIcons({ dark }) {
       <link rel="icon" type="image/png" sizes="16x16" href={`${dir}/favicon-16.png`} />
       <link rel="icon" type="image/png" sizes="32x32" href={`${dir}/favicon-32.png`} />
       <link rel="icon" type="image/png" sizes="192x192" href={`${dir}/favicon-192.png`} />
+      {/* Colours the phone's status bar to match the header, in either theme */}
+      <meta name="theme-color" content={dark ? "#1E1E1E" : "#FFFFFF"} />
     </>
+  );
+}
+
+/* ---- Add to Home Screen ----
+   Added to a phone's Home Screen, the site opens full-screen like an app (the
+   manifest is app/manifest.js). Android browsers show their own install
+   dialog when asked, so there a button can do it in one tap. Safari on iPhone
+   has no such dialog, so there we explain the two taps instead. */
+function useInstall() {
+  const [platform, setPlatform] = useState(null); // "prompt" | "ios" | null
+  const [installed, setInstalled] = useState(false);
+  const deferred = useRef(null);
+  useEffect(() => {
+    setInstalled(window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true);
+    const ua = navigator.userAgent;
+    // iPads report themselves as Macs; the touch screen gives them away.
+    if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) setPlatform("ios");
+    const onPrompt = (e) => { e.preventDefault(); deferred.current = e; setPlatform("prompt"); };
+    const onInstalled = () => { deferred.current = null; setInstalled(true); };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+  const prompt = async () => {
+    const e = deferred.current;
+    if (!e) return;
+    deferred.current = null; // each prompt can only be shown once
+    e.prompt();
+    const { outcome } = await e.userChoice;
+    if (outcome === "accepted") setInstalled(true);
+    else setPlatform(null);
+  };
+  return { platform: installed ? null : platform, prompt };
+}
+
+// The Share icon as Safari draws it: a box with an arrow coming out of the top.
+const ShareIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: "-3px" }}>
+    <path d="M8 10H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+  </svg>
+);
+
+// iPhone instructions, as a sheet that rises from the bottom of the screen.
+function InstallSheet({ dm, onClose }) {
+  const c = {
+    panel: dm ? "#242424" : "#FFF",
+    border: dm ? "#3A3A3A" : "#E8E5E0",
+    title: dm ? "#F0EDE8" : "#1A1A1A",
+    body: dm ? "#C8C4BE" : "#3C3A37",
+    muted: dm ? "#9A958E" : "#6B665F",
+    step: dm ? "#2E5A47" : "#E3F0E9",
+    accent: dm ? "#7FD3A8" : "#2D6A4F",
+  };
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const Step = ({ n, children }) => (
+    <li style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 14 }}>
+      <span aria-hidden="true" style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 13, background: c.step, color: c.accent, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{n}</span>
+      <span style={{ fontSize: 15, lineHeight: 1.55, color: c.body, paddingTop: 2 }}>{children}</span>
+    </li>
+  );
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Add Debrief.TO to your Home Screen" onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ background: c.panel, borderTop: `1px solid ${c.border}`, borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 520, padding: "22px 20px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 -12px 40px rgba(0,0,0,0.25)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+          <img src="/icons/apple-touch-icon.png" alt="" width={44} height={44} style={{ borderRadius: 10, border: `1px solid ${c.border}` }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: c.title }}>Add to Home Screen</div>
+            <div style={{ fontSize: 13, color: c.muted }}>Debrief.TO opens full-screen, like an app.</div>
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", padding: 8, cursor: "pointer", color: c.muted }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <Step n={1}>Tap <strong style={{ color: c.title }}>Share</strong> <ShareIcon /> in Safari. On newer iPhones it is inside the <strong style={{ color: c.title }}>⋯</strong> menu.</Step>
+          <Step n={2}>Scroll down and choose <strong style={{ color: c.title }}>Add to Home Screen</strong>.</Step>
+          <Step n={3}>Tap <strong style={{ color: c.title }}>Add</strong>. If you see <strong style={{ color: c.title }}>Open as Web App</strong>, leave it on.</Step>
+        </ol>
+        <p style={{ fontSize: 13, lineHeight: 1.6, color: c.muted, margin: "4px 0 0" }}>
+          The app keeps its own settings, separate from Safari, so you&apos;ll choose your town once more the first time you open it.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -825,6 +919,26 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore]);
 
+  // Add to Home Screen. The card in the feed shows on phones from the second
+  // visit on (the first already asks for a town), until the reader adds the
+  // site or says not now. The footer link is always there as a way back to it.
+  const install = useInstall();
+  const [installCardOpen, setInstallCardOpen] = useState(false);
+  const [showInstallSheet, setShowInstallSheet] = useState(false);
+  useEffect(() => {
+    try {
+      const visits = Number(localStorage.getItem("cp_visits") || 0) + 1;
+      localStorage.setItem("cp_visits", String(visits));
+      const phone = window.matchMedia("(pointer: coarse)").matches;
+      if (phone && visits >= 2 && !localStorage.getItem("cp_installDismissed")) setInstallCardOpen(true);
+    } catch {}
+  }, []);
+  const dismissInstallCard = () => {
+    setInstallCardOpen(false);
+    try { localStorage.setItem("cp_installDismissed", "1"); } catch {}
+  };
+  const startInstall = () => (install.platform === "ios" ? setShowInstallSheet(true) : install.prompt());
+
   // Full-page views. These early returns must come AFTER every hook above so
   // the hook order stays identical on every render (Rules of Hooks).
   if (page === "bookmarks") {
@@ -862,6 +976,24 @@ export default function Home() {
     skeleton: dm ? "#333" : "#EBE8E3",
   };
 
+  const installCardEl = installCardOpen && install.platform && (
+    <div style={{ gridColumn: "1 / -1", background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, padding: 16, display: "flex", alignItems: "flex-start", gap: 14, boxShadow: dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)" }}>
+      <img src="/icons/apple-touch-icon.png" alt="" width={48} height={48} style={{ borderRadius: 11, border: `1px solid ${t.cardBorder}`, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: t.title, marginBottom: 2 }}>Put Debrief.TO on your Home Screen</div>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: t.textSec }}>It opens full-screen, like an app. No app store needed.</div>
+        <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <button onClick={startInstall} style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "1.5px solid #2D6A4F" }}>
+            {install.platform === "ios" ? "Show me how" : "Add to Home Screen"}
+          </button>
+          <button onClick={dismissInstallCard} style={{ padding: "9px 16px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", background: "transparent", color: t.textSec, border: `1.5px solid ${t.cardBorder}` }}>
+            Not now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   /* The archive's depth is deliberately NOT shown to readers. "0 days of older
      stories" reads like a fault rather than a feature, and a reader doesn't
      need to know how the pipes work — they just want the news. It is still
@@ -872,6 +1004,7 @@ export default function Home() {
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: t.bg, color: t.text }}>
       <SiteIcons dark={darkMode} />
       {showPicker && <TownPicker dm={dm} onPick={chooseTown} onSkip={skipTown} />}
+      {showInstallSheet && <InstallSheet dm={dm} onClose={() => setShowInstallSheet(false)} />}
       {/* ===== HEADER ===== */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
         <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px" }}>
@@ -1108,7 +1241,8 @@ export default function Home() {
           )}
           <div style={gridStyle}>
             {visibleArticles.map((article, i) => (
-              <div key={article.link + i} style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", transition: "transform 0.25s ease, box-shadow 0.25s ease", cursor: "default", position: "relative", boxShadow: dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)" }}
+              <React.Fragment key={article.link + i}>
+              <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", transition: "transform 0.25s ease, box-shadow 0.25s ease", cursor: "default", position: "relative", boxShadow: dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)" }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = dm ? "0 12px 32px rgba(0,0,0,0.35)" : "0 12px 32px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)"; }}
               >
@@ -1184,6 +1318,9 @@ export default function Home() {
                   </a>
                 </div>
               </div>
+              {/* After the first six stories, so the news always comes first */}
+              {i === 5 && installCardEl}
+              </React.Fragment>
             ))}
           </div>
           </>
@@ -1208,9 +1345,16 @@ export default function Home() {
           Debrief.TO gathers headlines from independent and local newsrooms and links straight back to them.
           All content belongs to the newsroom that reported it — click through to read it there, and subscribe if you can.
         </p>
-        <button onClick={() => setPage("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
-          About Debrief.TO
-        </button>
+        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 24px" }}>
+          <button onClick={() => setPage("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
+            About Debrief.TO
+          </button>
+          {install.platform && (
+            <button onClick={startInstall} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
+              Add to Home Screen
+            </button>
+          )}
+        </div>
       </footer>
     </div>
   );
