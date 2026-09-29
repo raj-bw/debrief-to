@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
+import { currentPicks, PICKS_LABEL, PICKS_DAYS } from "./lib/picks";
 
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
@@ -689,6 +690,11 @@ export default function Home() {
   const [activeCategories, setActiveCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSources, setShowSources] = useState(false);
+  // "Free to read only": hides stories the publisher marks subscriber-only.
+  // Off by default; remembered in this browser once changed.
+  const [freeOnly, setFreeOnly] = useState(false);
+  // Editor's Picks view: the hand-chosen list instead of the feed.
+  const [showPicks, setShowPicks] = useState(false);
   const [timeFilter, setTimeFilter] = useState("This Month");
   const [darkMode, setDarkMode] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
@@ -708,6 +714,7 @@ export default function Home() {
   useEffect(() => {
     try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_showSources")); if (v) setShowSources(v); } catch {}
+    try { const v = JSON.parse(localStorage.getItem("cp_freeOnly")); if (v) setFreeOnly(v); } catch {}
     try { const v = localStorage.getItem("cp_timeFilter"); if (v) setTimeFilter(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_darkMode")); if (v) setDarkMode(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_bookmarks")); if (v) setBookmarks(v); } catch {}
@@ -724,6 +731,7 @@ export default function Home() {
   // Save preferences to localStorage when they change (only after hydration)
   useEffect(() => { if (hydrated) localStorage.setItem("cp_categories", JSON.stringify(activeCategories)); }, [activeCategories, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_showSources", JSON.stringify(showSources)); }, [showSources, hydrated]);
+  useEffect(() => { if (hydrated) localStorage.setItem("cp_freeOnly", JSON.stringify(freeOnly)); }, [freeOnly, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_timeFilter", timeFilter); }, [timeFilter, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_darkMode", JSON.stringify(darkMode)); }, [darkMode, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_bookmarks", JSON.stringify(bookmarks)); }, [bookmarks, hydrated]);
@@ -889,13 +897,24 @@ export default function Home() {
         : (a.topics || []).includes(label);
     });
 
-  // Step 1: apply the category + search filters
-  const matchesOtherFilters = articles.filter((a) => {
+  // Editor's Picks, shaped like feed articles so the same cards show them.
+  const pickColor = (name) => PUBLISHERS.find((p) => p.name === name)?.color || "#6B665F";
+  const picks = currentPicks().map((p) => ({
+    title: p.title, link: p.url, description: p.description, pubDate: p.published,
+    source: p.source, sourceColor: pickColor(p.source), image: p.image || null,
+    paywall: Boolean(p.paywall), topics: [], places: [], pick: true,
+  }));
+
+  // Step 0: which list, and whether paywalled stories are shown at all
+  const pool = (showPicks ? picks : articles).filter((a) => !freeOnly || !a.paywall);
+  // Step 1: apply the category + search filters (picks ignore the chips)
+  const matchesOtherFilters = pool.filter((a) => {
     const matchesSearch = !searchQuery || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || (a.description || "").toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory(a) && matchesSearch;
+    return (showPicks || matchesCategory(a)) && matchesSearch;
   });
-  // Step 2: apply the time filter (Today / This Week / This Month)
-  const timeFiltered = filterByTime(matchesOtherFilters, timeFilter);
+  // Step 2: apply the time filter (Today / This Week / This Month); picks
+  // have their own 33-day window instead
+  const timeFiltered = showPicks ? matchesOtherFilters : filterByTime(matchesOtherFilters, timeFilter);
   // Safety net: if the time filter leaves nothing but there ARE matching articles,
   // show the most recent ones instead of an empty page.
   const showingFallback = timeFiltered.length === 0 && matchesOtherFilters.length > 0;
@@ -925,7 +944,8 @@ export default function Home() {
 
   // Add to Home Screen. The card in the feed shows on phones from the second
   // visit on (the first already asks for a town), until the reader adds the
-  // site or says not now. The footer link is always there as a way back to it.
+  // site. "Not now" hides it for 24 hours; it comes back on the first visit
+  // after that. The footer link is always there as a way back to it.
   const install = useInstall();
   const [installCardOpen, setInstallCardOpen] = useState(false);
   const [showInstallSheet, setShowInstallSheet] = useState(false);
@@ -934,12 +954,16 @@ export default function Home() {
       const visits = Number(localStorage.getItem("cp_visits") || 0) + 1;
       localStorage.setItem("cp_visits", String(visits));
       const phone = window.matchMedia("(pointer: coarse)").matches;
-      if (phone && visits >= 2 && !localStorage.getItem("cp_installDismissed")) setInstallCardOpen(true);
+      // When "Not now" was last tapped. Older visits stored "1" here, which
+      // reads as long ago, so those readers simply see the card again.
+      const dismissedAt = Number(localStorage.getItem("cp_installDismissed") || 0);
+      const snoozed = Date.now() - dismissedAt < 24 * 60 * 60 * 1000;
+      if (phone && visits >= 2 && !snoozed) setInstallCardOpen(true);
     } catch {}
   }, []);
   const dismissInstallCard = () => {
     setInstallCardOpen(false);
-    try { localStorage.setItem("cp_installDismissed", "1"); } catch {}
+    try { localStorage.setItem("cp_installDismissed", String(Date.now())); } catch {}
   };
   const startInstall = () => (install.platform === "ios" ? setShowInstallSheet(true) : install.prompt());
 
@@ -1085,6 +1109,31 @@ export default function Home() {
                 )}
               </>
             )}
+
+            {/* Right side of the row: Editor's Picks and the free-to-read switch */}
+            <div className="row-right" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {/* The same red as the Saved button, so the site's two "your reading"
+                  places share a colour */}
+              <button onClick={() => setShowPicks(!showPicks)} aria-pressed={showPicks}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "11px clamp(11px, 2.8vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
+                  background: showPicks ? "#C0354A" : "transparent",
+                  color: showPicks ? "#FFF" : (dm ? "#F2788C" : "#C0354A"),
+                  border: `1.5px solid ${showPicks ? "#C0354A" : (dm ? "#6A3345" : "#D9A1AC")}` }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={showPicks ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                {PICKS_LABEL}
+              </button>
+              <button role="switch" aria-checked={freeOnly} onClick={() => setFreeOnly(!freeOnly)}
+                title={freeOnly ? "Showing only stories that are free to read" : "Hide subscriber-only stories"}
+                style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "9px 14px 9px 16px", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s ease",
+                  background: freeOnly ? (dm ? "#5A4526" : "#F2D9A6") : (dm ? "#3A2E1C" : "#F6ECD9"),
+                  border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
+                  color: dm ? "#E8C98A" : "#8A5A12" }}>
+                Free to read only
+                <span aria-hidden="true" style={{ position: "relative", width: 34, height: 20, borderRadius: 10, flexShrink: 0, transition: "background 0.2s ease", background: freeOnly ? (dm ? "#E0B978" : "#B7791F") : (dm ? "#5A4A33" : "#E3CFA5") }}>
+                  <span style={{ position: "absolute", top: 2, left: freeOnly ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFF", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", transition: "left 0.2s ease" }} />
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Sources panel. Place on the left, subject on the right.
@@ -1157,12 +1206,19 @@ export default function Home() {
       {/* ===== MAIN CONTENT ===== */}
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px" }}>
         <div style={{ marginBottom: 20, fontSize: 13, color: t.textSec, fontWeight: 400, letterSpacing: "0.2px", textTransform: "none" }}>
-          Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} article{filtered.length !== 1 ? "s" : ""} {"·"} {showingFallback ? "most recent" : timeFilter.toLowerCase()}
+          Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} {showPicks ? "pick" : "article"}{filtered.length !== 1 ? "s" : ""} {"·"} {showPicks ? PICKS_LABEL : showingFallback ? "most recent" : timeFilter.toLowerCase()}
+          {freeOnly && " · free to read only"}
           {activeCats.length > 0 && ` · ${activeCats.join(", ")}`}
           {fetchedAt && !loading && ` · Updated ${timeAgo(fetchedAt)}`}
         </div>
 
-        {!searchQuery && (() => {
+        {showPicks && (
+          <div role="note" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 14, lineHeight: 1.55, background: dm ? "#35222A" : "#FCF0F2", border: `1px solid ${dm ? "#5A3040" : "#F0D0D7"}`, color: t.text }}>
+            <strong>{PICKS_LABEL}</strong> are stories chosen by Debrief.TO as worth reading in full. Each stays here for {PICKS_DAYS} days after it was published.
+          </div>
+        )}
+
+        {!searchQuery && !showPicks && (() => {
           /* Council boxes: the reader's own town when the feed is unfiltered or
              their town's chip is on; Toronto's when the Toronto chip is on.
              Toronto's box shows even when nothing is scheduled, saying so,
@@ -1206,7 +1262,7 @@ export default function Home() {
           ));
         })()}
 
-        {loading ? (
+        {loading && !showPicks ? (
           <div style={gridStyle}>
             {[...Array(6)].map((_, i) => (
               <div key={i} style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 10, overflow: "hidden" }}>
@@ -1220,7 +1276,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-        ) : feedError && articles.length === 0 ? (
+        ) : feedError && articles.length === 0 && !showPicks ? (
           <div role="alert" style={{ textAlign: "center", padding: "64px 24px", background: t.cardBg, borderRadius: 10, border: `1px solid ${t.cardBorder}`, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <p style={{ fontSize: 18, fontFamily: "'Georgia', serif", fontWeight: 600, color: t.text }}>Couldn&apos;t load the news right now</p>
             <p style={{ fontSize: 14, color: t.textSec, marginTop: 6, maxWidth: 420, lineHeight: 1.5 }}>{feedError}</p>
@@ -1230,9 +1286,13 @@ export default function Home() {
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "64px 24px", background: t.cardBg, borderRadius: 10, border: `1px solid ${t.cardBorder}`, display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <p style={{ fontSize: 18, fontFamily: "'Georgia', serif", fontWeight: 600, color: t.text }}>No articles found</p>
+            <p style={{ fontSize: 18, fontFamily: "'Georgia', serif", fontWeight: 600, color: t.text }}>{showPicks ? "No picks right now" : "No articles found"}</p>
             <p style={{ fontSize: 14, color: t.textSec, marginTop: 6, maxWidth: 440, lineHeight: 1.6 }}>
-              {activeCats.length > 0
+              {showPicks
+                ? "New picks are added from time to time. Check back soon."
+                : freeOnly && pool.length < articles.length && articles.length > 0
+                ? "Everything that matches is subscriber-only. Turn off \u201cFree to read only\u201d to see it."
+                : activeCats.length > 0
                 ? "Nothing matches these filters yet. Topic tabs fill up more slowly than place tabs, because a story only earns a topic when the publisher's own section or headline makes it clear."
                 : "Try a different search term."}
             </p>
