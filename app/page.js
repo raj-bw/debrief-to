@@ -516,7 +516,11 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             Every story belongs to the newsroom that published it. Publishers who would like to be removed can
             email <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
           </P>
-          <P>Debrief.TO was built in Newmarket as part of the BUILD program with Apathy is Boring.</P>
+          <P>
+            Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
+            part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>. Its goal is to help
+            Ontarians find local and independent news, free and in one place.
+          </P>
         </section>
 
       </main>
