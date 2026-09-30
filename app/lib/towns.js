@@ -97,9 +97,12 @@ const TOWN_FEEDS = {
   "Collingwood": [villageMedia("Collingwood Today", "collingwoodtoday.ca", "#8A5E3C")],
   "Midland": [villageMedia("Midland Today", "midlandtoday.ca", "#7D5A41")],
   "Cambridge": [villageMedia("Cambridge Today", "cambridgetoday.ca", "#6B4AA8")],
-  // Kitchener Today serves malformed XML at source. It stays as their first
-  // choice in case they fix it; if it fails the region picks Kitchener up.
-  "Kitchener": [villageMedia("Kitchener Today", "kitchenertoday.com", "#5B3E96")],
+  // Kitchener Today is now CityNews Kitchener: kitchenertoday.com redirects
+  // to kitchener.citynews.ca, so its old feed addresses answered with the new
+  // site's home page — the "malformed XML" this used to fail on. The new
+  // site's Local News section has a feed of its own; its main feed is mostly
+  // national and world wire copy.
+  "Kitchener": [feed("CityNews Kitchener", ["https://kitchener.citynews.ca/category/local/feed/"], "#5B3E96")],
   "Guelph": [villageMedia("Guelph Today", "guelphtoday.com", "#8C2F39")],
   "Thorold": [villageMedia("Thorold News", "thoroldnews.com", "#1F7A8C")],
   "Greater Sudbury": [villageMedia("Sudbury.com", "sudbury.com", "#2E5E4E")],

@@ -119,73 +119,21 @@ async function politely(task, patient) {
   }
 }
 
-/* ---- A feed that one bad story breaks ----
-   Kitchener Today's feed stopped reading: one story's markup isn't valid
-   XML ("Attribute without value"), and a strict parser throws the whole feed
-   away for it — a paper's every story lost to one broken embed. So when a
-   feed won't parse, it is taken apart story by story, every story that
-   parses on its own is kept, and only the broken one is left out. /api/health
-   reports how many were dropped. Nothing is repaired or guessed at. */
-const isXmlError = (message = "") => /\nLine: \d+\nColumn: \d+/.test(message);
-
-async function salvage(xml, parser) {
-  const tag = /<item[\s>]/.test(xml) ? "item" : "entry";
-  const stories = xml.match(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "g")) || [];
-  if (!stories.length) return null;
-  const alone = (s) => (tag === "item"
-    ? `<rss version="2.0"><channel>${s}</channel></rss>`
-    : `<feed xmlns="http://www.w3.org/2005/Atom">${s}</feed>`);
-  const keep = [];
-  for (const s of stories) {
-    try { await parser.parseString(alone(s)); keep.push(s); } catch { /* the broken one */ }
-  }
-  if (!keep.length) return null;
-  const last = stories[stories.length - 1];
-  const head = xml.slice(0, xml.indexOf(stories[0]));
-  const tail = xml.slice(xml.lastIndexOf(last) + last.length);
-  const feed = await parser.parseString(head + keep.join("\n") + tail);
-  return { feed, dropped: stories.length - keep.length };
-}
-
-async function salvageFrom(url, via, err) {
-  const res = await fetch(url, {
-    headers: { "User-Agent": via === "honest" ? HONEST_UA : CHROME_UA, Accept: ACCEPT_XML },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw err;
-  const saved = await salvage(await res.text(), parsers[via]).catch(() => null);
-  if (!saved) throw err;
-  return { feed: saved.feed, via, dropped: saved.dropped };
-}
-
 async function parseWithRetry(url) {
   try {
     const feed = await parsers.chrome.parseURL(url);
     return { feed, via: "chrome" };
   } catch (err) {
-    if (isXmlError(err?.message)) return salvageFrom(url, "chrome", err);
     if (!isRefusal(err?.message)) throw err;
-    try {
-      const feed = await parsers.honest.parseURL(url);
-      return { feed, via: "honest" };
-    } catch (err2) {
-      if (isXmlError(err2?.message)) return salvageFrom(url, "honest", err2);
-      throw err2;
-    }
+    const feed = await parsers.honest.parseURL(url);
+    return { feed, via: "honest" };
   }
 }
 
-/* The same, for a feed that arrived by another road (see /api/deliver):
-   the XML is already in hand, so it is only read, never fetched. */
+/* For a feed that arrived by another road (see /api/deliver): the XML is
+   already in hand, so it is only read, never fetched. */
 export async function itemsFromXml(src, xml) {
-  let feed;
-  try {
-    feed = await parsers.honest.parseString(xml);
-  } catch (err) {
-    const saved = isXmlError(err?.message) ? await salvage(xml, parsers.honest).catch(() => null) : null;
-    if (!saved) throw err;
-    feed = saved.feed;
-  }
+  const feed = await parsers.honest.parseString(xml);
   return keepWanted(src, feed.items || []);
 }
 
@@ -352,13 +300,12 @@ async function fetchFresh(src, { patient = false } = {}) {
   for (const url of src.urls || []) {
     try {
       const get = () => politely(() => parseWithRetry(url), patient);
-      const { feed, via, dropped } = await (patient && isBloxUrl(url) ? inLine("blox", get) : get());
+      const { feed, via } = await (patient && isBloxUrl(url) ? inLine("blox", get) : get());
       const all = feed.items || [];
       if (all.length === 0) { empty ||= { items: all, url, via }; continue; }
       const items = keepWanted(src, all);
       return {
         items, url, via,
-        ...(dropped ? { dropped } : {}),
         // Everything answered but the category filter kept nothing: say what
         // the publisher did label its stories, so /api/health can show it.
         ...(items.length === 0 ? { filteredFrom: all.length, categoriesSeen: categoriesOf(all) } : {}),

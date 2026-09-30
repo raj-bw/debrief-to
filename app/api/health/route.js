@@ -29,7 +29,7 @@ const BUDGET_MS = 240 * 1000;
 
 async function check(feed) {
   try {
-    const { items, url, via, dropped, filteredFrom, categoriesSeen } = await fetchItems(feed, { fresh: true, patient: true });
+    const { items, url, via, filteredFrom, categoriesSeen } = await fetchItems(feed, { fresh: true, patient: true });
     const door = feed.fallback && url && !(feed.urls || []).includes(url) ? "api" : "rss";
     const newest = items[0]?.isoDate || items[0]?.pubDate || null;
     return {
@@ -37,9 +37,6 @@ async function check(feed) {
       // "honest" means the first attempt was refused and the plain-named
       // retry got through: the Cloudflare question, answered per feed.
       via,
-      // Stories left out because their markup wasn't valid XML (the rest
-      // of the feed still came through).
-      ...(dropped ? { dropped } : {}),
       // Answered, but the category filter kept nothing: what it did carry.
       ...(filteredFrom ? { filteredFrom, categoriesSeen } : {}),
       // A feed that still answers but stopped publishing months ago is its
@@ -107,7 +104,7 @@ export async function GET(request) {
     notChecked: notChecked.map((r) => r.name),
     empty: empty.map((r) => ({ name: r.name, url: r.url, filteredFrom: r.filteredFrom, categoriesSeen: r.categoriesSeen })),
     stale: stale.map((r) => ({ name: r.name, daysSinceNewest: r.daysSinceNewest })),
-    answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}), ...(r.dropped ? { dropped: r.dropped } : {}) })),
+    answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}) })),
     archive,
   }, { headers: { "Cache-Control": "no-store" } });
 }

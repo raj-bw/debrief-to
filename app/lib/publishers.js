@@ -105,8 +105,15 @@ export const PUBLISHERS = [
   { name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], fallback: myBroadcastingApi("mykemptvillenow.com"), owner: "My Broadcasting Corporation", serves: ["North Grenville"] },
   { name: "My Parry Sound Now", urls: ["https://www.myparrysoundnow.com/feed/"], fallback: myBroadcastingApi("myparrysoundnow.com"), owner: "My Broadcasting Corporation", serves: ["Parry Sound"] },
   { name: "My Stratford Now", urls: ["https://www.mystratfordnow.com/feed/"], fallback: myBroadcastingApi("mystratfordnow.com"), owner: "My Broadcasting Corporation", home: "Stratford", area: "Stratford and Perth County", serves: ["Perth East", "Perth South", "St. Marys", "Stratford", "West Perth"] },
-  { name: "St. Marys Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["St Marys", "St. Marys"], serves: ["St. Marys"] },
-  { name: "Paris Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["Paris Independent"], serves: ["Brant"] },
+  /* Grant Haven publishes its papers through one shared feed of its latest
+     20 stories and labels each with its paper. Its sister West Northumberland
+     Independent is labelled plain "West Northumberland", so each paper's
+     likely spellings are listed. The feed is dominated by the Tillsonburg and
+     Cobourg papers, so these weekly papers' stories pass through it in a
+     batch; /api/health shows the labels it carried whenever a paper comes
+     back empty. */
+  { name: "St. Marys Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["St Marys", "St. Marys", "St Marys Independent", "St. Marys Independent", "The St Marys Independent"], serves: ["St. Marys"] },
+  { name: "Paris Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["Paris Independent", "The Paris Independent", "Paris"], serves: ["Brant"] },
   { name: "West Northumberland", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["West Northumberland"], serves: ["Cobourg", "Port Hope"] },
   { name: "Brantford Expositor", urls: ["https://www.brantfordexpositor.ca/feed"], owner: "Postmedia", serves: ["Brant", "Brantford"] },
   { name: "Northern News", urls: ["https://www.northernnews.ca/feed"], owner: "Postmedia", home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
