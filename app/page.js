@@ -539,7 +539,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <H2>Where the news comes from</H2>
           <P>
             Stories come from a fixed list of newsrooms: local papers, independent outlets and non-profit investigative
-            publications. The list is chosen by hand and published below. It is the only editorial decision the site makes.
+            publications. The list is chosen by hand and published below. Apart from Editor&apos;s Picks, it is the only editorial
+            decision the site makes.
           </P>
           <P>
             Every reader sees the Toronto, Ontario and Canada newsrooms. Your local tab adds the newsroom that covers
