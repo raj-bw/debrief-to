@@ -533,7 +533,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <H2>Privacy</H2>
           <P>
             Your town, saved stories and settings are stored only in your browser. Debrief.TO has no accounts and does
-            not track what you read.
+            not track what you read. It counts visits, without cookies or anything that identifies you, to know how
+            many people use it.
           </P>
         </section>
 
