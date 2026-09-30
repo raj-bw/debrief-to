@@ -1,0 +1,36 @@
+# Temporary: do Metroland/Torstar papers answer GitHub's network?
+#
+# Their platform refuses our Vercel server with 429 on most papers, even for
+# a single, rested request, because Vercel's addresses are shared and the
+# platform's per-address allowance is often used up by others. This asks the
+# same feeds once each, a few seconds apart, from a GitHub runner instead, to
+# see whether collecting them from here would work. Run it by hand from the
+# Actions tab; it changes nothing. To be removed once we have the answer.
+name: Probe Metroland/Torstar from GitHub
+
+on:
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask each paper once, a few seconds apart
+        run: |
+          HONEST="DebriefTO/1.0 (+https://debrief.to; free local news reader)"
+          CHROME="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+          for host in www.thespec.com www.mississauga.com www.therecord.com www.thestar.com www.yorkregion.com www.durhamregion.com; do
+            url="https://$host/search/?f=rss&t=article&l=30&s=start_time&sd=desc&c=news*"
+            for ua in honest chrome; do
+              agent="$HONEST"; [ "$ua" = chrome ] && agent="$CHROME"
+              code=$(curl -sS -m 20 -A "$agent" -o out.xml -w "%{http_code}" "$url" || echo ERR)
+              items=$(grep -o "<item>" out.xml 2>/dev/null | wc -l)
+              echo "$host [$ua] -> HTTP $code, items: $items"
+              [ "$code" = "200" ] && break
+              sleep 5
+            done
+            sleep 5
+          done
