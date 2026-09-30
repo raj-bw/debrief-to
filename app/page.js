@@ -143,7 +143,7 @@ function groupByDate(articles) {
 // Left block: the wordmark. Fixed width so the capsules never shift sideways
 // between pages, whatever size the wordmark is.
 function Wordmark({ dm, size = 28, tagline = true, onClick }) {
-  const inner = (
+  const mark = (size, tagline) => (
     <>
       <h1 style={{ fontFamily: "'Georgia', serif", fontSize: size, fontWeight: 700, letterSpacing: "-0.5px", lineHeight: 1, margin: 0 }}>
         <span style={{ color: "#2D6A4F" }}>Debrief</span>
@@ -152,7 +152,19 @@ function Wordmark({ dm, size = 28, tagline = true, onClick }) {
       {tagline && <p style={{ fontSize: 12, color: dm ? "#C8C4BE" : "#000", marginTop: 4, fontWeight: 400 }}>Local news, in one place</p>}
     </>
   );
-  const box = { flex: "0 0 auto", minWidth: "min(230px, 100%)", textAlign: "left" };
+  /* The box is exactly as wide as the logo, so the capsules beside it sit with
+     even space on both sides. The Saved and About pages show a smaller logo;
+     an invisible copy of the full-size one keeps their box the same width as
+     the feed's, so the capsules stay in the same spot on every page, whatever
+     font the reader's device draws the logo in. */
+  const compact = size !== 28 || !tagline;
+  const box = { flex: "0 0 auto", display: "grid", textAlign: "left" };
+  const inner = (
+    <>
+      <div style={{ gridArea: "1 / 1", alignSelf: "center" }}>{mark(size, tagline)}</div>
+      {compact && <div aria-hidden="true" style={{ gridArea: "1 / 1", visibility: "hidden", height: 0, overflow: "hidden" }}>{mark(28, true)}</div>}
+    </>
+  );
   if (!onClick) return <div style={box}>{inner}</div>;
   return (
     <button onClick={onClick} aria-label="Back to the feed" style={{ ...box, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}>
@@ -164,7 +176,9 @@ function Wordmark({ dm, size = 28, tagline = true, onClick }) {
 // The three capsules. On the Saved and About pages the matching capsule is
 // filled in and shows an x — clicking it takes you back to the feed.
 function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
-  const base = { display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap" };
+  // All three share one size: a common minimum width, centred content. On the
+  // narrowest phones the minimum eases off so the row still fits.
+  const base = { display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: "min(96px, 27vw)", gap: 6, padding: "12px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap" };
   const X = () => (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
   );
@@ -172,7 +186,7 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
   const aboutOpen = page === "about";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 auto", flexShrink: 0 }}>
-      <button onClick={onToggleDark} style={{ ...base, gap: 5, background: dm ? "#2D6A4F" : "transparent", border: `1.5px solid ${dm ? "#2D6A4F" : "#8A8580"}`, color: dm ? "#FFF" : "#6B665F" }}>
+      <button onClick={onToggleDark} style={{ ...base, background: dm ? "#2D6A4F" : "transparent", border: `1.5px solid ${dm ? "#2D6A4F" : "#DAD6D0"}`, color: dm ? "#FFF" : "#6B665F" }}>
         {dm ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
         ) : (
