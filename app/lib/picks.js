@@ -5,6 +5,8 @@
 
    Each pick stays up for 33 days from the day the newsroom published it —
    the same window as the rest of the archive — and then drops off on its own.
+   A pick can be given its own end date instead (`until`), for a story that
+   matters for longer, such as one about an upcoming election.
    Nothing needs deleting; old entries can be tidied away whenever.
 
    To add a pick, copy an entry and fill in:
@@ -15,6 +17,8 @@
      description  one or two sentences, usually the newsroom's own summary
      image      optional: the article's preview image
      paywall    optional: true if the story is subscriber-only
+     until      optional: when to take it down instead of after 33 days,
+                e.g. "2026-10-27T23:59:59-04:00" for the end of Oct 27 in Toronto
    ---- */
 
 export const PICKS_LABEL = "Editor's Picks";
@@ -29,6 +33,15 @@ export const PICKS = [
     description: "Spacing obtained the RFP for the Ford government's bike lane removal, and it looks even worse than thought.",
   },
   {
+    url: "https://spacing.ca/toronto/2026/08/31/how-to-critically-listen-to-a-municipal-candidate/",
+    title: "How to Critically Listen to a Municipal Candidate",
+    source: "Spacing Toronto",
+    published: "2026-08-31T16:00:00Z",
+    // About the municipal election, so it stays up to the day after the vote
+    until: "2026-10-27T23:59:59-04:00",
+    description: "Christopher Balkaran begins a series on engaging with the municipal election campaign, starting with the gap between a candidate naming a problem, like Scarborough transit, and offering a real solution.",
+  },
+  {
     url: "https://www.readthemaple.com/mp-landlords/",
     title: "Find Out If Your MP Is A Landlord Or Invested In Real Estate",
     source: "The Maple",
@@ -38,10 +51,15 @@ export const PICKS = [
   },
 ];
 
-// The picks still inside their 33 days, newest first.
+// The picks still up — inside their 33 days, or before their own `until`
+// date — newest first.
 export function currentPicks(now = Date.now()) {
-  const cutoff = now - PICKS_DAYS * 86400000;
   return PICKS
-    .filter((p) => { const t = Date.parse(p.published); return Number.isFinite(t) && t >= cutoff && t <= now + 86400000; })
+    .filter((p) => {
+      const t = Date.parse(p.published);
+      if (!Number.isFinite(t) || t > now + 86400000) return false;
+      const end = p.until ? Date.parse(p.until) : t + PICKS_DAYS * 86400000;
+      return now <= end;
+    })
     .sort((a, b) => Date.parse(b.published) - Date.parse(a.published));
 }
