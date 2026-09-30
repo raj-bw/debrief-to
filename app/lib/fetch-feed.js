@@ -48,8 +48,56 @@ const parsers = {
 
 // Refusals worth a second try under the other name. A 404 or a parse error
 // means the feed isn't there, and asking again politely won't change that.
+// 429 ("too many requests") is not on the list: asking again straight away,
+// under any name, only adds to the load the publisher is objecting to. It is
+// handled by waiting instead (see politely() below).
 function isRefusal(message = "") {
-  return /Status code (401|403|406|429|503)/.test(message);
+  return /Status code (401|403|406|503)/.test(message);
+}
+
+/* ---- Publishers that rate-limit ----
+   Metroland and Torstar run every paper on one platform (BLOX), and it
+   answers "429 Too Many Requests" when one server asks for too much at once.
+   Asking for fifty feeds in the same second — as /api/health used to — or
+   retrying the moment a 429 came back, tripped it every time, and the papers
+   then showed as failing even though nothing was wrong with them.
+
+   So the background jobs (the collector and /api/health) take their turn:
+   requests to the platform go one at a time, a gap apart, and a 429 means
+   wait and try once more rather than ask again at once. The queue belongs
+   to the server instance, so everything running on it shares one place in
+   line. Readers' page loads don't queue: they are served from memory and the
+   archive, and never wait here. */
+const RATE_LIMITED_GAP_MS = 2500;      // between requests to the platform
+const RATE_LIMITED_BACKOFF_MS = 10000; // after a 429, before the one retry
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export const isBloxUrl = (url) => String(url).includes("/search/?f=rss");
+export const isBlox = (src) => (src.urls || []).some(isBloxUrl);
+
+let bloxLine = Promise.resolve();
+let bloxNextAt = 0;
+function inBloxLine(task) {
+  const turn = bloxLine.then(async () => {
+    const wait = bloxNextAt - Date.now();
+    if (wait > 0) await sleep(wait);
+    try { return await task(); }
+    finally { bloxNextAt = Date.now() + RATE_LIMITED_GAP_MS; }
+  });
+  bloxLine = turn.catch(() => {});
+  return turn;
+}
+
+// For the background jobs: if the publisher says "too many requests", give
+// it a rest, then ask once more.
+async function politely(task, patient) {
+  try {
+    return await task();
+  } catch (err) {
+    if (!patient || !/Status code 429/.test(err?.message || "")) throw err;
+    await sleep(RATE_LIMITED_BACKOFF_MS);
+    return task();
+  }
 }
 
 async function parseWithRetry(url) {
@@ -81,7 +129,7 @@ const categoryCache = new Map();   // "api|slug" -> id, lives as long as the ins
 async function getJson(url) {
   let res = await fetch(url, { headers: { "User-Agent": CHROME_UA, Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
   let via = "chrome";
-  if (!res.ok && [401, 403, 406, 429, 503].includes(res.status)) {
+  if (!res.ok && [401, 403, 406, 503].includes(res.status)) {
     res = await fetch(url, { headers: { "User-Agent": HONEST_UA, Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
     via = "honest";
   }
@@ -180,15 +228,18 @@ function keyOf(src) {
    through one feed and labels each story with the paper it belongs to.
 
    { fresh: true } skips the memory, for /api/health, which must see what
-   the publisher says right now. */
-async function fetchFresh(src) {
-  if (src.kind === "wpjson") return fetchWpJson(src);
+   the publisher says right now. { patient: true } is for the background
+   jobs: requests to rate-limited publishers wait their turn, and a 429 is
+   met with a pause and one retry (see "Publishers that rate-limit"). */
+async function fetchFresh(src, { patient = false } = {}) {
+  if (src.kind === "wpjson") return politely(() => fetchWpJson(src), patient);
 
   let lastErr = null;
   let empty = null;
   for (const url of src.urls || []) {
     try {
-      const { feed, via } = await parseWithRetry(url);
+      const get = () => politely(() => parseWithRetry(url), patient);
+      const { feed, via } = await (patient && isBloxUrl(url) ? inBloxLine(get) : get());
       let items = feed.items || [];
       if (items.length === 0) { empty ||= { items, url, via }; continue; }
       if (src.onlyCategories?.length) {
@@ -212,14 +263,14 @@ async function fetchFresh(src) {
   /* A second way in, for publishers whose RSS refuses servers but whose
      WordPress API may not (see The Walrus in sources.js). */
   if (src.fallback) {
-    try { return await fetchFresh({ ...src.fallback, name: src.name, onlyCategories: src.onlyCategories }); }
+    try { return await fetchFresh({ ...src.fallback, name: src.name, onlyCategories: src.onlyCategories }, { patient }); }
     catch (err) { lastErr = new Error(`${lastErr?.message || "RSS failed"}; API: ${err?.message}`); }
   }
   throw lastErr || new Error("all candidate URLs failed");
 }
 
-export async function fetchItems(src, { fresh = false } = {}) {
-  if (fresh) return fetchFresh(src);
+export async function fetchItems(src, { fresh = false, patient = false } = {}) {
+  if (fresh) return fetchFresh(src, { patient });
   const key = keyOf(src);
   const hit = memo.get(key);
   if (hit && Date.now() - hit.at < FRESH_MS) return hit.result;

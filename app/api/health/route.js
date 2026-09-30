@@ -1,7 +1,7 @@
 import { SOURCES } from "../../lib/sources";
 import { publisherFeeds } from "../../lib/towns";
 // The same door the live feed uses, so a green light here means readers get it.
-import { fetchItems } from "../../lib/fetch-feed";
+import { fetchItems, isBlox } from "../../lib/fetch-feed";
 import { archiveStats } from "../../lib/archive";
 
 /* ---- Is everything still answering? ----
@@ -15,11 +15,20 @@ import { archiveStats } from "../../lib/archive";
    you find out that it happened. ---- */
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
+
+/* Checking fairly. A health check that asks every publisher in the same
+   instant gets refused by the ones that rate-limit, and then reports them as
+   broken. So it checks a few at a time, puts Metroland and Torstar's papers
+   in their own lane where fetch-feed spaces them out, and waits out a 429
+   before judging. If the time runs out, anything not reached is listed as
+   not checked rather than failing. */
+const CONCURRENCY = 6;
+const BUDGET_MS = 240 * 1000;
 
 async function check(feed) {
   try {
-    const { items, url, via } = await fetchItems(feed, { fresh: true });
+    const { items, url, via } = await fetchItems(feed, { fresh: true, patient: true });
     const door = feed.fallback && url && !(feed.urls || []).includes(url) ? "api" : "rss";
     const newest = items[0]?.isoDate || items[0]?.pubDate || null;
     return {
@@ -55,9 +64,24 @@ export async function GET(request) {
   const limit = Number(searchParams.get("limit") || all.length);
   const targets = all.slice(offset, offset + limit);
 
-  const results = await Promise.all(targets.map(check));
-  const ok = results.filter((r) => r.ok);
-  const failed = results.filter((r) => !r.ok);
+  const started = Date.now();
+  const results = new Array(targets.length);
+  const lane = (indexes) => async () => {
+    while (indexes.length) {
+      const i = indexes.shift();
+      results[i] = Date.now() - started > BUDGET_MS
+        ? { name: targets[i].name, notChecked: true }
+        : await check(targets[i]);
+    }
+  };
+  const blox = [], rest = [];
+  targets.forEach((t, i) => (isBlox(t) ? blox : rest).push(i));
+  await Promise.all([lane(blox)(), ...Array.from({ length: CONCURRENCY }, lane(rest))]);
+
+  const notChecked = results.filter((r) => r.notChecked);
+  const checked = results.filter((r) => !r.notChecked);
+  const ok = checked.filter((r) => r.ok);
+  const failed = checked.filter((r) => !r.ok);
   const stale = ok.filter((r) => r.daysSinceNewest !== null && r.daysSinceNewest > 30);
 
   /* The archive's own report: how many towns are active, how many
@@ -68,10 +92,11 @@ export async function GET(request) {
 
   return Response.json({
     checked: searchParams.get("scope") === "standing" ? "standing sources" : wantTowns ? "town feeds" : "region feeds",
-    summary: `${ok.length} of ${results.length} answering${failed.length ? `, ${failed.length} failing` : ""}${stale.length ? `, ${stale.length} stale` : ""}`,
+    summary: `${ok.length} of ${checked.length} answering${failed.length ? `, ${failed.length} failing` : ""}${stale.length ? `, ${stale.length} stale` : ""}${notChecked.length ? `, ${notChecked.length} not checked (out of time)` : ""}`,
     page: { offset, limit: targets.length, of: all.length, next: offset + targets.length < all.length ? offset + targets.length : null },
     neededHonestName: ok.filter((r) => r.via === "honest").map((r) => r.name),
     failing: failed,
+    notChecked: notChecked.map((r) => r.name),
     stale: stale.map((r) => ({ name: r.name, daysSinceNewest: r.daysSinceNewest })),
     answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest, via: r.via })),
     archive,

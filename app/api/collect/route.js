@@ -1,6 +1,6 @@
 import { SOURCES } from "../../lib/sources";
 import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
-import { fetchItems } from "../../lib/fetch-feed";
+import { fetchItems, isBlox } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
 import {
   archiveEnabled, archiveBackend, bucketFor, storeArticles, activeTowns,
@@ -34,11 +34,8 @@ export const maxDuration = 300;
 
 const BUDGET_MS = 240 * 1000;         // stop starting new work after four minutes
 const CONCURRENCY = 6;
-const BLOX_GAP_MS = 1500;             // Metroland/Torstar rate-limit; ask them one at a time
 const MIN_GAP_WITHOUT_SECRET_MS = 20 * 60 * 1000;
 
-const isBlox = (src) => (src.urls || []).some((u) => u.includes("/search/?f=rss"));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function buildJobs() {
   const jobs = new Map();   // bucket -> job, so a publication shared by many towns is fetched once
@@ -59,9 +56,21 @@ async function buildJobs() {
   return { jobs: [...standing, ...local.slice(start), ...local.slice(0, start)], towns: towns.size };
 }
 
-async function collectOne(job) {
+/* Several towns can share a feed under different shelves (Orangeville.com
+   is both a town's own paper and its county's). Ask the publisher once per
+   run and give every shelf the same answer. */
+function fetcherForRun() {
+  const asked = new Map();
+  return (src) => {
+    const key = src.kind === "wpjson" ? `${src.api}#${src.categoryId}#${src.category}` : (src.urls || []).join("|");
+    if (!asked.has(key)) asked.set(key, fetchItems(src, { fresh: true, patient: true }));
+    return asked.get(key);
+  };
+}
+
+async function collectOne(job, fetchOnce) {
   try {
-    const got = await fetchItems(job.src, { fresh: true });
+    const got = await fetchOnce(job.src);
     const articles = buildArticles(job.src, got.items, { limit: 60 });
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
     return { name: job.src.name, ok: true, items: articles.length, added, via: got.via };
@@ -98,22 +107,23 @@ export async function GET(request) {
   const rest = jobs.filter((j) => !isBlox(j.src));
   const results = [];
   let skipped = 0;
+  const fetchOnce = fetcherForRun();
 
   // Most publishers: a few at a time.
   const queue = [...rest];
   const worker = async () => {
     while (queue.length) {
       if (Date.now() - started > BUDGET_MS) { skipped += queue.length; queue.length = 0; return; }
-      results.push(await collectOne(queue.shift()));
+      results.push(await collectOne(queue.shift(), fetchOnce));
     }
   };
-  // Metroland and Torstar share one platform that rate-limits: one at a time,
-  // with a pause, in parallel with everything else.
+  // Metroland and Torstar share one platform that rate-limits: their papers
+  // run in their own lane, in parallel with everything else, and fetch-feed
+  // spaces the requests out and waits out any 429.
   const bloxRun = (async () => {
     for (const j of blox) {
       if (Date.now() - started > BUDGET_MS) { skipped++; continue; }
-      results.push(await collectOne(j));
-      await sleep(BLOX_GAP_MS);
+      results.push(await collectOne(j, fetchOnce));
     }
   })();
   await Promise.all([...Array.from({ length: CONCURRENCY }, worker), bloxRun]);
