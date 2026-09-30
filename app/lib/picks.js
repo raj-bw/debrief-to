@@ -22,6 +22,13 @@ export const PICKS_DAYS = 33;
 
 export const PICKS = [
   {
+    url: "https://spacing.ca/toronto/2026/09/28/exclusive-inside-the-contract-to-rip-out-torontos-bike-lanes/",
+    title: "EXCLUSIVE: Inside the contract to rip out Toronto’s bike lanes",
+    source: "Spacing Toronto",
+    published: "2026-09-28T16:00:00Z",
+    description: "Spacing obtained the RFP for the Ford government's bike lane removal, and it looks even worse than thought.",
+  },
+  {
     url: "https://www.readthemaple.com/mp-landlords/",
     title: "Find Out If Your MP Is A Landlord Or Invested In Real Estate",
     source: "The Maple",

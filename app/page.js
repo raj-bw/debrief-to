@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
-import { currentPicks, PICKS_LABEL, PICKS_DAYS } from "./lib/picks";
+import { currentPicks, PICKS_LABEL } from "./lib/picks";
 
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
@@ -304,10 +304,18 @@ function TownPicker({ dm, onPick, onSkip }) {
   );
 }
 
-function SiteIcons({ dark }) {
+function SiteIcons({ dark, town }) {
   const dir = dark ? "/icons/dark" : "/icons";
+  /* The manifest carries the reader's town and theme, so the Home Screen app
+     starts with them. On iPhone the app keeps its own storage, separate from
+     Safari, and would otherwise start with no town and in light mode. */
+  const q = new URLSearchParams();
+  if (town) q.set("town", town);
+  if (dark) q.set("dark", "1");
+  const manifest = `/manifest.webmanifest${q.size ? `?${q}` : ""}`;
   return (
     <>
+      <link rel="manifest" href={manifest} />
       <link rel="icon" type="image/png" sizes="16x16" href={`${dir}/favicon-16.png`} />
       <link rel="icon" type="image/png" sizes="32x32" href={`${dir}/favicon-32.png`} />
       <link rel="icon" type="image/png" sizes="192x192" href={`${dir}/favicon-192.png`} />
@@ -402,7 +410,7 @@ function InstallSheet({ dm, onClose }) {
           <Step n={3}>Tap <strong style={{ color: c.title }}>Add</strong>. If you see <strong style={{ color: c.title }}>Open as Web App</strong>, leave it on.</Step>
         </ol>
         <p style={{ fontSize: 13, lineHeight: 1.6, color: c.muted, margin: "4px 0 0" }}>
-          The app keeps its own settings, separate from Safari, so you&apos;ll choose your town once more the first time you open it.
+          The app keeps its own saved stories, separate from Safari.
         </p>
       </div>
     </div>
@@ -740,6 +748,7 @@ export default function Home() {
   // The reader's town. Newmarket until they say otherwise — it's the town the
   // site was built for.
   const [townSlug, setTownSlug] = useState(DEFAULT_TOWN);
+  const [townChosen, setTownChosen] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [archiveInfo, setArchiveInfo] = useState({ enabled: false, days: 0 });
   // What the server says the local tab is called. Usually the same as what we
@@ -749,18 +758,37 @@ export default function Home() {
 
   // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
+    // The address can carry a view (?view=about, a shared link) and, when the
+    // site is opened from the Home Screen, the town and theme the reader had in
+    // their browser (?town=...&dark=1, see app/manifest.webmanifest/route.js).
+    const params = new URLSearchParams(window.location.search);
     try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_showSources")); if (v) setShowSources(v); } catch {}
     try { const v = localStorage.getItem("cp_timeFilter"); if (v) setTimeFilter(v); } catch {}
-    try { const v = JSON.parse(localStorage.getItem("cp_darkMode")); if (v) setDarkMode(v); } catch {}
+    try {
+      const v = JSON.parse(localStorage.getItem("cp_darkMode"));
+      if (v !== null) { if (v) setDarkMode(v); }
+      else if (params.get("dark") === "1") setDarkMode(true);
+    } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_bookmarks")); if (v) setBookmarks(v); } catch {}
     // Ask for a town once, on the first visit. Skipping counts as answering.
     try {
       const saved = localStorage.getItem("cp_town");
       const asked = localStorage.getItem("cp_townAsked");
-      if (saved) setTownSlug(saved);
+      const fromApp = params.get("town");
+      if (saved) { setTownSlug(saved); setTownChosen(true); }
+      else if (fromApp && /^[a-z0-9-]{1,60}$/.test(fromApp)) {
+        // First launch of the Home Screen app: take the browser's town
+        setTownSlug(fromApp); setTownChosen(true);
+        localStorage.setItem("cp_town", fromApp); localStorage.setItem("cp_townAsked", "1");
+      }
       else if (!asked) setShowPicker(true);
     } catch {}
+    const view = params.get("view");
+    if (["about", "saved", "picks"].includes(view)) applyView(view);
+    if (params.has("town") || params.has("dark")) {
+      window.history.replaceState(window.history.state, "", view ? `/?view=${view}` : "/");
+    }
     setHydrated(true);
   }, []);
 
@@ -812,6 +840,7 @@ export default function Home() {
 
   const chooseTown = (slug) => {
     try { localStorage.setItem("cp_town", slug); localStorage.setItem("cp_townAsked", "1"); } catch {}
+    setTownChosen(true);
     /* Select the new local tab straight away. Someone who has just told us
        where they live wants to see their town's news, not the same mixed feed
        with a new chip sitting there unselected. Any previous place filter
@@ -1002,13 +1031,71 @@ export default function Home() {
   };
   const startInstall = () => (install.platform === "ios" ? setShowInstallSheet(true) : install.prompt());
 
+  /* The colour behind the page. In the iPhone Home Screen app it shows under
+     the clock and battery and fades into the header, so it matches the header
+     in both themes instead of staying white. color-scheme tells the browser
+     which theme the page is in. */
+  useEffect(() => {
+    const bg = darkMode ? "#1E1E1E" : "#FFFFFF";
+    document.documentElement.style.backgroundColor = bg;
+    document.body.style.backgroundColor = bg;
+    document.documentElement.style.colorScheme = darkMode ? "dark" : "light";
+  }, [darkMode]);
+
+  /* ---- Views and the back button ----
+     About, Saved and Editor's Picks each have their own address (?view=about,
+     ?view=saved, ?view=picks) and their own step in the browser history, so a
+     phone's back button or gesture returns to the feed instead of leaving the
+     site, and each view can be linked to. Going back to the feed puts the
+     reader where they were in it. */
+  const feedScrollRef = useRef(0);
+  const restoreFeedScrollRef = useRef(false);
+  const applyView = (view) => {
+    setPage(view === "about" ? "about" : view === "saved" ? "bookmarks" : "feed");
+    setShowPicks(view === "picks");
+  };
+  const goTo = (view) => {
+    if (page === "feed" && !showPicks) feedScrollRef.current = window.scrollY;
+    const depth = (window.history.state?.debriefDepth || 0) + 1;
+    window.history.pushState({ debriefDepth: depth }, "", `/?view=${view}`);
+    applyView(view);
+    window.scrollTo(0, 0);
+  };
+  const goToFeed = () => {
+    const depth = window.history.state?.debriefDepth || 0;
+    // Step back through history to the feed, so the back button afterwards
+    // leaves the site as expected rather than reopening About or Saved.
+    if (depth > 0) window.history.go(-depth);
+    else {
+      window.history.replaceState({ ...window.history.state, debriefDepth: 0 }, "", "/");
+      restoreFeedScrollRef.current = true;
+      applyView("feed");
+    }
+  };
+  // The capsules name pages the way the old code did: "feed", "bookmarks", "about"
+  const onGo = (p) => (p === "feed" ? goToFeed() : goTo(p === "bookmarks" ? "saved" : p));
+  useEffect(() => {
+    const onPop = () => {
+      const view = new URLSearchParams(window.location.search).get("view");
+      if (!view) restoreFeedScrollRef.current = true;
+      applyView(view);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (page !== "feed" || showPicks || !restoreFeedScrollRef.current) return;
+    restoreFeedScrollRef.current = false;
+    requestAnimationFrame(() => window.scrollTo(0, feedScrollRef.current));
+  }, [page, showPicks]);
+
   // Full-page views. These early returns must come AFTER every hook above so
   // the hook order stays identical on every render (Rules of Hooks).
   if (page === "bookmarks") {
     return (
       <>
-        <SiteIcons dark={darkMode} />
-        <BookmarksPage bookmarks={bookmarks} onBack={() => setPage("feed")} onRemove={toggleBookmark} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={setPage} />
+        <SiteIcons dark={darkMode} town={townChosen ? townSlug : null} />
+        <BookmarksPage bookmarks={bookmarks} onBack={goToFeed} onRemove={toggleBookmark} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={onGo} />
       </>
     );
   }
@@ -1016,8 +1103,8 @@ export default function Home() {
   if (page === "about") {
     return (
       <>
-        <SiteIcons dark={darkMode} />
-        <AboutPage onBack={() => setPage("feed")} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={setPage} savedCount={bookmarks.length} homeLabel={home.label} localFeeds={localGuess.feeds} />
+        <SiteIcons dark={darkMode} town={townChosen ? townSlug : null} />
+        <AboutPage onBack={goToFeed} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} onGo={onGo} savedCount={bookmarks.length} homeLabel={home.label} localFeeds={localGuess.feeds} />
       </>
     );
   }
@@ -1067,7 +1154,7 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: t.bg, color: t.text }}>
-      <SiteIcons dark={darkMode} />
+      <SiteIcons dark={darkMode} town={townChosen ? townSlug : null} />
       {showPicker && <TownPicker dm={dm} onPick={chooseTown} onSkip={skipTown} />}
       {showInstallSheet && <InstallSheet dm={dm} onClose={() => setShowInstallSheet(false)} />}
       {/* ===== HEADER ===== */}
@@ -1078,7 +1165,7 @@ export default function Home() {
               with even space on both sides, and in the same spot on every page. */}
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
             <Wordmark dm={dm} />
-            <NavCapsules dm={dm} page="feed" savedCount={bookmarks.length} onToggleDark={() => setDarkMode(!dm)} onGo={setPage} />
+            <NavCapsules dm={dm} page="feed" savedCount={bookmarks.length} onToggleDark={() => setDarkMode(!dm)} onGo={onGo} />
             <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", justifyContent: "flex-end", order: 3 }}>
               <div style={{ position: "relative", width: "100%", maxWidth: 480 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }}>
@@ -1108,10 +1195,12 @@ export default function Home() {
 
             <div className="filter-divider" style={{ width: 1, height: 22, background: dm ? t.desc : t.border, margin: "0 4px" }} />
 
+            {/* Editor's Picks ignores the date filter, so the buttons dim and
+                switch off while it is open */}
             {TIME_OPTIONS.map((opt) => {
               const isActive = timeFilter === opt;
               return (
-                <button key={opt} onClick={() => setTimeFilter(opt)} style={{ padding: "11px clamp(9px, 2.6vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: isActive ? 600 : 400, fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", whiteSpace: "nowrap", background: isActive ? "#2D6A4F" : "transparent", color: isActive ? "#FFF" : (dm ? t.desc : t.textSec), border: isActive ? "1.5px solid #2D6A4F" : "1.5px solid transparent" }}>
+                <button key={opt} onClick={() => setTimeFilter(opt)} disabled={showPicks} title={showPicks ? "Editor's Picks isn't filtered by date" : undefined} style={{ opacity: showPicks ? 0.35 : 1, padding: "11px clamp(9px, 2.6vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: isActive ? 600 : 400, fontFamily: "inherit", cursor: showPicks ? "default" : "pointer", transition: "all 0.15s ease", whiteSpace: "nowrap", background: isActive ? "#2D6A4F" : "transparent", color: isActive ? "#FFF" : (dm ? t.desc : t.textSec), border: isActive ? "1.5px solid #2D6A4F" : "1.5px solid transparent" }}>
                   {opt.startsWith("This ") ? (<><span className="time-prefix">This </span>{opt.slice(5)}</>) : opt}
                 </button>
               );
@@ -1147,7 +1236,7 @@ export default function Home() {
 
             {/* Right side of the row: Editor's Picks, in the same red as the Saved
                 button, so the site's two "your reading" places share a colour */}
-            <button onClick={() => setShowPicks(!showPicks)} aria-pressed={showPicks}
+            <button onClick={() => (showPicks ? goToFeed() : goTo("picks"))} aria-pressed={showPicks}
               style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 7, padding: "11px clamp(11px, 2.8vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
                 background: showPicks ? "#C0354A" : "transparent",
                 color: showPicks ? "#FFF" : (dm ? "#F2788C" : "#C0354A"),
@@ -1234,7 +1323,7 @@ export default function Home() {
 
         {showPicks && (
           <div role="note" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, fontSize: 14, lineHeight: 1.55, background: dm ? "#35222A" : "#FCF0F2", border: `1px solid ${dm ? "#5A3040" : "#F0D0D7"}`, color: t.text }}>
-            <strong>{PICKS_LABEL}</strong> are stories chosen by Debrief.TO as worth reading in full. Each stays here for {PICKS_DAYS} days after it was published.
+            <strong>{PICKS_LABEL}</strong> are stories chosen by Debrief.TO as worth reading in full.
           </div>
         )}
 
@@ -1430,7 +1519,7 @@ export default function Home() {
           All content belongs to the newsroom that reported it — click through to read it there, and subscribe if you can.
         </p>
         <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 24px" }}>
-          <button onClick={() => setPage("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
+          <button onClick={() => goTo("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
             About Debrief.TO
           </button>
           {install.platform && (
