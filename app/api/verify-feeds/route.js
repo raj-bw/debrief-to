@@ -90,8 +90,53 @@ async function probe(candidate) {
   return { name: candidate.name, domain: candidate.domain, scope: candidate.scope, servesCount: candidate.servesCount, ok: false, tried };
 }
 
+/* ---- Metroland and Torstar: which other doors are open? (temporary) ----
+   Their search feed (the only feed BLOX offers) answers 429 to our server on
+   most portals, even when asked once and politely. This asks one refused
+   portal and one that answers for the other files a BLOX site publishes —
+   robots.txt, which lists its sitemaps, and the sitemaps themselves — one at
+   a time, and reports what came back, to choose a second way in.
+   /api/verify-feeds?blox=1. Read-only. */
+const BLOX_PROBE_HOSTS = ["www.thespec.com", "www.durhamregion.com"];
+const BLOX_PROBE_PATHS = [
+  "/robots.txt",
+  "/tncms/sitemap/news.xml",
+  "/sitemap.xml",
+  "/news/?f=rss",
+  "/search/?f=atom&t=article&c=news*&l=5&s=start_time&sd=desc",
+];
+
+async function probeBlox() {
+  const out = [];
+  for (const host of BLOX_PROBE_HOSTS) {
+    for (const path of BLOX_PROBE_PATHS) {
+      const url = `https://${host}${path}`;
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", Accept: "*/*" },
+          signal: AbortSignal.timeout(8000),
+        });
+        const text = await res.text();
+        out.push({
+          url, status: res.status, type: res.headers.get("content-type"), bytes: text.length,
+          ...(path === "/robots.txt"
+            ? { sitemaps: (text.match(/^sitemap:.*$/gim) || []).slice(0, 15) }
+            : { start: text.slice(0, 400) }),
+        });
+      } catch (err) {
+        out.push({ url, error: String(err?.message || err).slice(0, 100) });
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  return out;
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
+  if (searchParams.get("blox") === "1") {
+    return Response.json({ blox: await probeBlox() }, { headers: { "Cache-Control": "no-store" } });
+  }
   const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0);
   const limit = Math.min(20, Math.max(1, parseInt(searchParams.get("limit") || "10", 10) || 10));
   const scope = searchParams.get("scope");           // "town" | "regional" | omit for both
