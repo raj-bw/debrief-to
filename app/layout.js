@@ -45,10 +45,26 @@ export const metadata = {
   },
 };
 
+// Who and what the site is, in the vocabulary search engines read
+// (schema.org), so a search for Debrief.TO can show it by name.
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Debrief.TO",
+  alternateName: "Debrief TO",
+  url: "https://debrief.to",
+  description: "A free reader for Ontario's local news: headlines from local and independent newsrooms in one place, each linking to the original story.",
+  inLanguage: "en-CA",
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={dmSans.variable} style={{ fontFamily: "var(--font-dm-sans), -apple-system, BlinkMacSystemFont, sans-serif" }} suppressHydrationWarning>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA).replace(/</g, "\\u003c") }}
+        />
         {children}
         <Analytics />
       </body>

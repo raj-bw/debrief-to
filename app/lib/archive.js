@@ -405,6 +405,31 @@ export async function setState(fields) {
   await pipeline([cmd]);
 }
 
+/* ---- Printed QR codes (see app/go) ----
+   One count per code per Toronto day, kept 40 days. Nothing about who
+   scanned: only how many times each printed code was used. */
+const SCANS_KEEP_S = 40 * 86400;
+
+export async function countScan(code) {
+  if (!archiveEnabled()) return;
+  const key = `scans:${torontoDay()}`;
+  await pipeline([["HINCRBY", key, code, 1], ["EXPIRE", key, SCANS_KEEP_S]]);
+}
+
+async function recentScans(days = 7) {
+  const dayList = Array.from({ length: days }, (_, i) => torontoDay(new Date(Date.now() - i * DAY)));
+  const rows = await pipeline(dayList.map((d) => ["HGETALL", `scans:${d}`]));
+  const out = {};
+  dayList.forEach((d, i) => {
+    const flat = rows[i] || [];
+    if (!flat.length) return;
+    const counts = {};
+    for (let j = 0; j < flat.length; j += 2) counts[flat[j]] = Number(flat[j + 1]) || 0;
+    out[d] = counts;
+  });
+  return out;
+}
+
 /* ---- For /api/health ---- */
 export async function archiveStats() {
   if (!archiveEnabled()) return { enabled: false, backend: archiveBackend() };
@@ -426,6 +451,7 @@ export async function archiveStats() {
     try { lastRun = st.lastRun ? JSON.parse(st.lastRun) : null; } catch { lastRun = st.lastRun; }
     let secondNetwork = null;
     try { secondNetwork = st.secondNetwork ? JSON.parse(st.secondNetwork) : null; } catch { secondNetwork = null; }
+    const qrScans = await recentScans().catch(() => null);
     return {
       enabled: true,
       backend: archiveBackend(),
@@ -439,6 +465,8 @@ export async function archiveStats() {
       lastCollectorRun: lastRun,
       // Metroland/Torstar papers last filed via GitHub's network (/api/deliver).
       secondNetwork,
+      // Printed QR codes used in the last 7 Toronto days: { day: { code: count } }.
+      qrScans,
       lastTrimDay: st.lastTrimDay || null,
     };
   } catch (err) {
