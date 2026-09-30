@@ -424,6 +424,8 @@ export async function archiveStats() {
     for (let i = 0; i < (state || []).length; i += 2) st[state[i]] = state[i + 1];
     let lastRun = null;
     try { lastRun = st.lastRun ? JSON.parse(st.lastRun) : null; } catch { lastRun = st.lastRun; }
+    let secondNetwork = null;
+    try { secondNetwork = st.secondNetwork ? JSON.parse(st.secondNetwork) : null; } catch { secondNetwork = null; }
     return {
       enabled: true,
       backend: archiveBackend(),
@@ -435,6 +437,8 @@ export async function archiveStats() {
       memory: memory ? { ...memory, warning: memory.percent >= FULL ? "nearly full — oldest days are being trimmed early" : undefined } : null,
       retentionInForce: Number(st.retentionInForce) || RETENTION_DAYS,
       lastCollectorRun: lastRun,
+      // Metroland/Torstar papers last filed via GitHub's network (/api/deliver).
+      secondNetwork,
       lastTrimDay: st.lastTrimDay || null,
     };
   } catch (err) {

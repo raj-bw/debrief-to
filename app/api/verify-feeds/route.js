@@ -9,7 +9,7 @@ import CANDIDATES from "../../lib/candidate-publishers.json";
    We learned this the hard way with the Village Media towns: a pattern that
    looked obviously right, where two of eighteen still failed for reasons no
    amount of reasoning would have surfaced (ottawamatters.com turned out to be
-   a Rogers site with no such feed; kitchenertoday.com serves malformed XML).
+   a Rogers site with no such feed; kitchenertoday.com later moved to CityNews).
 
    So nothing goes into the source list until it has answered. This route does
    the asking, from Vercel, where the publishers will actually talk to us.
