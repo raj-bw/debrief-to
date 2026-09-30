@@ -1,5 +1,6 @@
 # Temporary: look at four feeds this workspace can't reach, from GitHub's
-# network, before their fixes go live. Read-only. Removed before merging.
+# network, before their fixes go live, using this branch's code. Read-only.
+# Removed before merging.
 name: Probe four feeds (temporary)
 
 on:
