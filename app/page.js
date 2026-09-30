@@ -704,9 +704,6 @@ export default function Home() {
   const [activeCategories, setActiveCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSources, setShowSources] = useState(false);
-  // "Free to read only": hides stories the publisher marks subscriber-only.
-  // Off by default; remembered in this browser once changed.
-  const [freeOnly, setFreeOnly] = useState(false);
   // Editor's Picks view: the hand-chosen list instead of the feed.
   const [showPicks, setShowPicks] = useState(false);
   const [timeFilter, setTimeFilter] = useState("This Month");
@@ -728,7 +725,6 @@ export default function Home() {
   useEffect(() => {
     try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_showSources")); if (v) setShowSources(v); } catch {}
-    try { const v = JSON.parse(localStorage.getItem("cp_freeOnly")); if (v) setFreeOnly(v); } catch {}
     try { const v = localStorage.getItem("cp_timeFilter"); if (v) setTimeFilter(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_darkMode")); if (v) setDarkMode(v); } catch {}
     try { const v = JSON.parse(localStorage.getItem("cp_bookmarks")); if (v) setBookmarks(v); } catch {}
@@ -745,7 +741,6 @@ export default function Home() {
   // Save preferences to localStorage when they change (only after hydration)
   useEffect(() => { if (hydrated) localStorage.setItem("cp_categories", JSON.stringify(activeCategories)); }, [activeCategories, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_showSources", JSON.stringify(showSources)); }, [showSources, hydrated]);
-  useEffect(() => { if (hydrated) localStorage.setItem("cp_freeOnly", JSON.stringify(freeOnly)); }, [freeOnly, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_timeFilter", timeFilter); }, [timeFilter, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_darkMode", JSON.stringify(darkMode)); }, [darkMode, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_bookmarks", JSON.stringify(bookmarks)); }, [bookmarks, hydrated]);
@@ -919,8 +914,8 @@ export default function Home() {
     paywall: Boolean(p.paywall), topics: [], places: [], pick: true,
   }));
 
-  // Step 0: which list, and whether paywalled stories are shown at all
-  const pool = (showPicks ? picks : articles).filter((a) => !freeOnly || !a.paywall);
+  // Step 0: which list, the feed or the picks
+  const pool = showPicks ? picks : articles;
   // Step 1: apply the category + search filters (picks ignore the chips)
   const matchesOtherFilters = pool.filter((a) => {
     const matchesSearch = !searchQuery || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || (a.description || "").toLowerCase().includes(searchQuery.toLowerCase());
@@ -1124,30 +1119,16 @@ export default function Home() {
               </>
             )}
 
-            {/* Right side of the row: Editor's Picks and the free-to-read switch */}
-            <div className="row-right" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              {/* The same red as the Saved button, so the site's two "your reading"
-                  places share a colour */}
-              <button onClick={() => setShowPicks(!showPicks)} aria-pressed={showPicks}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "11px clamp(11px, 2.8vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
-                  background: showPicks ? "#C0354A" : "transparent",
-                  color: showPicks ? "#FFF" : (dm ? "#F2788C" : "#C0354A"),
-                  border: `1.5px solid ${showPicks ? "#C0354A" : (dm ? "#6A3345" : "#D9A1AC")}` }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill={showPicks ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                {PICKS_LABEL}
-              </button>
-              <button role="switch" aria-checked={freeOnly} onClick={() => setFreeOnly(!freeOnly)}
-                title={freeOnly ? "Showing only stories that are free to read" : "Hide subscriber-only stories"}
-                style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "9px 14px 9px 16px", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s ease",
-                  background: freeOnly ? (dm ? "#5A4526" : "#F2D9A6") : (dm ? "#3A2E1C" : "#F6ECD9"),
-                  border: `1.5px solid ${dm ? "#7A5F2E" : "#E0B978"}`,
-                  color: dm ? "#E8C98A" : "#8A5A12" }}>
-                Free to read only
-                <span aria-hidden="true" style={{ position: "relative", width: 34, height: 20, borderRadius: 10, flexShrink: 0, transition: "background 0.2s ease", background: freeOnly ? (dm ? "#E0B978" : "#B7791F") : (dm ? "#5A4A33" : "#E3CFA5") }}>
-                  <span style={{ position: "absolute", top: 2, left: freeOnly ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFF", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", transition: "left 0.2s ease" }} />
-                </span>
-              </button>
-            </div>
+            {/* Right side of the row: Editor's Picks, in the same red as the Saved
+                button, so the site's two "your reading" places share a colour */}
+            <button onClick={() => setShowPicks(!showPicks)} aria-pressed={showPicks}
+              style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 7, padding: "11px clamp(11px, 2.8vw, 16px)", borderRadius: 24, fontSize: "clamp(13px, 3.4vw, 15px)", fontWeight: 600, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", whiteSpace: "nowrap",
+                background: showPicks ? "#C0354A" : "transparent",
+                color: showPicks ? "#FFF" : (dm ? "#F2788C" : "#C0354A"),
+                border: `1.5px solid ${showPicks ? "#C0354A" : (dm ? "#6A3345" : "#D9A1AC")}` }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={showPicks ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {PICKS_LABEL}
+            </button>
           </div>
 
           {/* Sources panel. Place on the left, subject on the right.
@@ -1221,7 +1202,6 @@ export default function Home() {
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px" }}>
         <div style={{ marginBottom: 20, fontSize: 13, color: t.textSec, fontWeight: 400, letterSpacing: "0.2px", textTransform: "none" }}>
           Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} {showPicks ? "pick" : "article"}{filtered.length !== 1 ? "s" : ""} {"·"} {showPicks ? PICKS_LABEL : showingFallback ? "most recent" : timeFilter.toLowerCase()}
-          {freeOnly && " · free to read only"}
           {activeCats.length > 0 && ` · ${activeCats.join(", ")}`}
           {fetchedAt && !loading && ` · Updated ${timeAgo(fetchedAt)}`}
         </div>
@@ -1304,8 +1284,6 @@ export default function Home() {
             <p style={{ fontSize: 14, color: t.textSec, marginTop: 6, maxWidth: 440, lineHeight: 1.6 }}>
               {showPicks
                 ? "New picks are added from time to time. Check back soon."
-                : freeOnly && pool.length < articles.length && articles.length > 0
-                ? "Everything that matches is subscriber-only. Turn off \u201cFree to read only\u201d to see it."
                 : activeCats.length > 0
                 ? "Nothing matches these filters yet. Topic tabs fill up more slowly than place tabs, because a story only earns a topic when the publisher's own section or headline makes it clear."
                 : "Try a different search term."}
