@@ -510,45 +510,49 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <Divider />
 
         <section>
+          <H2>Why Debrief.TO exists</H2>
+          <P>
+            Local news in Ontario is spread across more than a hundred websites, from town papers to independent and
+            non-profit newsrooms. Keeping up means visiting each one, or relying on social media feeds that decide what
+            you see based on what keeps people scrolling rather than what matters where you live.
+          </P>
+          <P>
+            Debrief.TO brings that reporting together on one page, in the order it was published. Nothing is ranked by
+            popularity or tailored to you. Every headline links to the newsroom that did the work, because local
+            journalism depends on people reading it there and supporting it where they can.
+          </P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Privacy</H2>
+          <P>
+            Your town, saved stories and settings are stored only in your browser. Debrief.TO has no accounts and does
+            not track what you read.
+          </P>
+        </section>
+
+        <Divider />
+
+        <section>
           <H2>Where the news comes from</H2>
           <P>
             Stories come from a fixed list of newsrooms: local papers, independent outlets and non-profit investigative
-            publications. The list is chosen by hand and published below. It is the only editorial decision the site makes.
+            publications. The list is chosen by hand and published below. Apart from Editor&apos;s Picks, it is the only editorial
+            decision the site makes.
           </P>
           <P>
             Every reader sees the Toronto, Ontario and Canada newsrooms. Your local tab adds the newsroom that covers
             your town{homeLabel ? <> (currently <Strong>{homeLabel}</Strong>)</> : null}. If your town has no newsroom on the list, it shows the one covering your region.
           </P>
-          <P muted>Newsrooms marked <Sub /> publish some or all of their stories for subscribers only.</P>
-
-          {["Toronto", "Ontario", "Canada"].map((place) => (
-            <div key={place}>
-              <Divider thin />
-              <H3>{place}</H3>
-              <Newsrooms list={standing(place)} />
-            </div>
-          ))}
-
-          {/* Local newsrooms: one collapsible group per region, all closed when
-              the page opens, so the page reads as a page rather than a list. */}
-          {regions.map((r) => (
-            <div key={r.name}>
-              <Divider thin />
-              <details className="newsroom-group">
-                <summary style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, fontSize: 17, fontWeight: 700, color: c.title }}>
-                  <svg className="newsroom-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, transition: "transform 0.15s ease" }}><polyline points="9 6 15 12 9 18"/></svg>
-                  <span>Local newsrooms: {r.name}</span>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: c.muted }}>({r.list.length})</span>
-                </summary>
-                <div style={{ marginTop: 10, paddingLeft: 24 }}>
-                  <Newsrooms list={r.list} />
-                </div>
-              </details>
-            </div>
-          ))}
-          <p style={{ fontSize: 13, color: c.muted, margin: "16px 0 0", fontStyle: "italic" }}>
-            Regions follow Statistics Canada&apos;s economic regions for Ontario.
-          </p>
+          {/* The full list is long, so it lives at the bottom of the page. */}
+          <P>
+            <a href="#publications" onClick={(e) => { e.preventDefault(); document.getElementById("publications")?.scrollIntoView({ behavior: "smooth" }); }}
+              style={{ color: c.title, fontWeight: 700, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>
+              Scroll down to see which publications are covered <span aria-hidden="true">↓</span>
+            </a>
+          </P>
         </section>
 
         <Divider />
@@ -610,16 +614,6 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <Divider />
 
         <section>
-          <H2>Privacy</H2>
-          <P>
-            Your town, saved stories and settings are stored only in your browser. Debrief.TO has no accounts and does
-            not track what you read.
-          </P>
-        </section>
-
-        <Divider />
-
-        <section>
           <H2>Publishers and contact</H2>
           <P>
             Every story belongs to the newsroom that published it. Publishers who would like to be removed can
@@ -630,6 +624,42 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>. Its goal is to help
             Ontarians find local and independent news, free and in one place.
           </P>
+        </section>
+
+        <Divider />
+
+        <section id="publications" style={{ scrollMarginTop: 16 }}>
+          <H2>Publications we cover</H2>
+          <P muted>Newsrooms marked <Sub /> publish some or all of their stories for subscribers only.</P>
+
+          {["Toronto", "Ontario", "Canada"].map((place) => (
+            <div key={place}>
+              <Divider thin />
+              <H3>{place}</H3>
+              <Newsrooms list={standing(place)} />
+            </div>
+          ))}
+
+          {/* Local newsrooms: one collapsible group per region, all closed when
+              the page opens, so the page reads as a page rather than a list. */}
+          {regions.map((r) => (
+            <div key={r.name}>
+              <Divider thin />
+              <details className="newsroom-group">
+                <summary style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, fontSize: 17, fontWeight: 700, color: c.title }}>
+                  <svg className="newsroom-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, transition: "transform 0.15s ease" }}><polyline points="9 6 15 12 9 18"/></svg>
+                  <span>Local newsrooms: {r.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: c.muted }}>({r.list.length})</span>
+                </summary>
+                <div style={{ marginTop: 10, paddingLeft: 24 }}>
+                  <Newsrooms list={r.list} />
+                </div>
+              </details>
+            </div>
+          ))}
+          <p style={{ fontSize: 13, color: c.muted, margin: "16px 0 0", fontStyle: "italic" }}>
+            Regions follow Statistics Canada&apos;s economic regions for Ontario.
+          </p>
         </section>
 
       </main>
@@ -1248,7 +1278,7 @@ export default function Home() {
                 </ul>
               )}
               {box.portal && (
-                <a href={box.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: t.textSec }}>
+                <a href={box.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: dm ? "#7FB8E0" : "#1A5E8A" }}>
                   All meetings, minutes and video on {box.town === "Toronto" ? "the City of Toronto" : "the town"}&apos;s site →
                 </a>
               )}
