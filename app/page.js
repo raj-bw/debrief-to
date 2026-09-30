@@ -512,14 +512,10 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Why Debrief.TO exists</H2>
           <P>
-            Local news in Ontario is spread across more than a hundred websites, from town papers to independent and
-            non-profit newsrooms. Keeping up means visiting each one, or relying on social media feeds that decide what
-            you see based on what keeps people scrolling rather than what matters where you live.
-          </P>
-          <P>
-            Debrief.TO brings that reporting together on one page, in the order it was published. Nothing is ranked by
-            popularity or tailored to you. Every headline links to the newsroom that did the work, because local
-            journalism depends on people reading it there and supporting it where they can.
+            Social media feeds are sorted by what keeps people scrolling, not by what matters in your community.
+            Debrief.TO is a reliable way to find local news without distractions, and it gives a platform to journalists
+            and independent publications. Every headline links to the original story, because local journalism depends
+            on people reading it at the source and supporting it where they can.
           </P>
         </section>
 
