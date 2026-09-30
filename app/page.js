@@ -1277,7 +1277,7 @@ export default function Home() {
                 </ul>
               )}
               {box.portal && (
-                <a href={box.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: t.textSec }}>
+                <a href={box.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: dm ? "#7FB8E0" : "#1A5E8A" }}>
                   All meetings, minutes and video on {box.town === "Toronto" ? "the City of Toronto" : "the town"}&apos;s site →
                 </a>
               )}
