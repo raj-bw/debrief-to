@@ -42,15 +42,6 @@ export const PICKS = [
     description: "How to look past campaign slogans like “Fix the TTC” to the assumptions behind them, and what they ask voters to accept about the problem.",
   },
   {
-    url: "https://spacing.ca/toronto/2026/08/31/how-to-critically-listen-to-a-municipal-candidate/",
-    title: "How to Critically Listen to a Municipal Candidate",
-    source: "Spacing Toronto",
-    published: "2026-08-31T16:00:00Z",
-    // About the municipal election, so it stays up to the day after the vote
-    until: "2026-10-27T23:59:59-04:00",
-    description: "Christopher Balkaran begins a series on engaging with the municipal election campaign, starting with the gap between a candidate naming a problem, like Scarborough transit, and offering a real solution.",
-  },
-  {
     url: "https://www.readthemaple.com/mp-landlords/",
     title: "Find Out If Your MP Is A Landlord Or Invested In Real Estate",
     source: "The Maple",
