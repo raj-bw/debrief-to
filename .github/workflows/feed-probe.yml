@@ -1,6 +1,6 @@
 # Temporary: look at four feeds this workspace can't reach, from GitHub's
 # network, before their fixes go live, using this branch's code. Read-only.
-# Round three: CityNews Kitchener's local feed; Grant Haven's labels.
+# Round four: how Grant Haven labels a Paris and a St. Marys story.
 # Removed before merging.
 name: Probe four feeds (temporary)
 
@@ -54,30 +54,16 @@ jobs:
           };
           const links = (html) => (html.match(/<link[^>]+application\/(rss|atom)\+xml[^>]*>/gi) || []).slice(0, 8).forEach((l) => console.log("   alt:", cut(l, 200)));
 
-          await show("CityNews Kitchener: local only", async () => {
-            await feedInfo("https://kitchener.citynews.ca/category/local/feed/");
-            await feedInfo("https://kitchener.citynews.ca/local/feed/");
-            const api = await get("https://kitchener.citynews.ca/wp-json/wp/v2/posts?per_page=10&categories=136175&_fields=link,date_gmt,title");
-            console.log("wp-json local posts ->", api.status);
-            try { JSON.parse(api.text).forEach((p) => console.log(" -", p.date_gmt, cut(p.title?.rendered, 60), cut(p.link, 70))); } catch { console.log("  not JSON:", cut(api.text, 150)); }
-          });
-
-          await show("Grant Haven: labels on St. Marys and Paris stories", async () => {
-            for (const page of ["https://www.granthaven.com/st-marys-independent", "https://www.granthaven.com/paris-independent"]) {
-              const r = await get(page);
-              const posts = [...new Set((r.text.match(/https:\/\/www\.granthaven\.com\/post\/[a-z0-9-]+/g) || []))].slice(0, 2);
-              const cats = [...new Set((r.text.match(/"(label|name|title)":"[^"]{2,40}"/g) || []).filter((x) => /independent|marys|paris|categor/i.test(x)))].slice(0, 12);
-              const catLinks = [...new Set((r.text.match(/\/blog\/categories\/[a-z0-9-]+/g) || []))].slice(0, 12);
-              console.log(page, "| labels:", cats.join(" "), "| category links:", catLinks.join(" "));
-              for (const post of posts) {
-                const p = await get(post);
-                const labels = [...new Set((p.text.match(/"label":"[^"]{2,40}"/g) || []))].slice(0, 12);
-                const date = (p.text.match(/"(firstPublishedDate|datePublished)":"([^"]+)"/) || [])[2];
-                const links = [...new Set((p.text.match(/\/blog\/categories\/[a-z0-9-]+/g) || []))];
-                console.log("  post:", cut(post.slice(33), 70), "| published:", date, "| labels:", labels.join(" "), "| category links:", links.join(" "));
-              }
+          await show("Grant Haven: how a Paris and a St. Marys story are labelled", async () => {
+            for (const post of ["https://www.granthaven.com/post/paris-duffers-report-duffers-close-out-another-season", "https://www.granthaven.com/post/local-trustee-candidates-make-their-case-to-st-marys-area-voters"]) {
+              const p = await get(post);
+              console.log(post.slice(33), "->", p.status, p.text.length, "bytes");
+              const hits = [...p.text.matchAll(/categor/gi)].slice(0, 8);
+              for (const h of hits) console.log("   …", cut(p.text.slice(Math.max(0, h.index - 80), h.index + 220), 300));
             }
-            for (const u of ["https://www.granthaven.com/blog-feed.xml?category=st-marys-independent", "https://www.granthaven.com/blog/categories/st-marys/feed", "https://www.granthaven.com/blog-feed.xml?page=2"]) await feedInfo(u);
+            const page = await get("https://www.granthaven.com/paris-independent");
+            const hits = [...page.text.matchAll(/categoryId|categoryIds|"categories"/g)].slice(0, 5);
+            for (const h of hits) console.log("  page …", cut(page.text.slice(Math.max(0, h.index - 60), h.index + 240), 300));
           });
 
           process.exit(0);
