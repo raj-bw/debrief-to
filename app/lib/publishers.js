@@ -44,6 +44,12 @@
    way in to the same stories. */
 export const KINGSTONIST_API = { kind: "wpjson", api: "https://www.kingstonist.com", allPosts: true };
 
+/* My Broadcasting's sites run WordPress too. My Kemptville Now's RSS
+   refuses Vercel under both names, as Kingstonist's did, so it gets the same
+   second way in. Its sisters have it as well: it is only tried if their RSS
+   fails, and they already need the honest name to be let in. */
+const myBroadcastingApi = (host) => ({ kind: "wpjson", api: `https://www.${host}`, allPosts: true });
+
 export const PUBLISHERS = [
   { name: "Aurora Today", village: "auroratoday.ca", owner: "Village Media", serves: ["Aurora"] },
   { name: "Burlington Today", village: "burlingtontoday.com", owner: "Village Media", serves: ["Burlington"] },
@@ -95,10 +101,10 @@ export const PUBLISHERS = [
   { name: "The Napanee Beaver", urls: ["https://napaneebeaver.ca/feed"], home: "Greater Napanee", area: "Lennox and Addington", serves: ["Addington Highlands", "Deseronto", "Greater Napanee", "Loyalist", "Stone Mills", "Tyendinaga"] },
   { name: "Your Kenora", urls: ["https://yourkenora.ca/feed"], home: "Kenora", area: "Kenora District", serves: ["Dryden", "Ear Falls", "Ignace", "Kenora", "Machin", "Pickle Lake", "Red Lake", "Sioux Lookout", "Sioux Narrows-Nestor Falls"] },
   { name: "Bayshore Broadcasting", urls: ["https://www.bayshorebroadcasting.ca/feed"], owner: "Bayshore Broadcasting", home: "Owen Sound", area: "Grey-Bruce", serves: ["Arran-Elderslie", "Brockton", "Chatsworth", "Georgian Bluffs", "Hanover", "Kincardine", "Northern Bruce Peninsula", "Owen Sound", "Saugeen Shores", "South Bruce", "South Bruce Peninsula", "Southgate", "West Grey"] },
-  { name: "My Bancroft Now", urls: ["https://www.mybancroftnow.com/feed/"], owner: "My Broadcasting Corporation", serves: ["Bancroft"] },
-  { name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], owner: "My Broadcasting Corporation", serves: ["North Grenville"] },
-  { name: "My Parry Sound Now", urls: ["https://www.myparrysoundnow.com/feed/"], owner: "My Broadcasting Corporation", serves: ["Parry Sound"] },
-  { name: "My Stratford Now", urls: ["https://www.mystratfordnow.com/feed/"], owner: "My Broadcasting Corporation", home: "Stratford", area: "Stratford and Perth County", serves: ["Perth East", "Perth South", "St. Marys", "Stratford", "West Perth"] },
+  { name: "My Bancroft Now", urls: ["https://www.mybancroftnow.com/feed/"], fallback: myBroadcastingApi("mybancroftnow.com"), owner: "My Broadcasting Corporation", serves: ["Bancroft"] },
+  { name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], fallback: myBroadcastingApi("mykemptvillenow.com"), owner: "My Broadcasting Corporation", serves: ["North Grenville"] },
+  { name: "My Parry Sound Now", urls: ["https://www.myparrysoundnow.com/feed/"], fallback: myBroadcastingApi("myparrysoundnow.com"), owner: "My Broadcasting Corporation", serves: ["Parry Sound"] },
+  { name: "My Stratford Now", urls: ["https://www.mystratfordnow.com/feed/"], fallback: myBroadcastingApi("mystratfordnow.com"), owner: "My Broadcasting Corporation", home: "Stratford", area: "Stratford and Perth County", serves: ["Perth East", "Perth South", "St. Marys", "Stratford", "West Perth"] },
   { name: "St. Marys Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["St Marys", "St. Marys"], serves: ["St. Marys"] },
   { name: "Paris Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["Paris Independent"], serves: ["Brant"] },
   { name: "West Northumberland", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["West Northumberland"], serves: ["Cobourg", "Port Hope"] },

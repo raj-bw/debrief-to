@@ -14,6 +14,10 @@
 #      secret → name CRON_SECRET, same value.
 # Without the secret the collector still runs, but at most every 20 minutes.
 #
+# After the collector, a second step asks the Metroland/Torstar papers that
+# turned Vercel away ("too many requests") once more from GitHub's own
+# network, and hands what it gets to the site (scripts/second-network.mjs).
+#
 # GitHub pauses scheduled workflows in a repository with no activity for 60
 # days. The last step prevents that, using only GitHub's own API. If it ever
 # pauses anyway, Vercel's daily run still keeps the archive going.
@@ -27,12 +31,19 @@ on:
 
 permissions:
   actions: write              # only for the keepalive step
+  contents: read              # to check out the second network's script
 
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
+      # Only the second network's script is needed from the repository.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+          persist-credentials: false
+
       - name: Run the collector
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -44,6 +55,12 @@ jobs:
           echo "collector answered HTTP $code"
           if [ "$code" = "401" ]; then echo "::error::CRON_SECRET in GitHub doesn't match the one in Vercel"; exit 1; fi
           if [ "$code" != "200" ]; then echo "::error::collector did not finish (HTTP $code)"; exit 1; fi
+
+      # Never fails the run: a second chance, not the main road.
+      - name: Ask refused Metroland/Torstar papers again, from GitHub's network
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: node scripts/second-network.mjs out.json || echo "second network skipped"
 
       # limit=1 checks one feed only, so this report doesn't knock on every
       # publisher at once (that burst is what trips Metroland's 429s).

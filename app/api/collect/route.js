@@ -1,9 +1,8 @@
-import { SOURCES } from "../../lib/sources";
-import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
-import { fetchItems, isBlox } from "../../lib/fetch-feed";
+import { fetchItems, lineOf, isBloxUrl } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
+import { buildJobs } from "../../lib/collect-jobs";
 import {
-  archiveEnabled, archiveBackend, bucketFor, storeArticles, activeTowns,
+  archiveEnabled, archiveBackend, storeArticles,
   trimAll, makeRoom, getState, setState, torontoDay, RETENTION_DAYS,
 } from "../../lib/archive";
 
@@ -37,25 +36,6 @@ const CONCURRENCY = 6;
 const MIN_GAP_WITHOUT_SECRET_MS = 20 * 60 * 1000;
 
 
-async function buildJobs() {
-  const jobs = new Map();   // bucket -> job, so a publication shared by many towns is fetched once
-  const towns = new Set([DEFAULT_TOWN, ...(await activeTowns())]);
-  for (const slug of towns) {
-    const t = resolveTown(slug);
-    for (const f of [...(t.feeds || []), ...(t.regionFeeds || [])]) {
-      const b = bucketFor(f);
-      if (!jobs.has(b)) jobs.set(b, { src: { ...f, place: "home" }, bucket: b });
-    }
-  }
-  // Standing sources all share one shelf, but each is its own fetch.
-  const standing = SOURCES.map((s) => ({ src: s, bucket: "shared" }));
-  // Start somewhere different each run, so if a run ever hits its time
-  // budget it isn't always the same publications left out.
-  const local = [...jobs.values()];
-  const start = Math.floor(Math.random() * Math.max(local.length, 1));
-  return { jobs: [...standing, ...local.slice(start), ...local.slice(0, start)], towns: towns.size };
-}
-
 /* Several towns can share a feed under different shelves (Orangeville.com
    is both a town's own paper and its county's). Ask the publisher once per
    run and give every shelf the same answer. */
@@ -75,8 +55,29 @@ async function collectOne(job, fetchOnce) {
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
     return { name: job.src.name, ok: true, items: articles.length, added, via: got.via };
   } catch (err) {
-    return { name: job.src.name, ok: false, error: String(err?.message || err).slice(0, 120) };
+    return { name: job.src.name, ok: false, error: String(err?.message || err).slice(0, 120), job };
   }
+}
+
+/* ---- The second network ----
+   Metroland and Torstar's platform turns requests away with a 429 when the
+   address they come from has used up its allowance, and Vercel's addresses
+   are shared with thousands of other sites. From GitHub's network, a
+   different crowd, some of those papers answer (YorkRegion.com did, though
+   Vercel never got it). So the GitHub Action that calls this collector is
+   handed the feeds that were turned away as "too many requests", or that
+   the run ran out of time for, asks each of them once more from there, and
+   files what it gets through /api/deliver.
+
+   Only 429s. A 403 is a publisher refusing servers, and asking from another
+   network would be working around their decision rather than their load. */
+function forTheSecondNetwork(jobs) {
+  const urls = new Set();
+  for (const job of jobs) {
+    const url = (job.src.urls || []).find(isBloxUrl);
+    if (url) urls.add(url);
+  }
+  return [...urls];
 }
 
 export async function GET(request) {
@@ -103,30 +104,29 @@ export async function GET(request) {
   const room = await makeRoom().catch(() => null);
 
   const { jobs, towns } = await buildJobs();
-  const blox = jobs.filter((j) => isBlox(j.src));
-  const rest = jobs.filter((j) => !isBlox(j.src));
   const results = [];
-  let skipped = 0;
+  const notReached = [];
   const fetchOnce = fetcherForRun();
 
   // Most publishers: a few at a time.
-  const queue = [...rest];
+  const queue = jobs.filter((j) => !lineOf(j.src));
   const worker = async () => {
     while (queue.length) {
-      if (Date.now() - started > BUDGET_MS) { skipped += queue.length; queue.length = 0; return; }
+      if (Date.now() - started > BUDGET_MS) { notReached.push(...queue.splice(0)); return; }
       results.push(await collectOne(queue.shift(), fetchOnce));
     }
   };
-  // Metroland and Torstar share one platform that rate-limits: their papers
-  // run in their own lane, in parallel with everything else, and fetch-feed
-  // spaces the requests out and waits out any 429.
-  const bloxRun = (async () => {
-    for (const j of blox) {
-      if (Date.now() - started > BUDGET_MS) { skipped++; continue; }
+  // Metroland/Torstar's papers, and the papers read through a WordPress API
+  // (Postmedia's), each run in a lane of their own, in parallel with
+  // everything else: fetch-feed spaces their requests out and waits out any
+  // 429, and they never hold up publishers that don't need to wait.
+  const lane = (name) => (async () => {
+    for (const j of jobs.filter((x) => lineOf(x.src) === name)) {
+      if (Date.now() - started > BUDGET_MS) { notReached.push(j); continue; }
       results.push(await collectOne(j, fetchOnce));
     }
   })();
-  await Promise.all([...Array.from({ length: CONCURRENCY }, worker), bloxRun]);
+  await Promise.all([...Array.from({ length: CONCURRENCY }, worker), lane("blox"), lane("wordpress")]);
 
   // The 33-day rule, once a day.
   let trimmed = null;
@@ -148,7 +148,7 @@ export async function GET(request) {
     answered: results.length - failed.length,
     failed: failed.length,
     storiesAdded: results.reduce((n, r) => n + (r.added || 0), 0),
-    notReached: skipped,
+    notReached: notReached.length,
     memory: room?.memory || null,
     retentionDays: room?.retentionDays ?? null,
   };
@@ -160,5 +160,10 @@ export async function GET(request) {
     trimmed,
     failures: failed.map((r) => `${r.name}: ${r.error}`),
     neededHonestName: results.filter((r) => r.via === "honest").map((r) => r.name),
+    // Read by the GitHub Action: feeds to ask again from its own network.
+    retryElsewhere: forTheSecondNetwork([
+      ...failed.filter((r) => /Status code 429/.test(r.error)).map((r) => r.job),
+      ...notReached,
+    ]),
   }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -67,24 +67,43 @@ function isRefusal(message = "") {
    wait and try once more rather than ask again at once. The queue belongs
    to the server instance, so everything running on it shares one place in
    line. Readers' page loads don't queue: they are served from memory and the
-   archive, and never wait here. */
-const RATE_LIMITED_GAP_MS = 2500;      // between requests to the platform
+   archive, and never wait here.
+
+   Postmedia's WordPress API does the same with a 403 instead of a 429. In a
+   health check the Belleville Intelligencer, Lucknow Sentinel and Wiarton
+   Echo were refused while their sister papers were being asked at the same
+   moment, and each answered straight away when asked alone. So WordPress
+   API requests take their turn too, in a line of their own. */
+const LINE_GAP_MS = {
+  blox: 2500,        // between requests to Metroland/Torstar's platform
+  wordpress: 1000,   // between requests to a WordPress API (Postmedia's papers)
+};
 const RATE_LIMITED_BACKOFF_MS = 10000; // after a 429, before the one retry
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const isBloxUrl = (url) => String(url).includes("/search/?f=rss");
 export const isBlox = (src) => (src.urls || []).some(isBloxUrl);
 
-let bloxLine = Promise.resolve();
-let bloxNextAt = 0;
-function inBloxLine(task) {
-  const turn = bloxLine.then(async () => {
-    const wait = bloxNextAt - Date.now();
+// Which line a background job's first request waits in, if any. The
+// collector and /api/health give each line its own lane, so a paper waiting
+// its turn never holds up publishers that don't need to wait.
+export function lineOf(src) {
+  if (isBlox(src)) return "blox";
+  if (src.kind === "wpjson") return "wordpress";
+  return null;
+}
+
+const lines = new Map();   // name -> { tail, nextAt }
+function inLine(name, task) {
+  const line = lines.get(name) || { tail: Promise.resolve(), nextAt: 0 };
+  lines.set(name, line);
+  const turn = line.tail.then(async () => {
+    const wait = line.nextAt - Date.now();
     if (wait > 0) await sleep(wait);
     try { return await task(); }
-    finally { bloxNextAt = Date.now() + RATE_LIMITED_GAP_MS; }
+    finally { line.nextAt = Date.now() + LINE_GAP_MS[name]; }
   });
-  bloxLine = turn.catch(() => {});
+  line.tail = turn.catch(() => {});
   return turn;
 }
 
@@ -100,15 +119,74 @@ async function politely(task, patient) {
   }
 }
 
+/* ---- A feed that one bad story breaks ----
+   Kitchener Today's feed stopped reading: one story's markup isn't valid
+   XML ("Attribute without value"), and a strict parser throws the whole feed
+   away for it — a paper's every story lost to one broken embed. So when a
+   feed won't parse, it is taken apart story by story, every story that
+   parses on its own is kept, and only the broken one is left out. /api/health
+   reports how many were dropped. Nothing is repaired or guessed at. */
+const isXmlError = (message = "") => /\nLine: \d+\nColumn: \d+/.test(message);
+
+async function salvage(xml, parser) {
+  const tag = /<item[\s>]/.test(xml) ? "item" : "entry";
+  const stories = xml.match(new RegExp(`<${tag}[\\s>][\\s\\S]*?</${tag}>`, "g")) || [];
+  if (!stories.length) return null;
+  const alone = (s) => (tag === "item"
+    ? `<rss version="2.0"><channel>${s}</channel></rss>`
+    : `<feed xmlns="http://www.w3.org/2005/Atom">${s}</feed>`);
+  const keep = [];
+  for (const s of stories) {
+    try { await parser.parseString(alone(s)); keep.push(s); } catch { /* the broken one */ }
+  }
+  if (!keep.length) return null;
+  const last = stories[stories.length - 1];
+  const head = xml.slice(0, xml.indexOf(stories[0]));
+  const tail = xml.slice(xml.lastIndexOf(last) + last.length);
+  const feed = await parser.parseString(head + keep.join("\n") + tail);
+  return { feed, dropped: stories.length - keep.length };
+}
+
+async function salvageFrom(url, via, err) {
+  const res = await fetch(url, {
+    headers: { "User-Agent": via === "honest" ? HONEST_UA : CHROME_UA, Accept: ACCEPT_XML },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw err;
+  const saved = await salvage(await res.text(), parsers[via]).catch(() => null);
+  if (!saved) throw err;
+  return { feed: saved.feed, via, dropped: saved.dropped };
+}
+
 async function parseWithRetry(url) {
   try {
     const feed = await parsers.chrome.parseURL(url);
     return { feed, via: "chrome" };
   } catch (err) {
+    if (isXmlError(err?.message)) return salvageFrom(url, "chrome", err);
     if (!isRefusal(err?.message)) throw err;
-    const feed = await parsers.honest.parseURL(url);
-    return { feed, via: "honest" };
+    try {
+      const feed = await parsers.honest.parseURL(url);
+      return { feed, via: "honest" };
+    } catch (err2) {
+      if (isXmlError(err2?.message)) return salvageFrom(url, "honest", err2);
+      throw err2;
+    }
   }
+}
+
+/* The same, for a feed that arrived by another road (see /api/deliver):
+   the XML is already in hand, so it is only read, never fetched. */
+export async function itemsFromXml(src, xml) {
+  let feed;
+  try {
+    feed = await parsers.honest.parseString(xml);
+  } catch (err) {
+    const saved = isXmlError(err?.message) ? await salvage(xml, parsers.honest).catch(() => null) : null;
+    if (!saved) throw err;
+    feed = saved.feed;
+  }
+  return keepWanted(src, feed.items || []);
 }
 
 /* ---- WordPress REST API ----
@@ -174,8 +252,15 @@ async function fetchWpJson(src) {
   }
 
   // The verified id first; if a site ever renumbers, fall back to the slug.
+  // A refusal is not a renumbering, and asking a second address after one
+  // only doubles what the publisher is objecting to, so it ends here.
   let id = src.categoryId || null;
-  let result = id ? await getJson(postsFor(id)).catch(() => null) : null;
+  let result = id
+    ? await getJson(postsFor(id)).catch((err) => {
+      if (/Status code (401|403|406|429|503)/.test(err?.message || "")) throw err;
+      return null;
+    })
+    : null;
   if (!result || !Array.isArray(result.data) || result.data.length === 0) {
     id = src.category ? await resolveCategory(api, src.category) : null;
     if (!id) throw new Error(`no "${src.category}" category at ${api}`);
@@ -219,6 +304,31 @@ function keyOf(src) {
   return `${where}|${(src.onlyCategories || []).join(",")}`;
 }
 
+/* `onlyCategories` keeps the stories labelled with one of those names;
+   `excludeCategories` drops any labelled with one, such as a magazine's
+   sponsored "Paid Post". */
+const rawLabel = (c) => String(typeof c === "string" ? c : c?._ || "").trim();
+const labelOf = (c) => rawLabel(c).toLowerCase();
+
+function keepWanted(src, items) {
+  let out = items;
+  if (src.onlyCategories?.length) {
+    const want = src.onlyCategories.map((c) => c.toLowerCase());
+    out = out.filter((it) => (it.categories || []).some((c) => want.includes(labelOf(c))));
+  }
+  if (src.excludeCategories?.length) {
+    const drop = src.excludeCategories.map((c) => c.toLowerCase());
+    out = out.filter((it) => !(it.categories || []).some((c) => drop.includes(labelOf(c))));
+  }
+  return out;
+}
+
+function categoriesOf(items) {
+  const seen = new Set();
+  for (const it of items) for (const c of it.categories || []) seen.add(rawLabel(c));
+  return [...seen].filter(Boolean).slice(0, 30);
+}
+
 /* ---- The one entry point ----
    Returns { items, url, via } from the first URL that answers with stories,
    or throws the last error. An answer with no stories counts as "try the
@@ -232,29 +342,27 @@ function keyOf(src) {
    jobs: requests to rate-limited publishers wait their turn, and a 429 is
    met with a pause and one retry (see "Publishers that rate-limit"). */
 async function fetchFresh(src, { patient = false } = {}) {
-  if (src.kind === "wpjson") return politely(() => fetchWpJson(src), patient);
+  if (src.kind === "wpjson") {
+    const get = () => politely(() => fetchWpJson(src), patient);
+    return patient ? inLine("wordpress", get) : get();
+  }
 
   let lastErr = null;
   let empty = null;
   for (const url of src.urls || []) {
     try {
       const get = () => politely(() => parseWithRetry(url), patient);
-      const { feed, via } = await (patient && isBloxUrl(url) ? inBloxLine(get) : get());
-      let items = feed.items || [];
-      if (items.length === 0) { empty ||= { items, url, via }; continue; }
-      if (src.onlyCategories?.length) {
-        const want = src.onlyCategories.map((c) => c.toLowerCase());
-        items = items.filter((it) => (it.categories || []).some((c) =>
-          want.includes(String(typeof c === "string" ? c : c?._ || "").toLowerCase().trim())));
-      }
-      // And the reverse: drop anything the publisher files under a named
-      // category, such as a magazine's sponsored "Paid Post".
-      if (src.excludeCategories?.length) {
-        const drop = src.excludeCategories.map((c) => c.toLowerCase());
-        items = items.filter((it) => !(it.categories || []).some((c) =>
-          drop.includes(String(typeof c === "string" ? c : c?._ || "").toLowerCase().trim())));
-      }
-      return { items, url, via };
+      const { feed, via, dropped } = await (patient && isBloxUrl(url) ? inLine("blox", get) : get());
+      const all = feed.items || [];
+      if (all.length === 0) { empty ||= { items: all, url, via }; continue; }
+      const items = keepWanted(src, all);
+      return {
+        items, url, via,
+        ...(dropped ? { dropped } : {}),
+        // Everything answered but the category filter kept nothing: say what
+        // the publisher did label its stories, so /api/health can show it.
+        ...(items.length === 0 ? { filteredFrom: all.length, categoriesSeen: categoriesOf(all) } : {}),
+      };
     } catch (err) {
       lastErr = err;
     }
