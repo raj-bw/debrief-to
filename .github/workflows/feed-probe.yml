@@ -1,6 +1,6 @@
 # Temporary: look at four feeds this workspace can't reach, from GitHub's
 # network, before their fixes go live, using this branch's code. Read-only.
-# Round two: where Kitchener Today moved, and where St. Marys and Paris publish.
+# Round three: CityNews Kitchener's local feed; Grant Haven's labels.
 # Removed before merging.
 name: Probe four feeds (temporary)
 
@@ -54,30 +54,32 @@ jobs:
           };
           const links = (html) => (html.match(/<link[^>]+application\/(rss|atom)\+xml[^>]*>/gi) || []).slice(0, 8).forEach((l) => console.log("   alt:", cut(l, 200)));
 
-          await show("Kitchener: where kitchenertoday.com goes", async () => {
-            const r = await fetch("https://www.kitchenertoday.com/rss/local-news", { redirect: "manual", headers: { "User-Agent": CHROME } });
-            console.log("kitchenertoday /rss/local-news ->", r.status, r.headers.get("location"));
-            const h = await fetch("https://www.kitchenertoday.com/", { redirect: "manual", headers: { "User-Agent": CHROME } });
-            console.log("kitchenertoday / ->", h.status, h.headers.get("location"));
-            const home = await get("https://kitchener.citynews.ca/");
-            console.log("kitchener.citynews.ca / ->", home.status); links(home.text);
-            for (const u of ["https://kitchener.citynews.ca/feed/", "https://kitchener.citynews.ca/local-news/feed/", "https://kitchener.citynews.ca/category/local-news/feed/", "https://kitchener.citynews.ca/category/news/feed/"]) await feedInfo(u);
-            for (const u of ["https://kitchener.citynews.ca/feed/"]) await feedInfo(u, HONEST);
-            const api = await get("https://kitchener.citynews.ca/wp-json/wp/v2/categories?per_page=30&_fields=id,slug,count&orderby=count&order=desc");
-            console.log("wp-json categories ->", api.status, cut(api.text, 600));
+          await show("CityNews Kitchener: local only", async () => {
+            await feedInfo("https://kitchener.citynews.ca/category/local/feed/");
+            await feedInfo("https://kitchener.citynews.ca/local/feed/");
+            const api = await get("https://kitchener.citynews.ca/wp-json/wp/v2/posts?per_page=10&categories=136175&_fields=link,date_gmt,title");
+            console.log("wp-json local posts ->", api.status);
+            try { JSON.parse(api.text).forEach((p) => console.log(" -", p.date_gmt, cut(p.title?.rendered, 60), cut(p.link, 70))); } catch { console.log("  not JSON:", cut(api.text, 150)); }
           });
 
-          await show("Grant Haven: St. Marys and Paris", async () => {
-            for (const u of ["https://www.granthaven.com/blog/categories/st-marys-independent", "https://www.granthaven.com/blog/categories/paris-independent", "https://www.granthaven.com/st-marys-independent", "https://www.granthaven.com/paris-independent"]) {
-              const r = await get(u);
-              const posts = [...new Set((r.text.match(/https:\/\/www\.granthaven\.com\/post\/[a-z0-9-]+/g) || []))].slice(0, 5);
-              const dates = (r.text.match(/"(datePublished|firstPublishedDate)":"([^"]+)"/g) || []).slice(0, 5);
-              console.log(u, "->", r.status, "| posts:", posts.length, posts.map((p) => p.slice(33, 90)).join(" , "), "| dates:", dates.join(" "));
+          await show("Grant Haven: labels on St. Marys and Paris stories", async () => {
+            for (const page of ["https://www.granthaven.com/st-marys-independent", "https://www.granthaven.com/paris-independent"]) {
+              const r = await get(page);
+              const posts = [...new Set((r.text.match(/https:\/\/www\.granthaven\.com\/post\/[a-z0-9-]+/g) || []))].slice(0, 2);
+              const cats = [...new Set((r.text.match(/"(label|name|title)":"[^"]{2,40}"/g) || []).filter((x) => /independent|marys|paris|categor/i.test(x)))].slice(0, 12);
+              const catLinks = [...new Set((r.text.match(/\/blog\/categories\/[a-z0-9-]+/g) || []))].slice(0, 12);
+              console.log(page, "| labels:", cats.join(" "), "| category links:", catLinks.join(" "));
+              for (const post of posts) {
+                const p = await get(post);
+                const labels = [...new Set((p.text.match(/"label":"[^"]{2,40}"/g) || []))].slice(0, 12);
+                const date = (p.text.match(/"(firstPublishedDate|datePublished)":"([^"]+)"/) || [])[2];
+                const links = [...new Set((p.text.match(/\/blog\/categories\/[a-z0-9-]+/g) || []))];
+                console.log("  post:", cut(post.slice(33), 70), "| published:", date, "| labels:", labels.join(" "), "| category links:", links.join(" "));
+              }
             }
-            for (const u of ["https://www.stmarysindependent.com/", "https://www.parisindependent.com/", "https://www.stmarysindependent.ca/", "https://www.parisindependent.ca/"]) {
-              const r = await get(u); console.log(u, "->", r.status, r.text.length, "bytes"); links(r.text);
-            }
+            for (const u of ["https://www.granthaven.com/blog-feed.xml?category=st-marys-independent", "https://www.granthaven.com/blog/categories/st-marys/feed", "https://www.granthaven.com/blog-feed.xml?page=2"]) await feedInfo(u);
           });
+
           process.exit(0);
           EOF
           node probe.mjs
