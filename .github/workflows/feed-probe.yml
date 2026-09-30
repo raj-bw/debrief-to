@@ -1,5 +1,6 @@
 # Temporary: look at four feeds this workspace can't reach, from GitHub's
 # network, before their fixes go live, using this branch's code. Read-only.
+# Round two: where Kitchener Today moved, and where St. Marys and Paris publish.
 # Removed before merging.
 name: Probe four feeds (temporary)
 
@@ -40,50 +41,43 @@ jobs:
           const cut = (s, n = 160) => String(s ?? "").replace(/\s+/g, " ").slice(0, n);
           const show = async (label, fn) => { console.log(`\n===== ${label}`); try { await fn(); } catch (e) { console.log("threw:", cut(e.message, 300)); } };
 
-          await show("Kitchener Today", async () => {
-            for (const url of ["https://www.kitchenertoday.com/rss/local-news", "https://www.kitchenertoday.com/rss/local", "https://www.kitchenertoday.com/rss"]) {
-              const { status, text } = await get(url);
-              console.log(`${url} -> ${status}, ${text.length} bytes, items: ${(text.match(/<item[\s>]/g) || []).length}`);
-              try { await parser.parseString(text); console.log("  parses cleanly"); }
-              catch (e) {
-                const line = Number((e.message.match(/Line: (\d+)/) || [])[1]);
-                const col = Number((e.message.match(/Column: (\d+)/) || [])[1]);
-                console.log("  parse error:", cut(e.message, 120));
-                const l = text.split("\n")[line] || "";
-                console.log("  at:", cut(l.slice(Math.max(0, col - 120), col + 80), 220));
-              }
-              const got = await fetchItems({ name: "Kitchener Today", urls: [url] }, { fresh: true }).catch((e) => ({ error: e.message }));
-              console.log("  with the fix:", got.error ? "FAILED " + cut(got.error, 120) : `${got.items.length} stories, dropped ${got.dropped || 0}`);
+          const feedInfo = async (url, ua = CHROME) => {
+            const r = await get(url, ua);
+            const n = (r.text.match(/<item[\s>]/g) || []).length;
+            console.log(`${url} -> ${r.status}, ${r.text.length} bytes, items: ${n}`);
+            if (!n) return;
+            try {
+              const f = await parser.parseString(r.text);
+              console.log("  channel:", cut(f.title, 60));
+              f.items.slice(0, 6).forEach((it) => console.log("  -", cut(it.isoDate, 16), "|", cut(it.title, 60), "|", JSON.stringify((it.categories || []).slice(0, 4)), "|", cut(it.link, 90)));
+            } catch (e) { console.log("  parse error:", cut(e.message, 100)); }
+          };
+          const links = (html) => (html.match(/<link[^>]+application\/(rss|atom)\+xml[^>]*>/gi) || []).slice(0, 8).forEach((l) => console.log("   alt:", cut(l, 200)));
+
+          await show("Kitchener: where kitchenertoday.com goes", async () => {
+            const r = await fetch("https://www.kitchenertoday.com/rss/local-news", { redirect: "manual", headers: { "User-Agent": CHROME } });
+            console.log("kitchenertoday /rss/local-news ->", r.status, r.headers.get("location"));
+            const h = await fetch("https://www.kitchenertoday.com/", { redirect: "manual", headers: { "User-Agent": CHROME } });
+            console.log("kitchenertoday / ->", h.status, h.headers.get("location"));
+            const home = await get("https://kitchener.citynews.ca/");
+            console.log("kitchener.citynews.ca / ->", home.status); links(home.text);
+            for (const u of ["https://kitchener.citynews.ca/feed/", "https://kitchener.citynews.ca/local-news/feed/", "https://kitchener.citynews.ca/category/local-news/feed/", "https://kitchener.citynews.ca/category/news/feed/"]) await feedInfo(u);
+            for (const u of ["https://kitchener.citynews.ca/feed/"]) await feedInfo(u, HONEST);
+            const api = await get("https://kitchener.citynews.ca/wp-json/wp/v2/categories?per_page=30&_fields=id,slug,count&orderby=count&order=desc");
+            console.log("wp-json categories ->", api.status, cut(api.text, 600));
+          });
+
+          await show("Grant Haven: St. Marys and Paris", async () => {
+            for (const u of ["https://www.granthaven.com/blog/categories/st-marys-independent", "https://www.granthaven.com/blog/categories/paris-independent", "https://www.granthaven.com/st-marys-independent", "https://www.granthaven.com/paris-independent"]) {
+              const r = await get(u);
+              const posts = [...new Set((r.text.match(/https:\/\/www\.granthaven\.com\/post\/[a-z0-9-]+/g) || []))].slice(0, 5);
+              const dates = (r.text.match(/"(datePublished|firstPublishedDate)":"([^"]+)"/g) || []).slice(0, 5);
+              console.log(u, "->", r.status, "| posts:", posts.length, posts.map((p) => p.slice(33, 90)).join(" , "), "| dates:", dates.join(" "));
+            }
+            for (const u of ["https://www.stmarysindependent.com/", "https://www.parisindependent.com/", "https://www.stmarysindependent.ca/", "https://www.parisindependent.ca/"]) {
+              const r = await get(u); console.log(u, "->", r.status, r.text.length, "bytes"); links(r.text);
             }
           });
-
-          await show("Grant Haven (St. Marys / Paris Independent)", async () => {
-            const { status, text } = await get("https://www.granthaven.com/blog-feed.xml");
-            console.log("status", status, text.length, "bytes");
-            const feed = await parser.parseString(text);
-            console.log("channel:", feed.title, "| items:", feed.items.length);
-            for (const it of feed.items) console.log(" -", cut(it.isoDate, 10), "|", cut(it.title, 70), "| cats:", JSON.stringify(it.categories || []), "|", cut(it.link, 90));
-          });
-
-          await show("Canadaland", async () => {
-            const { status, text } = await get("https://www.canadaland.com/feed/");
-            console.log("/feed/ status", status);
-            try { const f = await parser.parseString(text); console.log("channel:", f.title); f.items.slice(0, 5).forEach((it) => console.log(" -", cut(it.isoDate, 10), cut(it.title, 70), cut(it.link, 80))); } catch (e) { console.log("parse:", cut(e.message)); }
-            const home = await get("https://www.canadaland.com/");
-            console.log("home status", home.status);
-            (home.text.match(/<link[^>]+(alternate|application\/(rss|atom))[^>]*>/gi) || []).slice(0, 10).forEach((l) => console.log("  ", cut(l, 200)));
-            const api = await get("https://www.canadaland.com/wp-json/wp/v2/posts?per_page=5&_fields=link,date_gmt,title");
-            console.log("wp-json status", api.status);
-            try { JSON.parse(api.text).forEach((p) => console.log(" -", p.date_gmt, cut(p.title?.rendered, 70), p.link)); } catch { console.log("  not JSON:", cut(api.text, 150)); }
-          });
-
-          await show("My Kemptville Now", async () => {
-            for (const ua of [CHROME, HONEST]) { const r = await get("https://www.mykemptvillenow.com/feed/", ua); console.log("/feed/", ua === HONEST ? "[honest]" : "[chrome]", "->", r.status, "items:", (r.text.match(/<item[\s>]/g) || []).length); }
-            const api = await get("https://www.mykemptvillenow.com/wp-json/wp/v2/posts?per_page=5&_fields=link,date_gmt,title", HONEST);
-            console.log("wp-json [honest] ->", api.status);
-            try { JSON.parse(api.text).forEach((p) => console.log(" -", p.date_gmt, cut(p.title?.rendered, 70), p.link)); } catch { console.log("  not JSON:", cut(api.text, 150)); }
-            const got = await fetchItems({ name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], fallback: { kind: "wpjson", api: "https://www.mykemptvillenow.com", allPosts: true } }, { fresh: true }).catch((e) => ({ error: e.message }));
-            console.log("with the fix:", got.error ? "FAILED " + cut(got.error, 150) : `${got.items.length} stories via ${got.url}`);
-          });
+          process.exit(0);
           EOF
           node probe.mjs
