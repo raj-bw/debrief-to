@@ -29,6 +29,13 @@ export const PICKS = [
     description: "Spacing obtained the RFP for the Ford government's bike lane removal, and it looks even worse than thought.",
   },
   {
+    url: "https://spacing.ca/toronto/2026/08/31/how-to-critically-listen-to-a-municipal-candidate/",
+    title: "How to Critically Listen to a Municipal Candidate",
+    source: "Spacing Toronto",
+    published: "2026-08-31T16:00:00Z",
+    description: "Christopher Balkaran begins a series on engaging with the municipal election campaign, starting with the gap between a candidate naming a problem, like Scarborough transit, and offering a real solution.",
+  },
+  {
     url: "https://www.readthemaple.com/mp-landlords/",
     title: "Find Out If Your MP Is A Landlord Or Invested In Real Estate",
     source: "The Maple",
