@@ -97,13 +97,14 @@ async function probe(candidate) {
    robots.txt, which lists its sitemaps, and the sitemaps themselves — one at
    a time, and reports what came back, to choose a second way in.
    /api/verify-feeds?blox=1. Read-only. */
-const BLOX_PROBE_HOSTS = ["www.thespec.com", "www.durhamregion.com"];
+/* Round one found robots.txt and the sitemap index served while every
+   page built per request (search, section feeds, the news sitemap) got 429.
+   Round two reads the index in full and the article sitemaps it points to. */
+const BLOX_PROBE_HOSTS = ["www.thespec.com"];
 const BLOX_PROBE_PATHS = [
-  "/robots.txt",
-  "/tncms/sitemap/news.xml",
   "/sitemap.xml",
-  "/news/?f=rss",
-  "/search/?f=atom&t=article&c=news*&l=5&s=start_time&sd=desc",
+  "/tncms/sitemap/editorial.xml",
+  "/tncms/sitemap/editorial.xml?year=2026",
 ];
 
 async function probeBlox() {
@@ -121,7 +122,7 @@ async function probeBlox() {
           url, status: res.status, type: res.headers.get("content-type"), bytes: text.length,
           ...(path === "/robots.txt"
             ? { sitemaps: (text.match(/^sitemap:.*$/gim) || []).slice(0, 15) }
-            : { start: text.slice(0, 400) }),
+            : { start: text.slice(0, 2500) }),
         });
       } catch (err) {
         out.push({ url, error: String(err?.message || err).slice(0, 100) });
