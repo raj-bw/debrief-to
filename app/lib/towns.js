@@ -1,5 +1,5 @@
 import PLACES from "./ontario-places.json";
-import { PUBLISHERS } from "./publishers";
+import { PUBLISHERS, KINGSTONIST_API } from "./publishers";
 
 /* ---- Where the reader lives ----
    Two separate things, deliberately kept apart:
@@ -196,7 +196,7 @@ const DIVISION_FEEDS = {
   "Leeds and Grenville": { label: "Leeds and Grenville", feeds: [metroland("InsideOttawaValley", "insideottawavalley.com", "#8A5E9C")] },
   "Parry Sound": { label: "Parry Sound District", feeds: [metroland("ParrySound.com", "parrysound.com", "#3D5A80")] },
   "Timiskaming": { label: "Timiskaming District", feeds: [feed("The Temiskaming Speaker", ["https://northernontario.ca/feed", "https://northernontario.ca/rss"], "#5C7A29")] },
-  "Frontenac": { label: "Frontenac County", feeds: [feed("Kingstonist", ["https://www.kingstonist.com/feed", "https://www.kingstonist.com/rss"], "#A85A2B")] },
+  "Frontenac": { label: "Frontenac County", feeds: [{ ...feed("Kingstonist", ["https://www.kingstonist.com/feed", "https://www.kingstonist.com/rss"], "#A85A2B"), fallback: KINGSTONIST_API }] },
   "Ottawa": { label: "Ottawa", feeds: [{ ...feed("CBC Ottawa", ["https://www.cbc.ca/cmlink/rss-canada-ottawa", "https://www.cbc.ca/webfeed/rss/rss-canada-ottawa"], "#A63D40"), owner: "CBC/Radio-Canada" }] },
 };
 
@@ -289,6 +289,7 @@ function toFeed(p) {
     reach: p.serves.length,
     ...(p.paywall ? { paywall: true } : {}),
     ...(p.onlyCategories ? { onlyCategories: p.onlyCategories } : {}),
+    ...(p.fallback ? { fallback: p.fallback } : {}),
   };
   if (p.village) return { ...villageMedia(p.name, p.village, base.color), ...base, kind: "village" };
   if (p.blox) return { ...metroland(p.name, p.blox, base.color, null, p.owner, p.paywall), ...base };

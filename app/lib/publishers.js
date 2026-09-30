@@ -39,6 +39,11 @@
    labelled every Postmedia and Torstar title Sub, which put the label on
    free stories. ---- */
 
+/* Kingstonist's RSS refuses servers (403 to both the browser name and the
+   honest one), the same pattern as The Walrus. Its WordPress API is a second
+   way in to the same stories. */
+export const KINGSTONIST_API = { kind: "wpjson", api: "https://www.kingstonist.com", allPosts: true };
+
 export const PUBLISHERS = [
   { name: "Aurora Today", village: "auroratoday.ca", owner: "Village Media", serves: ["Aurora"] },
   { name: "Burlington Today", village: "burlingtontoday.com", owner: "Village Media", serves: ["Burlington"] },
@@ -86,7 +91,7 @@ export const PUBLISHERS = [
   { name: "Renfrew Today", urls: ["https://renfrewtoday.ca/feed"], serves: ["Renfrew"] },
   { name: "Wellington Advertiser", urls: ["https://www.wellingtonadvertiser.com/feed"], home: "Centre Wellington", area: "Wellington County", serves: ["Centre Wellington", "Erin", "Guelph", "Guelph/Eramosa", "Mapleton", "Minto", "Puslinch", "Wellington North"] },
   { name: "The Temiskaming Speaker", urls: ["https://northernontario.ca/feed", "https://northernontario.ca/rss"], home: "Temiskaming Shores", area: "Temiskaming", serves: ["Armstrong", "Brethour", "Casey", "Chamberlain", "Charlton and Dack", "Cobalt", "Englehart", "Evanturel", "Gauthier", "Harley", "Harris", "Hilliard", "Hudson", "James", "Kerns", "Kirkland Lake", "Larder Lake", "Latchford", "Matachewan", "McGarry", "Temiskaming Shores"] },
-  { name: "Kingstonist", urls: ["https://www.kingstonist.com/feed", "https://www.kingstonist.com/rss"], home: "Kingston", area: "Kingston and Frontenac", serves: ["Central Frontenac", "Frontenac Islands", "Kingston", "North Frontenac", "South Frontenac"] },
+  { name: "Kingstonist", urls: ["https://www.kingstonist.com/feed", "https://www.kingstonist.com/rss"], fallback: KINGSTONIST_API, home: "Kingston", area: "Kingston and Frontenac", serves: ["Central Frontenac", "Frontenac Islands", "Kingston", "North Frontenac", "South Frontenac"] },
   { name: "The Napanee Beaver", urls: ["https://napaneebeaver.ca/feed"], home: "Greater Napanee", area: "Lennox and Addington", serves: ["Addington Highlands", "Deseronto", "Greater Napanee", "Loyalist", "Stone Mills", "Tyendinaga"] },
   { name: "Your Kenora", urls: ["https://yourkenora.ca/feed"], home: "Kenora", area: "Kenora District", serves: ["Dryden", "Ear Falls", "Ignace", "Kenora", "Machin", "Pickle Lake", "Red Lake", "Sioux Lookout", "Sioux Narrows-Nestor Falls"] },
   { name: "Bayshore Broadcasting", urls: ["https://www.bayshorebroadcasting.ca/feed"], owner: "Bayshore Broadcasting", home: "Owen Sound", area: "Grey-Bruce", serves: ["Arran-Elderslie", "Brockton", "Chatsworth", "Georgian Bluffs", "Hanover", "Kincardine", "Northern Bruce Peninsula", "Owen Sound", "Saugeen Shores", "South Bruce", "South Bruce Peninsula", "Southgate", "West Grey"] },
