@@ -1,0 +1,88 @@
+# Temporary: look at four feeds this workspace can't reach, from GitHub's
+# network, before their fixes go live. Read-only. Removed before merging.
+name: Probe four feeds (temporary)
+
+on:
+  push:
+    branches: [claude/gracious-albattani-7lpq3a]
+    paths: [.github/workflows/feed-probe.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Probe
+        run: |
+          cat > probe.mjs <<'EOF'
+          import Parser from "rss-parser";
+          import { fetchItems } from "./app/lib/fetch-feed.js";
+          const CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+          const HONEST = "DebriefTO/1.0 (+https://debrief.to; free local news reader)";
+          const parser = new Parser();
+          const get = async (url, ua = CHROME) => {
+            try {
+              const r = await fetch(url, { headers: { "User-Agent": ua, Accept: "*/*" }, signal: AbortSignal.timeout(15000) });
+              return { status: r.status, text: await r.text() };
+            } catch (e) { return { status: "ERR " + e.message, text: "" }; }
+          };
+          const cut = (s, n = 160) => String(s ?? "").replace(/\s+/g, " ").slice(0, n);
+          const show = async (label, fn) => { console.log(`\n===== ${label}`); try { await fn(); } catch (e) { console.log("threw:", cut(e.message, 300)); } };
+
+          await show("Kitchener Today", async () => {
+            for (const url of ["https://www.kitchenertoday.com/rss/local-news", "https://www.kitchenertoday.com/rss/local", "https://www.kitchenertoday.com/rss"]) {
+              const { status, text } = await get(url);
+              console.log(`${url} -> ${status}, ${text.length} bytes, items: ${(text.match(/<item[\s>]/g) || []).length}`);
+              try { await parser.parseString(text); console.log("  parses cleanly"); }
+              catch (e) {
+                const line = Number((e.message.match(/Line: (\d+)/) || [])[1]);
+                const col = Number((e.message.match(/Column: (\d+)/) || [])[1]);
+                console.log("  parse error:", cut(e.message, 120));
+                const l = text.split("\n")[line] || "";
+                console.log("  at:", cut(l.slice(Math.max(0, col - 120), col + 80), 220));
+              }
+              const got = await fetchItems({ name: "Kitchener Today", urls: [url] }, { fresh: true }).catch((e) => ({ error: e.message }));
+              console.log("  with the fix:", got.error ? "FAILED " + cut(got.error, 120) : `${got.items.length} stories, dropped ${got.dropped || 0}`);
+            }
+          });
+
+          await show("Grant Haven (St. Marys / Paris Independent)", async () => {
+            const { status, text } = await get("https://www.granthaven.com/blog-feed.xml");
+            console.log("status", status, text.length, "bytes");
+            const feed = await parser.parseString(text);
+            console.log("channel:", feed.title, "| items:", feed.items.length);
+            for (const it of feed.items) console.log(" -", cut(it.isoDate, 10), "|", cut(it.title, 70), "| cats:", JSON.stringify(it.categories || []), "|", cut(it.link, 90));
+          });
+
+          await show("Canadaland", async () => {
+            const { status, text } = await get("https://www.canadaland.com/feed/");
+            console.log("/feed/ status", status);
+            try { const f = await parser.parseString(text); console.log("channel:", f.title); f.items.slice(0, 5).forEach((it) => console.log(" -", cut(it.isoDate, 10), cut(it.title, 70), cut(it.link, 80))); } catch (e) { console.log("parse:", cut(e.message)); }
+            const home = await get("https://www.canadaland.com/");
+            console.log("home status", home.status);
+            (home.text.match(/<link[^>]+(alternate|application\/(rss|atom))[^>]*>/gi) || []).slice(0, 10).forEach((l) => console.log("  ", cut(l, 200)));
+            const api = await get("https://www.canadaland.com/wp-json/wp/v2/posts?per_page=5&_fields=link,date_gmt,title");
+            console.log("wp-json status", api.status);
+            try { JSON.parse(api.text).forEach((p) => console.log(" -", p.date_gmt, cut(p.title?.rendered, 70), p.link)); } catch { console.log("  not JSON:", cut(api.text, 150)); }
+          });
+
+          await show("My Kemptville Now", async () => {
+            for (const ua of [CHROME, HONEST]) { const r = await get("https://www.mykemptvillenow.com/feed/", ua); console.log("/feed/", ua === HONEST ? "[honest]" : "[chrome]", "->", r.status, "items:", (r.text.match(/<item[\s>]/g) || []).length); }
+            const api = await get("https://www.mykemptvillenow.com/wp-json/wp/v2/posts?per_page=5&_fields=link,date_gmt,title", HONEST);
+            console.log("wp-json [honest] ->", api.status);
+            try { JSON.parse(api.text).forEach((p) => console.log(" -", p.date_gmt, cut(p.title?.rendered, 70), p.link)); } catch { console.log("  not JSON:", cut(api.text, 150)); }
+            const got = await fetchItems({ name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], fallback: { kind: "wpjson", api: "https://www.mykemptvillenow.com", allPosts: true } }, { fresh: true }).catch((e) => ({ error: e.message }));
+            console.log("with the fix:", got.error ? "FAILED " + cut(got.error, 150) : `${got.items.length} stories via ${got.url}`);
+          });
+          EOF
+          node probe.mjs
