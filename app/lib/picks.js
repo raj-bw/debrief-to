@@ -33,6 +33,15 @@ export const PICKS = [
     description: "Spacing obtained the RFP for the Ford government's bike lane removal, and it looks even worse than thought.",
   },
   {
+    url: "https://spacing.ca/toronto/2026/09/17/election-2026-how-to-read-a-candidates-platform/",
+    title: "Election 2026: How to Read a Candidate’s Platform",
+    source: "Spacing Toronto",
+    published: "2026-09-17T16:00:00Z",
+    // About the municipal election, so it stays up to the day after the vote
+    until: "2026-10-27T23:59:59-04:00",
+    description: "How to look past campaign slogans like “Fix the TTC” to the assumptions behind them, and what they ask voters to accept about the problem.",
+  },
+  {
     url: "https://spacing.ca/toronto/2026/08/31/how-to-critically-listen-to-a-municipal-candidate/",
     title: "How to Critically Listen to a Municipal Candidate",
     source: "Spacing Toronto",
