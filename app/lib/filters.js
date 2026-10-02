@@ -22,6 +22,11 @@ const WIRE_PATHS = [
   // already carry, not a story of its own.
   "/good-morning/",
   "/local-entertainment/", "/local-sports/",
+  // TorontoToday files the same sections under /local/ instead.
+  "/local/sports/", "/local/arts-culture/",
+  // The daily cartoon runs across every Village Media site: a syndicated
+  // column, which the About page says is left out.
+  "/columns/cartoon-of-the-day/", "/cartoon-of-the-day/",
   // Paid placements dressed as articles
   "/spotlight/", "/local-sponsored/", "/sponsored/", "/classifieds/", "/deals/",
 ];
@@ -91,8 +96,9 @@ const SKIP_PATHS = {
   "Canadaland": ["/live/"],
   // Sports, lifestyle and entertainment aren't what people come here for
   "Toronto Star": ["/sports/", "/life/", "/entertainment/"],
-  // Audio and video clips rather than articles
-  "CBC Toronto": ["/player/"],
+  // Audio and video clips rather than articles; CBC Arts and CBC Sports
+  // stories arrive through the same feed
+  "CBC Toronto": ["/player/", "/arts/", "/sports/"],
   // Council coverage for other Ontario towns (Barrie, Milton, Springwater...)
   "The Trillium": ["/municipalities-newsletter/"],
 };
