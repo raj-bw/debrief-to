@@ -13,7 +13,12 @@ import { torontoMeetings, TORONTO_PORTAL } from "../../lib/toronto-council";
    adds is the thing local reporting usually can't cover in full — every
    committee, every week, including the ones no reporter attends.
 
-     /api/council?town=newmarket ---- */
+     /api/council?town=newmarket
+
+   `checkedAt` is when the portal was actually read. It is only present when
+   the read succeeded, so "no meetings" is never said on the strength of a
+   portal that didn't answer, and the page can say how fresh the answer is
+   (the CDN may serve it for a while after). ---- */
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +62,7 @@ export async function GET(request) {
   if (town.townName === "Toronto") {
     try {
       const meetings = await torontoMeetings({ daysAhead: DAYS_AHEAD, max: MAX_MEETINGS });
-      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings },
+      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings, checkedAt: new Date().toISOString() },
         { headers: { "Cache-Control": "public, max-age=0", "Vercel-CDN-Cache-Control": CDN_CACHE } });
     } catch (err) {
       return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings: [], error: err?.message },
@@ -101,7 +106,7 @@ export async function GET(request) {
         page: m.Url || base,
       }));
 
-    return Response.json({ town: town.townName, available: true, portal: base, meetings },
+    return Response.json({ town: town.townName, available: true, portal: base, meetings, checkedAt: new Date().toISOString() },
       { headers: { "Cache-Control": "public, max-age=0", "Vercel-CDN-Cache-Control": CDN_CACHE } });
   } catch (err) {
     // A portal that doesn't answer just means no box today; don't cache that.
