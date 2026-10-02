@@ -142,6 +142,17 @@ function groupByDate(articles) {
 
 // Left block: the wordmark. Fixed width so the capsules never shift sideways
 // between pages, whatever size the wordmark is.
+/* When the council calendar was read, in Toronto time: "Checked 11:42 p.m.",
+   or "Checked Thu 11:42 p.m." if that was on an earlier day. */
+function checkedNote(iso) {
+  const at = new Date(iso);
+  if (!Number.isFinite(at.getTime())) return "Checked recently.";
+  const tz = { timeZone: "America/Toronto" };
+  const sameDay = at.toLocaleDateString("en-CA", tz) === new Date().toLocaleDateString("en-CA", tz);
+  const when = at.toLocaleString("en-CA", { ...tz, ...(sameDay ? {} : { weekday: "short" }), hour: "numeric", minute: "2-digit" });
+  return `Checked ${when}${when.endsWith(".") ? "" : "."}`;
+}
+
 function Wordmark({ dm, size = 28, tagline = true, onClick }) {
   const mark = (size, tagline) => (
     <>
@@ -821,7 +832,7 @@ export default function Home() {
     setCouncil({ town: null, meetings: [] });
     fetch(`/api/council?town=${encodeURIComponent(townSlug)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!cancelled && j) setCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [] }); })
+      .then((j) => { if (!cancelled && j) setCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null }); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [townSlug, hydrated]);
@@ -834,7 +845,7 @@ export default function Home() {
     if (!hydrated || !wantToronto || torontoCouncil) return;
     fetch("/api/council?town=toronto")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available }); })
+      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available, checkedAt: j.error ? null : j.checkedAt || null }); })
       .catch(() => {});
   }, [hydrated, wantToronto, torontoCouncil]);
   const CATEGORIES = buildCategories(home.label);
@@ -1331,11 +1342,15 @@ export default function Home() {
         {!searchQuery && !showPicks && (() => {
           /* Council boxes: the reader's own town when the feed is unfiltered or
              their town's chip is on; Toronto's when the Toronto chip is on.
-             Toronto's box shows even when nothing is scheduled, saying so,
-             because the reader asked for it by name. */
+             When nothing is coming up, the box stays and says so, but only
+             after the town's calendar actually answered (checkedAt), and only
+             for the next 7 days, though it looked three weeks ahead: meetings
+             can be added at short notice, and the box never promises more
+             than the calendar showed when it was read. A calendar that didn't
+             answer hides the town's box rather than claim it is empty. */
           const boxes = [];
           const homeTown = council.town;
-          if (council.meetings.length > 0 && (activeCats.length === 0 || activeCats.includes(home.label))) boxes.push({ ...council, showEmpty: false });
+          if ((council.meetings.length > 0 || council.checkedAt) && (activeCats.length === 0 || activeCats.includes(home.label))) boxes.push({ ...council, showEmpty: false });
           if (wantToronto && torontoCouncil?.available && homeTown !== "Toronto") boxes.push({ ...torontoCouncil, showEmpty: true });
           else if (wantToronto && homeTown === "Toronto" && council.meetings.length === 0 && torontoCouncil?.available) boxes.push({ ...torontoCouncil, showEmpty: true });
           return boxes.map((box) => (
@@ -1349,7 +1364,14 @@ export default function Home() {
                 </span>
               </div>
               {box.meetings.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>No council or committee meetings are scheduled in the next three weeks.</p>
+                box.checkedAt ? (
+                  <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>
+                    No meetings posted for the next 7 days.{" "}
+                    <span style={{ fontSize: 13 }}>{checkedNote(box.checkedAt)}</span>
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>The meeting calendar didn&apos;t load just now.</p>
+                )
               ) : (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                   {box.meetings.map((m) => (
