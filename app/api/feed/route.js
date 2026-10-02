@@ -7,7 +7,7 @@ import { buildArticles } from "../../lib/articles";
 // How a story is judged — what gets left out and what only gets labelled —
 // lives in its own file, because those rules are published on the About page
 // and deserve to be readable and testable on their own.
-import { isBlotter } from "../../lib/filters";
+import { isBlotter, shouldSkip } from "../../lib/filters";
 // RSS, WordPress API and the rest all come in through one door, shared with
 // /api/health so that page tests exactly what readers depend on.
 import { fetchItems } from "../../lib/fetch-feed";
@@ -237,11 +237,15 @@ export async function GET(request) {
 
   /* Archived stories are re-tagged with today's rules, not the ones in force
      when they were saved — otherwise a rule change (a new chip, a wider
-     topic) would only ever reach new stories. Stories from the town's own
-     shelves are the town's local news. "National" was the old name for the
-     Canada place. */
+     topic) would only ever reach new stories. The same goes for what is left
+     out: a story filed before a filter rule existed is checked against it
+     again here, so a new rule takes effect at once instead of after 33
+     days. Stories from the town's own shelves are the town's local news.
+     "National" was the old name for the Canada place. */
   const homeBuckets = new Set(townBuckets);
   const regionSet = new Set(regionBuckets);
+  const srcByName = new Map([...allSources, ...regionSources].map((s) => [s.name, s]));
+  const stillWanted = (a) => { const s = srcByName.get(a.source); return !s || !shouldSkip(s, a); };
   const retag = (a) => {
     const r = rehydrate(a, colorBySource);
     if (homeBuckets.has(a.bucket) || regionSet.has(a.bucket)) r.sourcePlace = "home";
@@ -251,7 +255,7 @@ export async function GET(request) {
     delete r.tv;
     return r;
   };
-  let older = stored.articles.filter((a) => !regionSet.has(a.bucket)).map(retag);
+  let older = stored.articles.filter((a) => !regionSet.has(a.bucket)).filter(stillWanted).map(retag);
 
   /* If the town's own publisher has nothing in this window, the region's
      publisher stands in, and the tab takes the region's name, because that
@@ -260,7 +264,7 @@ export async function GET(request) {
   const inWindowAt = (a) => { const t = new Date(a.pubDate).getTime(); return !Number.isFinite(t) || t >= windowStart; };
   const hasHome = () => live.some((a) => a.sourcePlace === "home") || older.some((a) => a.sourcePlace === "home" && inWindowAt(a));
   if (townSources.length && !usingRegion && !hasHome() && regionSources.length) {
-    const fromShelf = stored.articles.filter((a) => regionSet.has(a.bucket)).map(retag);
+    const fromShelf = stored.articles.filter((a) => regionSet.has(a.bucket)).filter(stillWanted).map(retag);
     if (fromShelf.length) older = older.concat(fromShelf);
     // Nothing on the region's shelf yet either: on a town's first visit (or
     // with the archive down) ask the region's publisher directly.
