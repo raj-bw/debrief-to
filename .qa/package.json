@@ -1,0 +1,10 @@
+{
+  "name": "debrief-qa",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "html-validate": "11.16.1",
+    "playwright": "1.56.1"
+  }
+}
