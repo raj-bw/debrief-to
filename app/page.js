@@ -775,9 +775,13 @@ export default function Home() {
     // their browser (?town=...&dark=1, see app/manifest.webmanifest/route.js).
     const params = new URLSearchParams(window.location.search);
     try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
-    // The Sources panel starts open on a first visit, so a new reader sees
-    // the places and topics they can pick; after that, it stays as they left it.
-    try { const v = JSON.parse(localStorage.getItem("cp_showSources")); setShowSources(v === null ? true : !!v); } catch { setShowSources(true); }
+    // On a computer the Sources panel starts open on a first visit, so a new
+    // reader sees the places and topics they can pick. On a phone it starts
+    // closed, where it would push the stories below the fold. (641px is the
+    // line globals.css draws between phone and larger layouts.) After that,
+    // it stays as the reader left it.
+    const wideScreen = window.matchMedia("(min-width: 641px)").matches;
+    try { const v = JSON.parse(localStorage.getItem("cp_showSources")); setShowSources(v === null ? wideScreen : !!v); } catch { setShowSources(wideScreen); }
     try { const v = localStorage.getItem("cp_timeFilter"); if (v) setTimeFilter(v); } catch {}
     try {
       const v = JSON.parse(localStorage.getItem("cp_darkMode"));
