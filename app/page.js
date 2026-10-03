@@ -87,6 +87,26 @@ function getCatTint(hexColor, opacity) {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+/* Text set in a newsroom's or a tab's own colour, on a white card or on that
+   colour's own pale tint (getCatTint), in light mode. Most of these colours
+   are dark enough to read; a few brand oranges and greens are not, at the
+   small sizes they're used at. Those are darkened just enough to reach the
+   4.5:1 contrast that WCAG AA asks of small text, keeping their hue. */
+function readableInk(hexColor, tint = 0) {
+  if (!/^#[0-9a-f]{6}$/i.test(hexColor || "")) return hexColor;
+  const rgb = [1, 3, 5].map((i) => parseInt(hexColor.slice(i, i + 2), 16));
+  const lum = (c) => {
+    const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const bg = lum(rgb.map((v) => v * tint + 255 * (1 - tint)));
+  for (let k = 1; k > 0.3; k -= 0.04) {
+    const ink = rgb.map((v) => Math.round(v * k));
+    if ((bg + 0.05) / (lum(ink) + 0.05) >= 4.6) return `rgb(${ink.join(", ")})`;
+  }
+  return "#1A1A1A";
+}
+
 function timeAgo(dateString) {
   const now = new Date();
   const date = new Date(dateString);
@@ -154,15 +174,23 @@ function checkedNote(iso) {
 }
 
 function Wordmark({ dm, size = 28, tagline = true, onClick }) {
-  const mark = (size, tagline) => (
-    <>
-      <h1 style={{ fontFamily: "'Georgia', serif", fontSize: size, fontWeight: 700, letterSpacing: "-0.5px", lineHeight: 1, margin: 0 }}>
-        <span style={{ color: "#2D6A4F" }}>Debrief</span>
-        <span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
-      </h1>
-      {tagline && <p style={{ fontSize: 12, color: dm ? "#C8C4BE" : "#000", marginTop: 4, fontWeight: 400 }}>Local news, in one place</p>}
-    </>
-  );
+  /* On the feed the logo is the page's heading. On the Saved and About pages
+     it is also the way back, a button, and a button may only hold plain
+     text, so there the heading goes around the button and the logo inside
+     is drawn with spans. */
+  const mark = (size, tagline, inButton) => {
+    const Name = inButton ? "span" : "h1";
+    const Line = inButton ? "span" : "p";
+    return (
+      <>
+        <Name style={{ display: "block", fontFamily: "'Georgia', serif", fontSize: size, fontWeight: 700, letterSpacing: "-0.5px", lineHeight: 1, margin: 0 }}>
+          <span style={{ color: "#2D6A4F" }}>Debrief</span>
+          <span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
+        </Name>
+        {tagline && <Line style={{ display: "block", fontSize: 12, color: dm ? "#C8C4BE" : "#000", marginTop: 4, fontWeight: 400 }}>Local news, in one place</Line>}
+      </>
+    );
+  };
   /* The box is exactly as wide as the logo, so the capsules beside it sit with
      even space on both sides. The Saved and About pages show a smaller logo;
      an invisible copy of the full-size one keeps their box the same width as
@@ -170,17 +198,20 @@ function Wordmark({ dm, size = 28, tagline = true, onClick }) {
      font the reader's device draws the logo in. */
   const compact = size !== 28 || !tagline;
   const box = { flex: "0 0 auto", display: "grid", textAlign: "left" };
+  const Wrap = onClick ? "span" : "div";
   const inner = (
     <>
-      <div style={{ gridArea: "1 / 1", alignSelf: "center" }}>{mark(size, tagline)}</div>
-      {compact && <div aria-hidden="true" style={{ gridArea: "1 / 1", visibility: "hidden", height: 0, overflow: "hidden" }}>{mark(28, true)}</div>}
+      <Wrap style={{ gridArea: "1 / 1", alignSelf: "center", display: "block" }}>{mark(size, tagline, !!onClick)}</Wrap>
+      {compact && <Wrap aria-hidden="true" style={{ gridArea: "1 / 1", visibility: "hidden", height: 0, overflow: "hidden", display: "block" }}>{mark(28, true, true)}</Wrap>}
     </>
   );
   if (!onClick) return <div style={box}>{inner}</div>;
   return (
-    <button onClick={onClick} aria-label="Back to the feed" style={{ ...box, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}>
-      {inner}
-    </button>
+    <h1 style={{ flex: "0 0 auto", display: "flex", margin: 0, fontSize: "inherit", fontWeight: "inherit" }}>
+      <button onClick={onClick} aria-label="Debrief.TO, back to the feed" style={{ ...box, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: "inherit" }}>
+        {inner}
+      </button>
+    </h1>
   );
 }
 
@@ -196,7 +227,7 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
   const savedOpen = page === "bookmarks";
   const aboutOpen = page === "about";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 auto", flexShrink: 0 }}>
+    <div className="nav-capsules" style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 auto", flexShrink: 0 }}>
       <button onClick={onToggleDark} style={{ ...base, background: dm ? "#2D6A4F" : "transparent", border: `1.5px solid ${dm ? "#2D6A4F" : "#DAD6D0"}`, color: dm ? "#FFF" : "#6B665F" }}>
         {dm ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -208,11 +239,11 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
 
       <button onClick={() => onGo(savedOpen ? "feed" : "bookmarks")} aria-pressed={savedOpen}
         aria-label={savedOpen ? "Close saved articles and go back to the feed" : "Open saved articles"}
-        style={{ ...base, fontWeight: savedOpen ? 600 : 500, background: savedOpen ? "#C0354A" : "transparent", border: `1.5px solid ${savedOpen ? "#C0354A" : (dm ? "#5A3040" : "#E8D0D6")}`, color: savedOpen ? "#FFF" : (dm ? "#E63956" : "#C0354A") }}>
+        style={{ ...base, fontWeight: savedOpen ? 600 : 500, background: savedOpen ? "#C0354A" : "transparent", border: `1.5px solid ${savedOpen ? "#C0354A" : (dm ? "#5A3040" : "#E8D0D6")}`, color: savedOpen ? "#FFF" : (dm ? "#F2788C" : "#C0354A") }}>
         {savedOpen ? <X /> : <svg width="15" height="15" viewBox="0 0 24 24" fill="#E63956" stroke="#2B2D5B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>}
         Saved
         {savedCount > 0 && !savedOpen && (
-          <span style={{ fontSize: 10, fontWeight: 700, background: "#E63956", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{savedCount}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, background: "#C0354A", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{savedCount}</span>
         )}
       </button>
 
@@ -226,6 +257,35 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
   );
 }
 
+/* A dialog keeps the keyboard inside it, closes on Escape, and hands focus
+   back to whatever opened it when it closes: the WAI-ARIA dialog pattern.
+   Without this, Tab walked out of the town picker into the page hidden
+   behind it, and Escape did nothing. */
+function useDialog(ref, onClose) {
+  const close = useRef(onClose);
+  useEffect(() => { close.current = onClose; });
+  useEffect(() => {
+    const opener = document.activeElement;
+    const box = ref.current;
+    if (box && !box.contains(document.activeElement)) box.querySelector("input, button")?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); close.current(); return; }
+      if (e.key !== "Tab" || !box) return;
+      const items = [...box.querySelectorAll("a[href], button:not([disabled]), input:not([disabled])")];
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (opener && opener !== document.body && opener.isConnected) opener.focus?.();
+    };
+  }, [ref]);
+}
+
 /* ---- Choosing your town ----
    Asked once, on a reader's first visit. The list is the towns Debrief.TO
    knows about, searched as you type — not every place in Canada, because
@@ -237,6 +297,9 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
    the town it was built for. ---- */
 function TownPicker({ dm, onPick, onSkip }) {
   const [query, setQuery] = useState("");
+  const dialogRef = useRef(null);
+  // Escape is the same as Skip: nothing changes
+  useDialog(dialogRef, onSkip);
   const options = townOptions();
   const q = query.trim().toLowerCase();
   // Every town, always — the list scrolls. Showing only the first handful made
@@ -257,7 +320,7 @@ function TownPicker({ dm, onPick, onSkip }) {
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Choose your town"
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Choose your town"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
       <div style={{ background: c.panel, border: `1px solid ${c.border}`, borderRadius: 16, width: "100%", maxWidth: 460, maxHeight: "min(640px, 92vh)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
         <div style={{ padding: "26px 24px 16px" }}>
@@ -271,7 +334,8 @@ function TownPicker({ dm, onPick, onSkip }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for your town..."
             aria-label="Search for your town"
-            style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${c.inputBorder}`, borderRadius: 24, padding: "12px 18px", fontSize: 15, fontFamily: "inherit", background: c.inputBg, color: c.text, outline: "none" }}
+            className="search-box"
+            style={{ "--focus-ring": dm ? "#7FD3A8" : "#2D6A4F", width: "100%", boxSizing: "border-box", border: `1px solid ${c.inputBorder}`, borderRadius: 24, padding: "12px 18px", fontSize: 15, fontFamily: "inherit", background: c.inputBg, color: c.text, outline: "none" }}
           />
           <p style={{ fontSize: 12, color: c.muted, margin: "10px 2px 0" }}>
             {q
@@ -323,7 +387,7 @@ function SiteIcons({ dark, town }) {
   const q = new URLSearchParams();
   if (town) q.set("town", town);
   if (dark) q.set("dark", "1");
-  const manifest = `/manifest.webmanifest${q.size ? `?${q}` : ""}`;
+  const manifest = `/web-app-manifest${q.size ? `?${q}` : ""}`;
   return (
     <>
       <link rel="manifest" href={manifest} />
@@ -338,7 +402,7 @@ function SiteIcons({ dark, town }) {
 
 /* ---- Add to Home Screen ----
    Added to a phone's Home Screen, the site opens full-screen like an app (the
-   manifest is app/manifest.js). Android browsers show their own install
+   manifest is app/web-app-manifest/route.js). Android browsers show their own install
    dialog when asked, so there a button can do it in one tap. Safari on iPhone
    has no such dialog, so there we explain the two taps instead. */
 function useInstall() {
@@ -389,11 +453,8 @@ function InstallSheet({ dm, onClose }) {
     step: dm ? "#2E5A47" : "#E3F0E9",
     accent: dm ? "#7FD3A8" : "#2D6A4F",
   };
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialogRef = useRef(null);
+  useDialog(dialogRef, onClose);
   const Step = ({ n, children }) => (
     <li style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 14 }}>
       <span aria-hidden="true" style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 13, background: c.step, color: c.accent, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{n}</span>
@@ -401,7 +462,7 @@ function InstallSheet({ dm, onClose }) {
     </li>
   );
   return (
-    <div role="dialog" aria-modal="true" aria-label="Add Debrief.TO to your Home Screen" onClick={onClose}
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Add Debrief.TO to your Home Screen" onClick={onClose}
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ background: c.panel, borderTop: `1px solid ${c.border}`, borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 520, padding: "22px 20px calc(22px + env(safe-area-inset-bottom))", boxShadow: "0 -12px 40px rgba(0,0,0,0.25)" }}>
@@ -472,7 +533,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 4, columnGap: 20, fontSize: 15, lineHeight: 1.8, color: c.body }}>
       {list.map((n) => (
         <span key={n.name} style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
-          <a href={n.url} target="_blank" rel="noopener noreferrer" style={{ color: c.body, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>{n.label || n.name}</a>
+          <a href={n.url} target="_blank" rel="noopener" style={{ color: c.body, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>{n.label || n.name}</a>
           {n.paywall && <Sub />}
         </span>
       ))}
@@ -636,8 +697,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             email <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
           </P>
           <P>
-            Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
-            part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener noreferrer" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>. Its goal is to help
+            Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
+            part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>. Its goal is to help
             Ontarians find local and independent news, free and in one place.
           </P>
         </section>
@@ -718,10 +779,10 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
                     <div style={{ padding: "14px 18px", flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: article.sourceColor, display: "inline-block" }} />
-                        <span style={{ fontSize: 11, fontWeight: 600, color: article.sourceColor, textTransform: "uppercase", letterSpacing: "0.3px" }}>{article.source}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : readableInk(article.sourceColor), textTransform: "uppercase", letterSpacing: "0.3px" }}>{article.source}</span>
                         <span style={{ fontSize: 11, color: dm ? "#9A958E" : "#6B665F" }}>{"\u00B7"} {timeAgo(article.pubDate)}</span>
                       </div>
-                      <a href={article.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                      <a href={article.link} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>
                         <h4 style={{ fontFamily: "'Georgia', serif", fontSize: 16, fontWeight: 600, color: dm ? "#F0EDE8" : "#1A1A1A", margin: "0 0 6px", lineHeight: 1.35 }}>{article.title}</h4>
                       </a>
                       <p style={{ fontSize: 13, color: dm ? "#9A958E" : "#6B665F", lineHeight: 1.5, margin: 0 }}>{article.description}</p>
@@ -772,7 +833,7 @@ export default function Home() {
   useEffect(() => {
     // The address can carry a view (?view=about, a shared link) and, when the
     // site is opened from the Home Screen, the town and theme the reader had in
-    // their browser (?town=...&dark=1, see app/manifest.webmanifest/route.js).
+    // their browser (?town=...&dark=1, see app/web-app-manifest/route.js).
     const params = new URLSearchParams(window.location.search);
     try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
     // On a computer the Sources panel starts open on a first visit, so a new
@@ -1190,7 +1251,8 @@ export default function Home() {
                   <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input
-                  style={{ border: `1px solid ${t.inputBorder}`, borderRadius: 24, padding: "12px 18px 12px 44px", fontSize: 14, background: t.inputBg, color: t.text, width: "100%", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                  className="search-box"
+                  style={{ "--focus-ring": dm ? "#7FD3A8" : "#2D6A4F", border: `1px solid ${t.inputBorder}`, borderRadius: 24, padding: "12px 18px 12px 44px", fontSize: 14, background: t.inputBg, color: t.text, width: "100%", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                   placeholder="Search articles..."
                   aria-label="Search articles"
                   value={searchQuery}
@@ -1232,10 +1294,10 @@ export default function Home() {
                   const cat = CATEGORIES.find((c) => c.label === catLabel);
                   const color = cat?.color || "#2D6A4F";
                   return (
-                    <span key={catLabel} style={{ fontSize: 14, fontWeight: 600, padding: "6px 10px 6px 14px", borderRadius: 16, display: "inline-flex", alignItems: "center", gap: 5, ...(dm ? { color: "#FFF", background: color } : { color, background: getCatTint(color, 0.12) }) }}>
+                    <span key={catLabel} style={{ fontSize: 14, fontWeight: 600, padding: "6px 10px 6px 14px", borderRadius: 16, display: "inline-flex", alignItems: "center", gap: 5, ...(dm ? { color: "#FFF", background: color } : { color: readableInk(color, 0.12), background: getCatTint(color, 0.12) }) }}>
                       <span style={{ fontSize: 15 }}>{cat?.icon}</span>
                       {catLabel}
-                      <button onClick={() => toggleCategory(catLabel)} aria-label={`Remove the ${catLabel} filter`} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: dm ? "rgba(255,255,255,0.7)" : color, padding: "0 2px", lineHeight: 1, display: "flex", alignItems: "center", opacity: 0.7 }}>{"×"}</button>
+                      <button onClick={() => toggleCategory(catLabel)} aria-label={`Remove the ${catLabel} filter`} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: dm ? "rgba(255,255,255,0.7)" : readableInk(color, 0.12), padding: "0 2px", lineHeight: 1, display: "flex", alignItems: "center", opacity: 0.7 }}>{"×"}</button>
                     </span>
                   );
                 })}
@@ -1296,7 +1358,7 @@ export default function Home() {
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                       <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} style={{ padding: "10px 14px", borderRadius: 22, fontSize: 15, whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1, fontWeight: isActive ? 600 : 500,
                         background: isActive ? (dm ? cat.color : getCatTint(cat.color, 0.12)) : "transparent",
-                        color: isActive ? (dm ? "#FFF" : cat.color) : (dm ? "#D0CCC6" : t.textSec),
+                        color: isActive ? (dm ? "#FFF" : readableInk(cat.color, 0.12)) : (dm ? "#D0CCC6" : t.textSec),
                         border: `1.5px solid ${isActive ? (dm ? cat.color : getCatTint(cat.color, 0.3)) : (dm ? "#3C3C3C" : t.border)}` }}>
                         <span style={{ fontSize: 15, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
                         <span>{cat.label}</span>
@@ -1385,14 +1447,14 @@ export default function Home() {
                       <span style={{ fontWeight: 600 }}>{m.name}</span>
                       <span style={{ color: t.textSec }}>{m.when.replace(/, \d{4} @/, " ·").replace(/, \d{4}$/, "")}</span>
                       {m.agenda
-                        ? <a href={m.agenda} target="_blank" rel="noopener noreferrer" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>{m.linkLabel || "Agenda"}</a>
+                        ? <a href={m.agenda} target="_blank" rel="noopener" style={{ color: dm ? "#7FB8E0" : "#1A5E8A", fontWeight: 600, textDecoration: "underline" }}>{m.linkLabel || "Agenda"}</a>
                         : <span style={{ color: t.textSec, fontSize: 13 }}>Agenda not posted yet</span>}
                     </li>
                   ))}
                 </ul>
               )}
               {box.portal && (
-                <a href={box.portal} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: dm ? "#7FB8E0" : "#1A5E8A" }}>
+                <a href={box.portal} target="_blank" rel="noopener" style={{ display: "inline-block", marginTop: 10, fontSize: 13, color: dm ? "#7FB8E0" : "#1A5E8A" }}>
                   All meetings, minutes and video on {box.town === "Toronto" ? "the City of Toronto" : "the town"}&apos;s site →
                 </a>
               )}
@@ -1441,6 +1503,9 @@ export default function Home() {
               {searchQuery ? " for this search" : ""}. Here are the most recent articles instead.
             </div>
           )}
+          {/* Each story's headline is an h3; this names the list they sit in, so
+              the page's headings go h1, h2, h3 for screen readers. */}
+          <h2 className="sr-only">{showPicks ? PICKS_LABEL : "Stories"}</h2>
           <div style={gridStyle}>
             {visibleArticles.map((article, i) => (
               <React.Fragment key={article.link + i}>
@@ -1472,7 +1537,7 @@ export default function Home() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", marginBottom: 10, flex: 1 }}>
                       <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: dm ? lightenForDark(article.sourceColor) : article.sourceColor, marginRight: 7 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : article.sourceColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : readableInk(article.sourceColor), textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
                       {/* Up to two, because an article genuinely can be both —
                           a highway's environmental assessment is Environment
                           and Urbanism & Transit. Showing only the first made
@@ -1499,7 +1564,10 @@ export default function Home() {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill={isBookmarked(article) ? "#E63956" : "none"} stroke={isBookmarked(article) ? "#2B2D5B" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                     </button>
                   </div>
-                  <a href={article.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", flexDirection: "column" }}>
+                  {/* rel="noopener" without "noreferrer", so the newsroom's own
+                      statistics show readers arriving from debrief.to (the
+                      Referrer-Policy header limits that to the site's name). */}
+                  <a href={article.link} target="_blank" rel="noopener" style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", flexDirection: "column" }}>
                     <h3 style={{ fontFamily: "'Georgia', serif", fontSize: 17, fontWeight: 600, lineHeight: 1.4, marginBottom: 8, color: t.title, letterSpacing: "-0.3px" }}>{article.title}</h3>
                     <p style={{ fontSize: 14, lineHeight: 1.65, color: t.desc, flex: 1, marginBottom: 14 }}>{article.description}</p>
                     {/* When several newsrooms covered the same story, that is
