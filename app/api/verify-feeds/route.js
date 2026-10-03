@@ -1,5 +1,6 @@
 import Parser from "rss-parser";
 import CANDIDATES from "../../lib/candidate-publishers.json";
+import { takeTurn } from "../../lib/archive";
 
 /* ---- Turning a list of publications into a list of feeds ----
    Raj's research maps 370 Ontario municipalities to the newsrooms that cover
@@ -98,6 +99,18 @@ export async function GET(request) {
 
   const pool = scope ? CANDIDATES.filter((c) => c.scope === scope) : CANDIDATES;
   const batch = pool.slice(offset, offset + limit);
+
+  // Up to 140 requests to publishers per batch, so without the secret one
+  // batch every 30 seconds (see takeTurn in the archive).
+  const secret = process.env.CRON_SECRET;
+  const trusted = secret && request.headers.get("authorization") === `Bearer ${secret}`;
+  if (batch.length && !trusted && !(await takeTurn("verify-feeds", 30 * 1000))) {
+    return Response.json(
+      { ok: false, error: "A batch ran in the last 30 seconds. Try again shortly." },
+      { status: 429, headers: { "Retry-After": "30", "Cache-Control": "no-store" } },
+    );
+  }
+
   const results = await Promise.all(batch.map(probe));
 
   // "Keep" is the thirty-day bar, not the seven-day one: a weekly counts.

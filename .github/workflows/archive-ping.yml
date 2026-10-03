@@ -62,11 +62,12 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: node scripts/second-network.mjs out.json || echo "second network skipped"
 
-      # limit=1 checks one feed only, so this report doesn't knock on every
-      # publisher at once (that burst is what trips Metroland's 429s).
+      # limit=0 asks no publisher at all, only the archive, so this report
+      # neither knocks on every newsroom at once (the burst that trips
+      # Metroland's 429s) nor waits its turn behind a full check.
       - name: Report the archive's state
         run: |
-          curl -sS --max-time 60 "https://debrief.to/api/health?limit=1" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('archive'), indent=1))"
+          curl -sS --max-time 60 "https://debrief.to/api/health?limit=0" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('archive'), indent=1))"
 
       # No outside action needed: re-enabling the workflow through GitHub's own
       # API resets the 60-day inactivity clock. (The popular keepalive action

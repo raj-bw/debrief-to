@@ -59,7 +59,7 @@ hello@debrief.to
 2. **Readers** (`app/api/feed`) read from Redis, not from publishers. A town is added to the collector's list the first time anyone picks it.
 3. **Retention.** Stories older than 33 days are removed daily. If storage passes 85% full, older days are trimmed early, never below 21 days.
 4. **Council** (`app/api/council`) reads eSCRIBE portals and Toronto Open Data, cached for an hour.
-5. **Health** (`/api/health`) reports which feeds answer and the state of the archive. `?limit=1` gives a quick archive summary. `?scope=standing` checks the Toronto, Ontario and Canada sources.
+5. **Health** (`/api/health`) reports which feeds answer and the state of the archive. `?limit=0` gives the archive summary alone, without asking any publisher. `?scope=standing` checks the Toronto, Ontario and Canada sources. Without the `CRON_SECRET` (sent as `Authorization: Bearer …`), a check that asks publishers runs at most once every two minutes.
 
 ### Stack
 

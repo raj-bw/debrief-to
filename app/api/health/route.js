@@ -2,7 +2,7 @@ import { SOURCES } from "../../lib/sources";
 import { publisherFeeds } from "../../lib/towns";
 // The same door the live feed uses, so a green light here means readers get it.
 import { fetchItems, lineOf } from "../../lib/fetch-feed";
-import { archiveStats } from "../../lib/archive";
+import { archiveStats, takeTurn } from "../../lib/archive";
 
 /* ---- Is everything still answering? ----
    Feeds break quietly. A newsroom redesigns its site, a feed URL moves, a
@@ -26,6 +26,7 @@ export const maxDuration = 300;
    checked rather than failing. */
 const CONCURRENCY = 6;
 const BUDGET_MS = 240 * 1000;
+const HEALTH_GAP_MS = 120 * 1000;
 
 async function check(feed) {
   try {
@@ -66,6 +67,18 @@ export async function GET(request) {
   const offset = Number(searchParams.get("offset") || 0);
   const limit = Number(searchParams.get("limit") || all.length);
   const targets = all.slice(offset, offset + limit);
+
+  // Asking every publisher is heavy, so without the secret it's one full
+  // check every two minutes (see takeTurn). ?limit=0, the archive figures
+  // alone, asks no one and is always open.
+  const secret = process.env.CRON_SECRET;
+  const trusted = secret && request.headers.get("authorization") === `Bearer ${secret}`;
+  if (targets.length && !trusted && !(await takeTurn("health", HEALTH_GAP_MS))) {
+    return Response.json(
+      { ok: false, error: "A feed check ran in the last two minutes. Try again shortly, or use ?limit=0 for the archive figures alone." },
+      { status: 429, headers: { "Retry-After": String(HEALTH_GAP_MS / 1000), "Cache-Control": "no-store" } },
+    );
+  }
 
   const started = Date.now();
   const results = new Array(targets.length);
