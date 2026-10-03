@@ -775,7 +775,13 @@ export default function Home() {
     // their browser (?town=...&dark=1, see app/manifest.webmanifest/route.js).
     const params = new URLSearchParams(window.location.search);
     try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
-    try { const v = JSON.parse(localStorage.getItem("cp_showSources")); if (v) setShowSources(v); } catch {}
+    // On a computer the Sources panel starts open on a first visit, so a new
+    // reader sees the places and topics they can pick. On a phone it starts
+    // closed, where it would push the stories below the fold. (641px is the
+    // line globals.css draws between phone and larger layouts.) After that,
+    // it stays as the reader left it.
+    const wideScreen = window.matchMedia("(min-width: 641px)").matches;
+    try { const v = JSON.parse(localStorage.getItem("cp_showSources")); setShowSources(v === null ? wideScreen : !!v); } catch { setShowSources(wideScreen); }
     try { const v = localStorage.getItem("cp_timeFilter"); if (v) setTimeFilter(v); } catch {}
     try {
       const v = JSON.parse(localStorage.getItem("cp_darkMode"));
@@ -1233,14 +1239,14 @@ export default function Home() {
                     </span>
                   );
                 })}
-                {/* Clear all pill - only shows when 2+ categories selected */}
-                {activeCats.length > 1 && (
-                  <button onClick={clearAllFilters} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#555" : "#D4D0CA"}`, color: t.textSec }}
+                {/* Clear pill: "Clear" for one filter, "Clear all" for several */}
+                {activeCats.length > 0 && (
+                  <button onClick={clearAllFilters} aria-label={activeCats.length > 1 ? "Clear all filters" : `Clear the ${activeCats[0]} filter`} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#555" : "#D4D0CA"}`, color: t.textSec }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#333" : "#F0EDE8"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    Clear all
+                    {activeCats.length > 1 ? "Clear all" : "Clear"}
                   </button>
                 )}
               </>
