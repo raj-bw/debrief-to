@@ -36,6 +36,7 @@ const axeResults = [];
 async function axe(page, state) {
   if (!RUN_AXE) return;
   const { default: AxeBuilder } = await import("@axe-core/playwright");
+  await sleep(400); // let colour transitions finish
   try {
     const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
     axeResults.push({ state: `${vp} ${state}`, violations: r.violations, incomplete: r.incomplete.map((i) => ({ id: i.id, nodes: i.nodes.length })) });
@@ -50,6 +51,8 @@ async function scenario(viewport) {
   const context = await browser.newContext(ctxOpts);
   // Keep test visits out of the site's visitor stats
   await context.route("**/_vercel/insights/**", (r) => r.abort());
+  // Anything the Content-Security-Policy blocks shows up as a console error
+  await context.addInitScript(() => document.addEventListener("securitypolicyviolation", (e) => console.error(`CSP blocked ${e.blockedURI || "inline"} (${e.violatedDirective})`)));
   const page = await context.newPage();
   const consoleErrors = [], pageErrors = [], badResponses = [], failedRequests = [];
   page.on("console", (m) => { if (m.type() === "error" && !/_vercel\/insights|ERR_FAILED/.test(m.text() + (m.location()?.url || ""))) consoleErrors.push(m.text().slice(0, 200)); });
@@ -292,7 +295,7 @@ async function scenario(viewport) {
 
   // --- Images ---
   await check("story images load (after scrolling the feed)", async () => {
-    for (let i = 0; i < 8; i++) { await page.mouse.wheel(0, 2500); await sleep(400); }
+    for (let i = 0; i < 8; i++) { await page.evaluate(() => window.scrollBy(0, 2500)); await sleep(400); }
     await sleep(1500);
     const broken = await page.$$eval("main img", (imgs) => imgs.filter((i) => i.complete && i.naturalWidth === 0 && i.getAttribute("src")).map((i) => i.src));
     const total = await page.locator("main img").count();
@@ -327,8 +330,11 @@ async function scenario(viewport) {
   await page.goBack().catch(() => {});
 
   // --- Reflow at 320px (WCAG 1.4.10) ---
+  const narrow = await context.newPage();
+  narrow.on("pageerror", (e) => pageErrors.push(String(e.message).slice(0, 200)));
+  await narrow.setViewportSize({ width: 320, height: 700 });
   await check("no sideways scrolling at 320px wide (feed)", async () => {
-    await page.setViewportSize({ width: 320, height: 700 });
+    const page = narrow;
     await page.goto(BASE + "/", { waitUntil: "load" });
     await page.locator(articleSel).first().waitFor({ timeout: 30000 });
     const sb = page.getByRole("button", { name: /^Sources/ });
@@ -337,14 +343,16 @@ async function scenario(viewport) {
     const o = await overflow(page); if (o) return o;
   });
   await check("no sideways scrolling at 320px wide (About)", async () => {
+    const page = narrow;
     await page.goto(BASE + "/?view=about", { waitUntil: "load" });
     await page.locator("#publications").waitFor({ timeout: 10000 });
     const o = await overflow(page); if (o) return o;
   });
 
+  await narrow.close();
+
   // --- Text spacing (WCAG 1.4.12) ---
   await check("text still fits with WCAG text-spacing overrides", async () => {
-    await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(BASE + "/", { waitUntil: "load" });
     await page.locator(articleSel).first().waitFor({ timeout: 30000 });
     await page.addStyleTag({ content: "* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }" });

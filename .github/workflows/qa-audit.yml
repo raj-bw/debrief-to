@@ -56,11 +56,12 @@ jobs:
           node-version: 22
       - name: Lighthouse (phone and desktop; analytics blocked so test visits aren't counted)
         run: |
-          LH="npx -y lighthouse@13.5.0 --quiet --output=json --chrome-flags=--headless=new --blocked-url-patterns=*/_vercel/insights/*"
-          $LH "https://debrief.to/" --output-path=lh-phone-first-visit.json || true
-          $LH "https://debrief.to/?town=newmarket" --output-path=lh-phone-feed.json || true
-          $LH "https://debrief.to/?town=newmarket" --preset=desktop --output-path=lh-desktop-feed.json || true
-          $LH "https://debrief.to/?view=about&town=newmarket" --output-path=lh-phone-about.json || true
+          # The URL goes first: --blocked-url-patterns takes a list and would swallow it
+          lh() { npx -y lighthouse@13.5.0 "$1" "${@:2}" --quiet --output=json --chrome-flags=--headless=new --blocked-url-patterns="*/_vercel/insights/*" || true; }
+          lh "https://debrief.to/" --output-path=lh-phone-first-visit.json
+          lh "https://debrief.to/?town=newmarket" --output-path=lh-phone-feed.json
+          lh "https://debrief.to/?town=newmarket" --preset=desktop --output-path=lh-desktop-feed.json
+          lh "https://debrief.to/?view=about&town=newmarket" --output-path=lh-phone-about.json
       - run: node lh-summary.mjs lh-*.json
 
   http:
