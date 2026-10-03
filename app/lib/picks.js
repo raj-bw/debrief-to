@@ -33,6 +33,14 @@ export const PICKS = [
     description: "Spacing obtained the RFP for the Ford government's bike lane removal, and it looks even worse than thought.",
   },
   {
+    url: "https://thenarwhal.ca/trc-residential-school-records-connie-walker-2026/",
+    title: "Canada plans to destroy thousands of residential school testimonies",
+    source: "The Narwhal",
+    published: "2026-09-28T12:00:00Z",
+    description: "The 38,000 testimonies are the largest body of evidence about children’s experiences in these institutions. Journalist Connie Walker and lawyer Kimberly Murray say losing it would mean losing history.",
+    image: "https://thenarwhal.ca/wp-content/uploads/2026/09/Karlene-Harvey-Truth-and-Reconciliation-2026-illustration-1400x788.jpeg",
+  },
+  {
     url: "https://spacing.ca/toronto/2026/09/17/election-2026-how-to-read-a-candidates-platform/",
     title: "Election 2026: How to Read a Candidate’s Platform",
     source: "Spacing Toronto",
