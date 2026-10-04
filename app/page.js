@@ -186,7 +186,9 @@ function Wordmark({ dm, size = 28, tagline = true, onClick }) {
     return (
       <>
         <Name style={{ display: "block", fontFamily: "'Georgia', serif", fontSize: size, fontWeight: 700, letterSpacing: "-0.5px", lineHeight: 1, margin: 0 }}>
-          <span style={{ color: "#2D6A4F" }}>Debrief</span>
+          {/* The brand green is too dark to read on the dark header (2.6:1), so
+              dark mode uses a lighter green from the same family (6.2:1). */}
+          <span style={{ color: dm ? "#4CAF83" : "#2D6A4F" }}>Debrief</span>
           <span style={{ color: dm ? "#E8E5E0" : "#2C2C2C" }}>.TO</span>
         </Name>
         {tagline && <Line style={{ display: "block", fontSize: 12, color: dm ? "#C8C4BE" : "#000", marginTop: 4, fontWeight: 400 }}>Local news, in one place</Line>}
