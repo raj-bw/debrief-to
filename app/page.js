@@ -1399,7 +1399,10 @@ export default function Home() {
       </header>
 
       {/* ===== MAIN CONTENT ===== */}
-      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px" }}>
+      {/* At least a screen tall, so the footer starts below the fold: while
+          the stories load, the short loading cards left the footer on screen,
+          and it jumped away when the stories arrived (a layout shift). */}
+      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
         <div style={{ marginBottom: 20, fontSize: 13, color: t.textSec, fontWeight: 400, letterSpacing: "0.2px", textTransform: "none" }}>
           Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} {showPicks ? "pick" : "article"}{filtered.length !== 1 ? "s" : ""} {"·"} {showPicks ? PICKS_LABEL : showingFallback ? "most recent" : timeFilter.toLowerCase()}
           {activeCats.length > 0 && ` · ${activeCats.join(", ")}`}
