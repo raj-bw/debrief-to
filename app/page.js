@@ -109,6 +109,18 @@ function readableInk(hexColor, tint = 0) {
   return "#1A1A1A";
 }
 
+/* Story photos sit behind each card at 18% opacity, so they don't need to
+   be sharp. Village Media's image server (vmcdn.ca, about half of all story
+   photos) sizes a photo to whatever width the address asks for, and the
+   feeds ask for 960px: one TorontoToday collage was 1.4 MB. At 480px the
+   same photos are about a third of the size (tested 4 Oct 2026: 133 KB to
+   43 KB; the collage 1.46 MB to 398 KB). Other image servers are left
+   alone: CBC's returns a broken image when asked for a smaller one. */
+function cardImage(url) {
+  if (typeof url !== "string") return url;
+  return /^https:\/\/www\.vmcdn\.ca\//.test(url) ? url.replace(/;w=\d+/, ";w=480") : url;
+}
+
 function timeAgo(dateString) {
   const now = new Date();
   const date = new Date(dateString);
@@ -948,6 +960,17 @@ export default function Home() {
   const [reloadKey, setReloadKey] = useState(0); // bump this to load the feed again
   const lastLoadedRef = useRef(0);
   const hasArticlesRef = useRef(false);
+  // A request the browser cuts off because the reader is leaving the page
+  // (closing the tab, reloading, following a link) isn't a failed load:
+  // nothing to show, and nothing to log as an error.
+  const leavingRef = useRef(false);
+  useEffect(() => {
+    const leaving = () => { leavingRef.current = true; };
+    const back = (e) => { if (e.persisted) leavingRef.current = false; };
+    window.addEventListener("pagehide", leaving);
+    window.addEventListener("pageshow", back);
+    return () => { window.removeEventListener("pagehide", leaving); window.removeEventListener("pageshow", back); };
+  }, []);
   const range = RANGE_FOR[timeFilter] || "today";
   useEffect(() => {
     if (!hydrated) return;      // wait until we know which town to ask for
@@ -981,6 +1004,7 @@ export default function Home() {
           console.warn("[debrief.to] some sources failed:", data.errors);
         }
       } catch (err) {
+        if (leavingRef.current) return;
         if (!cancelled) {
           setFeedError(
             err instanceof TypeError
@@ -1169,6 +1193,21 @@ export default function Home() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+  /* Each view names itself in the browser tab and history (WCAG 2.4.2).
+     On a link opened straight to ?view=, Next.js writes the site's own title
+     into <head> after this runs, so the view's name is put back whenever
+     that happens. It only writes when the title differs, so it can't loop. */
+  useEffect(() => {
+    const want = page === "about" ? "About — Debrief.TO"
+      : page === "bookmarks" ? "Saved articles — Debrief.TO"
+      : showPicks ? `${PICKS_LABEL} — Debrief.TO`
+      : "Debrief.TO — Ontario's local news, in one place";
+    const apply = () => { if (document.title !== want) document.title = want; };
+    apply();
+    const watch = new MutationObserver(apply);
+    watch.observe(document.head, { subtree: true, childList: true, characterData: true });
+    return () => watch.disconnect();
+  }, [page, showPicks]);
   useEffect(() => {
     if (page !== "feed" || showPicks || !restoreFeedScrollRef.current) return;
     restoreFeedScrollRef.current = false;
@@ -1531,9 +1570,10 @@ export default function Home() {
                 {/* Translucent background image */}
                 {article.image && (
                   <img
-                    src={article.image}
+                    src={cardImage(article.image)}
                     alt=""
                     loading="lazy"
+                    decoding="async"
                     style={{
                       position: "absolute",
                       top: 0,
