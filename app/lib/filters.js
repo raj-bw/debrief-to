@@ -30,6 +30,10 @@ const WIRE_PATHS = [
   // Paid placements dressed as articles
   "/spotlight/", "/local-sponsored/", "/sponsored/", "/classifieds/", "/deals/",
 ];
+// Syndicated features filed under /local-news/, so only the headline gives
+// them away. Steve Paikin's weekly podcast runs every Saturday on every
+// Village Media site: a syndicated column, like the cartoon above.
+const VILLAGE_SYNDICATED_TITLES = [/^the paikin podcast\b/i];
 
 /* Metroland's portals are asked for their news section only (see
    metroland() in towns.js), which is where almost all of this is caught.
@@ -149,6 +153,7 @@ export function shouldSkip(src, article) {
   const path = pathOf(article.link);
   // Wire copy syndicated into a local site is not local news
   if (src.kind === "village" && WIRE_PATHS.some((p) => path.startsWith(p))) return true;
+  if (src.kind === "village" && VILLAGE_SYNDICATED_TITLES.some((re) => re.test(article.title || ""))) return true;
   if (src.kind === "metroland" && METROLAND_SKIP_PATHS.some((p) => path.includes(p))) return true;
   if (src.owner === "Postmedia" && POSTMEDIA_SKIP_PATHS.some((p) => path.includes(p))) return true;
   if (src.owner === "Postmedia" && COLUMN_TITLE.test(article.title || "")) return true;

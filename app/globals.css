@@ -30,3 +30,26 @@ body {
   .change-town-label { display: none; }
   .cat-divider { display: none; }
 }
+
+/* The search boxes draw their own focus ring, in the site's green, instead
+   of none at all: without one, someone using a keyboard can't see that the
+   box has focus (WCAG 2.4.7). The colour comes from the box itself, so it
+   follows the Dark button. */
+.search-box:focus-visible {
+  outline: 2px solid var(--focus-ring, #2D6A4F) !important;
+  outline-offset: 2px;
+}
+
+/* On the narrowest phones (320px, the width WCAG's reflow rule tests at) the
+   three capsules sat 3px wider than the screen and the page scrolled
+   sideways. A little less padding and gap fits them. */
+@media (max-width: 360px) {
+  .nav-capsules { gap: 6px !important; }
+  .nav-capsules > button { padding-left: 10px !important; padding-right: 10px !important; }
+}
+
+/* Read by screen readers, not shown on screen */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}

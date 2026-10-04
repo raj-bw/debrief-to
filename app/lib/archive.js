@@ -405,6 +405,24 @@ export async function setState(fields) {
   await pipeline([cmd]);
 }
 
+/* ---- Taking turns ----
+   /api/health and /api/verify-feeds ask every publisher for its feed. They
+   are public so they can be opened in a browser, which also means anyone
+   could start them over and over: hours of server time, and a few hundred
+   requests to each newsroom that some of them would answer by turning
+   Debrief.TO away. So without the CRON_SECRET, a full check runs at most
+   once every couple of minutes. True means it's this caller's turn; with no
+   archive to keep count, everyone gets a turn. */
+export async function takeTurn(name, gapMs) {
+  if (!archiveEnabled()) return true;
+  try {
+    const [ok] = await pipeline([["SET", `turn:${name}`, String(Date.now()), "NX", "PX", String(gapMs)]]);
+    return ok === "OK";
+  } catch {
+    return true;
+  }
+}
+
 /* ---- Printed QR codes (see app/go) ----
    One count per code per Toronto day, kept 40 days. Nothing about who
    scanned: only how many times each printed code was used. */

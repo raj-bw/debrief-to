@@ -18,13 +18,16 @@ export const metadata = {
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   // Opened from the iPhone Home Screen, the site runs full-screen like an app
-  // (see app/manifest.js), with this name under its icon.
+  // (see app/web-app-manifest/route.js), with this name under its icon.
   appleWebApp: {
     title: "Debrief.TO",
     statusBarStyle: "default",
   },
   // Used to build full links for the share preview below
   metadataBase: new URL("https://debrief.to"),
+  // The one address search engines should list, whatever ?view= or ?town=
+  // a link carried
+  alternates: { canonical: "/" },
   // What people see when the link is shared in a text, on social media or in Slack
   openGraph: {
     type: "website",

@@ -5,10 +5,16 @@
 
    Served from here rather than as a fixed file so the installed app can start
    with the reader's town and theme. The page links to
-   /manifest.webmanifest?town=newmarket&dark=1 once it knows them (see
+   /web-app-manifest?town=newmarket&dark=1 once it knows them (see
    SiteIcons in app/page.js), and those go into start_url. On iPhone the Home
    Screen app keeps its own storage, separate from Safari, so without this it
-   would open with no town and in light mode. ---- */
+   would open with no town and in light mode.
+
+   The address has no file extension on purpose. At /manifest.webmanifest
+   this worked on a local server but Vercel answered 404 without ever
+   running it (no function log), so from 30 Sept 2026 phones were getting
+   no manifest at all. Browsers go by the link and the Content-Type, not by
+   the name. ---- */
 
 const SLUG = /^[a-z0-9-]{1,60}$/;
 
