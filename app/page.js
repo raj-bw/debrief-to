@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
 import { currentPicks, PICKS_LABEL } from "./lib/picks";
+import { councilPortal } from "./lib/councils";
+import { TORONTO_PORTAL } from "./lib/toronto-council";
 
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
@@ -892,15 +894,18 @@ export default function Home() {
   /* The reader's own council: the next few meetings and their agendas, read
      from the town's official portal. Its own small box, never mixed into the
      story feed — a meeting next Tuesday isn't news from today. */
-  const [council, setCouncil] = useState({ town: null, meetings: [] });
+  /* While the calendar is being read the box already holds its place
+     ("Checking the meeting calendar…"), so the stories don't jump down when
+     it answers a second later. That jump was the page's only layout shift. */
+  const [council, setCouncil] = useState({ town: null, meetings: [], pending: true });
   useEffect(() => {
     if (!hydrated) return;
     let cancelled = false;
-    setCouncil({ town: null, meetings: [] });
+    setCouncil({ town: null, meetings: [], pending: true });
     fetch(`/api/council?town=${encodeURIComponent(townSlug)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!cancelled && j) setCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null }); })
-      .catch(() => {});
+      .then((j) => { if (!cancelled) setCouncil(j ? { town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null } : { town: null, meetings: [] }); })
+      .catch(() => { if (!cancelled) setCouncil({ town: null, meetings: [] }); });
     return () => { cancelled = true; };
   }, [townSlug, hydrated]);
 
@@ -1418,7 +1423,10 @@ export default function Home() {
              answer hides the town's box rather than claim it is empty. */
           const boxes = [];
           const homeTown = council.town;
-          if ((council.meetings.length > 0 || council.checkedAt) && (activeCats.length === 0 || activeCats.includes(home.label))) boxes.push({ ...council, showEmpty: false });
+          const homeBoxWanted = activeCats.length === 0 || activeCats.includes(home.label);
+          const homePortal = home.townName === "Toronto" ? TORONTO_PORTAL : councilPortal(home.townName);
+          if (council.pending && homePortal && homeBoxWanted) boxes.push({ town: home.townName, portal: homePortal, meetings: [], pending: true });
+          else if ((council.meetings.length > 0 || council.checkedAt) && homeBoxWanted) boxes.push({ ...council, showEmpty: false });
           if (wantToronto && torontoCouncil?.available && homeTown !== "Toronto") boxes.push({ ...torontoCouncil, showEmpty: true });
           else if (wantToronto && homeTown === "Toronto" && council.meetings.length === 0 && torontoCouncil?.available) boxes.push({ ...torontoCouncil, showEmpty: true });
           return boxes.map((box) => (
@@ -1431,7 +1439,9 @@ export default function Home() {
                   Official agendas · not news
                 </span>
               </div>
-              {box.meetings.length === 0 ? (
+              {box.pending ? (
+                <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>Checking the meeting calendar…</p>
+              ) : box.meetings.length === 0 ? (
                 box.checkedAt ? (
                   <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>
                     No meetings posted for the next 7 days.{" "}
