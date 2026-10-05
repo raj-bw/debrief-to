@@ -18,6 +18,12 @@
      wp        the WordPress REST API, scoped to one category (Postmedia
                titles that have switched RSS off). categoryId was checked by
                hand; `category` is the slug to fall back on if it moves.
+               On 5 Oct 2026 the Brantford Expositor, Northern News, Sarnia
+               Observer and Simcoe Reformer turned RSS off too (/feed now
+               answers with the homepage), and the Mid-North Monitor became
+               the "mid-north" section of the Sudbury Star, so all five moved
+               here. Each one's "news" category is its local news; the wire
+               press releases are filed in other categories.
      blox      Metroland and Torstar's platform, asked for its news section
 
    `owner` is shown on the About page. Left blank where we haven't confirmed
@@ -115,14 +121,14 @@ export const PUBLISHERS = [
   { name: "St. Marys Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["St Marys", "St. Marys", "St Marys Independent", "St. Marys Independent", "The St Marys Independent"], serves: ["St. Marys"] },
   { name: "Paris Independent", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["Paris Independent", "The Paris Independent", "Paris"], serves: ["Brant"] },
   { name: "West Northumberland", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["West Northumberland"], serves: ["Cobourg", "Port Hope"] },
-  { name: "Brantford Expositor", urls: ["https://www.brantfordexpositor.ca/feed"], owner: "Postmedia", serves: ["Brant", "Brantford"] },
-  { name: "Northern News", urls: ["https://www.northernnews.ca/feed"], owner: "Postmedia", home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
+  { name: "Brantford Expositor", wp: { api: "https://www.brantfordexpositor.ca", categoryId: 12, category: "news" }, owner: "Postmedia", serves: ["Brant", "Brantford"] },
+  { name: "Northern News", wp: { api: "https://www.northernnews.ca", categoryId: 73, category: "news" }, owner: "Postmedia", home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
   { name: "North Bay Nugget", urls: ["https://www.nugget.ca/feed"], owner: "Postmedia", paywall: true, serves: ["North Bay"] },
   { name: "Ottawa Citizen", urls: ["https://www.ottawacitizen.com/feed"], owner: "Postmedia", paywall: true, serves: ["Ottawa"] },
-  { name: "Sarnia Observer", urls: ["https://www.theobserver.ca/feed"], owner: "Postmedia", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Dawn-Euphemia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
-  { name: "Simcoe Reformer", urls: ["https://www.simcoereformer.ca/feed"], owner: "Postmedia", serves: ["Norfolk", "Tillsonburg"] },
+  { name: "Sarnia Observer", wp: { api: "https://www.theobserver.ca", categoryId: 10, category: "news" }, owner: "Postmedia", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Dawn-Euphemia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
+  { name: "Simcoe Reformer", wp: { api: "https://www.simcoereformer.ca", categoryId: 8, category: "news" }, owner: "Postmedia", serves: ["Norfolk", "Tillsonburg"] },
   { name: "Timmins Daily Press", urls: ["https://www.timminspress.com/feed"], owner: "Postmedia", paywall: true, serves: ["Timmins"] },
-  { name: "Mid-North Monitor", urls: ["https://www.midnorthmonitor.com/feed"], owner: "Postmedia", serves: ["Espanola", "Sables-Spanish Rivers"] },
+  { name: "Mid-North Monitor", wp: { api: "https://www.thesudburystar.com", categoryId: 6143, category: "mid-north" }, owner: "Postmedia", serves: ["Espanola", "Sables-Spanish Rivers"] },
   { name: "Kingston Whig-Standard", wp: { api: "https://www.thewhig.com", categoryId: 5, category: "news" }, owner: "Postmedia", serves: ["Kingston"] },
   { name: "Windsor Star", wp: { api: "https://windsorstar.com", categoryId: 2382, category: "news" }, owner: "Postmedia", home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Pelee", "Tecumseh", "Windsor"] },
   { name: "London Free Press", wp: { api: "https://lfpress.com", categoryId: 12, category: "news" }, owner: "Postmedia", home: "London", area: "London and area", serves: ["Adelaide Metcalfe", "London", "Lucan Biddulph", "Strathroy-Caradoc", "Thames Centre"] },

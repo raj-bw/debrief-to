@@ -150,21 +150,23 @@ export const NEWSROOM_REGION = {
 
 /* Homepages that can't be read off the feed address. Postmedia's smaller
    papers are fetched through a sister paper's WordPress API (London Free
-   Press, Owen Sound Sun Times, Brockville Recorder), but each still has its
-   own address, which is what a reader should be sent to. */
+   Press, Owen Sound Sun Times, Brockville Recorder, Sudbury Star). By
+   October 2026 their old addresses all forwarded to a section of that
+   sister paper, so readers are sent straight to the section. */
 export const HOMEPAGE_OVERRIDE = {
   "CBC Ottawa": "https://www.cbc.ca/news/canada/ottawa",
-  "Goderich Signal-Star": "https://www.goderichsignalstar.com",
-  "Clinton News-Record": "https://www.clintonnewsrecord.com",
-  "Mitchell Advocate": "https://www.mitchelladvocate.com",
-  "Seaforth Huron Expositor": "https://www.seaforthhuronexpositor.com",
-  "Woodstock Sentinel-Review": "https://www.woodstocksentinelreview.com",
-  "St. Thomas Times-Journal": "https://www.stthomastimesjournal.com",
-  "Strathroy Age Dispatch": "https://www.strathroyagedispatch.com",
-  "Shoreline Beacon": "https://www.shorelinebeacon.com",
-  "Kincardine News": "https://www.kincardinenews.com",
-  "Hanover Post": "https://www.thepost.on.ca",
-  "Lucknow Sentinel": "https://www.lucknowsentinel.com",
-  "Wiarton Echo": "https://www.wiartonecho.com",
-  "Gananoque Reporter": "https://www.gananoquereporter.com",
+  "Goderich Signal-Star": "https://lfpress.com/goderich/",
+  "Clinton News-Record": "https://lfpress.com/clinton/",
+  "Mitchell Advocate": "https://lfpress.com/mitchell/",
+  "Seaforth Huron Expositor": "https://lfpress.com/seaforth-huron/",
+  "Woodstock Sentinel-Review": "https://lfpress.com/woodstock/",
+  "St. Thomas Times-Journal": "https://lfpress.com/st-thomas/",
+  "Strathroy Age Dispatch": "https://lfpress.com/strathroy/",
+  "Shoreline Beacon": "https://www.owensoundsuntimes.com/port-elgin/",
+  "Kincardine News": "https://www.owensoundsuntimes.com/kincardine/",
+  "Hanover Post": "https://www.owensoundsuntimes.com/hanover/",
+  "Lucknow Sentinel": "https://www.owensoundsuntimes.com/lucknow/",
+  "Wiarton Echo": "https://www.owensoundsuntimes.com/wiarton/",
+  "Gananoque Reporter": "https://www.recorder.ca/gananoque/",
+  "Mid-North Monitor": "https://www.thesudburystar.com/mid-north/",
 };
