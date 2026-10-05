@@ -19,12 +19,15 @@
                titles that have switched RSS off). categoryId was checked by
                hand; `category` is the slug to fall back on if it moves.
                On 5 Oct 2026 the Brantford Expositor, Northern News, Sarnia
-               Observer and Simcoe Reformer turned RSS off too (/feed now
-               answers with the homepage), and the Mid-North Monitor became
-               the "mid-north" section of the Sudbury Star, so all five moved
-               here. Each one's "news" category is its local news; the wire
+               Observer, Simcoe Reformer, North Bay Nugget and Timmins Daily
+               Press turned RSS off too (/feed now answers with the homepage),
+               and the Mid-North Monitor became the "mid-north" section of the
+               Sudbury Star, so all seven moved here. Each one's "news" category is its local news; the wire
                press releases are filed in other categories.
      blox      Metroland and Torstar's platform, asked for its news section
+   and, for plain RSS:
+     pages     also read the feed's page 2, 3... (WordPress ?paged=), for
+               newsrooms whose 10-story feed holds less than a day of news
 
    `owner` is shown on the About page. Left blank where we haven't confirmed
    it, rather than guessed.
@@ -80,7 +83,7 @@ export const PUBLISHERS = [
   { name: "Aylmer Express", urls: ["https://aylmerexpress.com/feed"], serves: ["Aylmer", "Malahide"] },
   { name: "Bancroft This Week", urls: ["https://www.bancroftthisweek.com/feed"], home: "Bancroft", area: "North Hastings", serves: ["Carlow/Mayo", "Faraday", "Hastings Highlands", "Limerick", "South Algonquin", "Tudor and Cashel", "Bancroft"] },
   { name: "Bruce Peninsula Press", urls: ["https://brucepeninsulapress.com/feed"], serves: ["Northern Bruce Peninsula"] },
-  { name: "Orangeville Citizen", urls: ["https://citizen.on.ca/feed"], area: "Dufferin County", serves: ["Amaranth", "East Garafraxa", "Grand Valley", "Melancthon", "Mono", "Mulmur"] },
+  { name: "Orangeville Citizen", urls: ["https://citizen.on.ca/feed"], pages: 3, area: "Dufferin County", serves: ["Amaranth", "East Garafraxa", "Grand Valley", "Melancthon", "Mono", "Mulmur"] },
   { name: "Shelburne Free Press", urls: ["https://shelburnefreepress.ca/feed"], serves: ["Shelburne"] },
   { name: "CK News Today", urls: ["https://cknewstoday.ca/feed"], owner: "Blackburn Media", serves: ["Chatham-Kent"] },
   { name: "CKNX News Today", urls: ["https://cknxnewstoday.ca/feed"], owner: "Blackburn Media", area: "Huron County", serves: ["Ashfield-Colborne-Wawanosh", "Bluewater", "Goderich", "Howick", "Huron East", "Huron-Kinloss", "North Huron", "South Huron"] },
@@ -99,14 +102,14 @@ export const PUBLISHERS = [
   { name: "Oakville News", urls: ["https://www.oakvillenews.org/rss"], serves: ["Oakville"] },
   { name: "Woolwich Observer", urls: ["https://observerxtra.com/feed"], serves: ["Woolwich"] },
   { name: "The Independent", urls: ["https://petrolialambtonindependent.ca/feed"], serves: ["Plympton-Wyoming", "Warwick"] },
-  { name: "Quinte News", urls: ["https://www.quintenews.com/feed"], owner: "Quinte Broadcasting", home: "Belleville", area: "Quinte and Hastings", serves: ["Bancroft", "Belleville", "Carlow/Mayo", "Centre Hastings", "Deseronto", "Faraday", "Hastings Highlands", "Limerick", "Madoc", "Marmora and Lake", "Quinte West", "Stirling-Rawdon", "Tudor and Cashel", "Tweed", "Tyendinaga"] },
+  { name: "Quinte News", urls: ["https://www.quintenews.com/feed"], pages: 3, owner: "Quinte Broadcasting", home: "Belleville", area: "Quinte and Hastings", serves: ["Bancroft", "Belleville", "Carlow/Mayo", "Centre Hastings", "Deseronto", "Faraday", "Hastings Highlands", "Limerick", "Madoc", "Marmora and Lake", "Quinte West", "Stirling-Rawdon", "Tudor and Cashel", "Tweed", "Tyendinaga"] },
   { name: "Renfrew Today", urls: ["https://renfrewtoday.ca/feed"], serves: ["Renfrew"] },
   { name: "Wellington Advertiser", urls: ["https://www.wellingtonadvertiser.com/feed"], home: "Centre Wellington", area: "Wellington County", serves: ["Centre Wellington", "Erin", "Guelph", "Guelph/Eramosa", "Mapleton", "Minto", "Puslinch", "Wellington North"] },
   { name: "The Temiskaming Speaker", urls: ["https://northernontario.ca/feed", "https://northernontario.ca/rss"], home: "Temiskaming Shores", area: "Temiskaming", serves: ["Armstrong", "Brethour", "Casey", "Chamberlain", "Charlton and Dack", "Cobalt", "Englehart", "Evanturel", "Gauthier", "Harley", "Harris", "Hilliard", "Hudson", "James", "Kerns", "Kirkland Lake", "Larder Lake", "Latchford", "Matachewan", "McGarry", "Temiskaming Shores"] },
   { name: "Kingstonist", urls: ["https://www.kingstonist.com/feed", "https://www.kingstonist.com/rss"], fallback: KINGSTONIST_API, home: "Kingston", area: "Kingston and Frontenac", serves: ["Central Frontenac", "Frontenac Islands", "Kingston", "North Frontenac", "South Frontenac"] },
   { name: "The Napanee Beaver", urls: ["https://napaneebeaver.ca/feed"], home: "Greater Napanee", area: "Lennox and Addington", serves: ["Addington Highlands", "Deseronto", "Greater Napanee", "Loyalist", "Stone Mills", "Tyendinaga"] },
   { name: "Your Kenora", urls: ["https://yourkenora.ca/feed"], home: "Kenora", area: "Kenora District", serves: ["Dryden", "Ear Falls", "Ignace", "Kenora", "Machin", "Pickle Lake", "Red Lake", "Sioux Lookout", "Sioux Narrows-Nestor Falls"] },
-  { name: "Bayshore Broadcasting", urls: ["https://www.bayshorebroadcasting.ca/feed"], owner: "Bayshore Broadcasting", home: "Owen Sound", area: "Grey-Bruce", serves: ["Arran-Elderslie", "Brockton", "Chatsworth", "Georgian Bluffs", "Hanover", "Kincardine", "Northern Bruce Peninsula", "Owen Sound", "Saugeen Shores", "South Bruce", "South Bruce Peninsula", "Southgate", "West Grey"] },
+  { name: "Bayshore Broadcasting", urls: ["https://www.bayshorebroadcasting.ca/feed"], pages: 3, owner: "Bayshore Broadcasting", home: "Owen Sound", area: "Grey-Bruce", serves: ["Arran-Elderslie", "Brockton", "Chatsworth", "Georgian Bluffs", "Hanover", "Kincardine", "Northern Bruce Peninsula", "Owen Sound", "Saugeen Shores", "South Bruce", "South Bruce Peninsula", "Southgate", "West Grey"] },
   { name: "My Bancroft Now", urls: ["https://www.mybancroftnow.com/feed/"], fallback: myBroadcastingApi("mybancroftnow.com"), owner: "My Broadcasting Corporation", serves: ["Bancroft"] },
   { name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], fallback: myBroadcastingApi("mykemptvillenow.com"), owner: "My Broadcasting Corporation", serves: ["North Grenville"] },
   { name: "My Parry Sound Now", urls: ["https://www.myparrysoundnow.com/feed/"], fallback: myBroadcastingApi("myparrysoundnow.com"), owner: "My Broadcasting Corporation", serves: ["Parry Sound"] },
@@ -123,11 +126,11 @@ export const PUBLISHERS = [
   { name: "West Northumberland", urls: ["https://www.granthaven.com/blog-feed.xml"], owner: "Grant Haven Media", onlyCategories: ["West Northumberland"], serves: ["Cobourg", "Port Hope"] },
   { name: "Brantford Expositor", wp: { api: "https://www.brantfordexpositor.ca", categoryId: 12, category: "news" }, owner: "Postmedia", serves: ["Brant", "Brantford"] },
   { name: "Northern News", wp: { api: "https://www.northernnews.ca", categoryId: 73, category: "news" }, owner: "Postmedia", home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
-  { name: "North Bay Nugget", urls: ["https://www.nugget.ca/feed"], owner: "Postmedia", paywall: true, serves: ["North Bay"] },
+  { name: "North Bay Nugget", wp: { api: "https://www.nugget.ca", categoryId: 14, category: "news" }, owner: "Postmedia", paywall: true, serves: ["North Bay"] },
   { name: "Ottawa Citizen", urls: ["https://www.ottawacitizen.com/feed"], owner: "Postmedia", paywall: true, serves: ["Ottawa"] },
   { name: "Sarnia Observer", wp: { api: "https://www.theobserver.ca", categoryId: 10, category: "news" }, owner: "Postmedia", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Dawn-Euphemia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
   { name: "Simcoe Reformer", wp: { api: "https://www.simcoereformer.ca", categoryId: 8, category: "news" }, owner: "Postmedia", serves: ["Norfolk", "Tillsonburg"] },
-  { name: "Timmins Daily Press", urls: ["https://www.timminspress.com/feed"], owner: "Postmedia", paywall: true, serves: ["Timmins"] },
+  { name: "Timmins Daily Press", wp: { api: "https://www.timminspress.com", categoryId: 5, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Timmins"] },
   { name: "Mid-North Monitor", wp: { api: "https://www.thesudburystar.com", categoryId: 6143, category: "mid-north" }, owner: "Postmedia", serves: ["Espanola", "Sables-Spanish Rivers"] },
   { name: "Kingston Whig-Standard", wp: { api: "https://www.thewhig.com", categoryId: 5, category: "news" }, owner: "Postmedia", serves: ["Kingston"] },
   { name: "Windsor Star", wp: { api: "https://windsorstar.com", categoryId: 2382, category: "news" }, owner: "Postmedia", home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Pelee", "Tecumseh", "Windsor"] },
