@@ -22,12 +22,14 @@
                Observer, Simcoe Reformer, North Bay Nugget and Timmins Daily
                Press turned RSS off too (/feed now answers with the homepage),
                and the Mid-North Monitor became the "mid-north" section of the
-               Sudbury Star, so all seven moved here. Each one's "news" category is its local news; the wire
-               press releases are filed in other categories.
+               Sudbury Star, so all seven moved here. Each one's "news"
+               category is its local news; the wire press releases are filed
+               in other categories.
      blox      Metroland and Torstar's platform, asked for its news section
    and, for plain RSS:
      pages     also read the feed's page 2, 3... (WordPress ?paged=), for
-               newsrooms whose 10-story feed holds less than a day of news
+               newsrooms that can post more than 10 stories between two
+               collector runs
 
    `owner` is shown on the About page. Left blank where we haven't confirmed
    it, rather than guessed.
