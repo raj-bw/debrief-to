@@ -31,7 +31,6 @@ const PUBLISHERS = [
   { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader" },
   { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "Canada", funding: "reader" },
   { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "Canada", funding: "reader" },
-  { name: "Canadaland", color: "#C62828", url: "https://www.canadaland.com", place: "Canada", funding: "reader" },
   { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader" },
 ];
 
@@ -1567,12 +1566,18 @@ export default function Home() {
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = dm ? "0 12px 32px rgba(0,0,0,0.35)" : "0 12px 32px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)"; }}
               >
-                {/* Translucent background image */}
+                {/* Translucent background image. The first row (at most three
+                    cards across) is on screen the moment the feed arrives, so
+                    its photos are fetched straight away rather than when the
+                    browser gets round to checking what's visible; the first
+                    card's, the largest thing on a phone screen, goes ahead of
+                    everything else. Further down they wait to be scrolled to. */}
                 {article.image && (
                   <img
                     src={cardImage(article.image)}
                     alt=""
-                    loading="lazy"
+                    loading={i < 3 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : undefined}
                     decoding="async"
                     style={{
                       position: "absolute",

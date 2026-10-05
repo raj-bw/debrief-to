@@ -25,6 +25,9 @@
                Sudbury Star, so all seven moved here. Each one's "news"
                category is its local news; the wire press releases are filed
                in other categories.
+               Seaway News is here too: since 5 Sept 2026 its RSS leaves out
+               every news story (the section feeds are empty, and the main one
+               holds only its sponsored posts), while its API serves them.
      blox      Metroland and Torstar's platform, asked for its news section
    and, for plain RSS:
      pages     also read the feed's page 2, 3... (WordPress ?paged=), for
@@ -89,7 +92,7 @@ export const PUBLISHERS = [
   { name: "Shelburne Free Press", urls: ["https://shelburnefreepress.ca/feed"], serves: ["Shelburne"] },
   { name: "CK News Today", urls: ["https://cknewstoday.ca/feed"], owner: "Blackburn Media", serves: ["Chatham-Kent"] },
   { name: "CKNX News Today", urls: ["https://cknxnewstoday.ca/feed"], owner: "Blackburn Media", area: "Huron County", serves: ["Ashfield-Colborne-Wawanosh", "Bluewater", "Goderich", "Howick", "Huron East", "Huron-Kinloss", "North Huron", "South Huron"] },
-  { name: "Seaway News", urls: ["https://www.cornwallseawaynews.com/feed/"], home: "Cornwall", area: "Stormont, Dundas and Glengarry", serves: ["Cornwall", "North Dundas", "North Glengarry", "North Stormont", "South Dundas", "South Glengarry", "South Stormont"] },
+  { name: "Seaway News", wp: { api: "https://www.cornwallseawaynews.com", categoryId: 19, category: "local" }, home: "Cornwall", area: "Stormont, Dundas and Glengarry", serves: ["Cornwall", "North Dundas", "North Glengarry", "North Stormont", "South Dundas", "South Glengarry", "South Stormont"] },
   { name: "Countylive", urls: ["https://www.countylive.ca/feed"], serves: ["Prince Edward"] },
   { name: "Eganville Leader", urls: ["https://www.eganvilleleader.ca/feed"], serves: ["Bonnechere Valley", "Killaloe, Hagarty, Richards", "North Algona Wilberforce"] },
   { name: "Exeter Lakeshore Times", urls: ["https://www.exetertoday.ca/feed"], serves: ["South Huron"] },
