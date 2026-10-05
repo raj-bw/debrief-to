@@ -1,0 +1,44 @@
+# Temporary: Lighthouse on main vs this branch, same stories, same machine.
+# Removed after reading.
+name: Speed A/B (temporary)
+on:
+  push:
+    branches: [claude/gracious-albattani-7lpq3a]
+    paths: [".probe3/**", ".github/workflows/lh-ab.yml"]
+permissions:
+  contents: read
+jobs:
+  ab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: branch
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build both
+        run: for d in main branch; do (cd $d && npm ci --no-audit --no-fund && npx next build); done
+      - name: Seed the archive with the live site's Newmarket month
+        run: |
+          curl -sS -A "DebriefTO-QA/1.0 (+https://debrief.to)" "https://debrief.to/api/feed?town=newmarket&range=month" -o month.json
+          REDIS_URL=redis://localhost:6379 node --import ./branch/.probe3/ext-register.mjs branch/.probe3/seed.mjs month.json
+      - name: Start both
+        run: |
+          (cd main && REDIS_URL=redis://localhost:6379 nohup npx next start -p 3001 > ../main.log 2>&1 &)
+          (cd branch && REDIS_URL=redis://localhost:6379 nohup npx next start -p 3002 > ../branch.log 2>&1 &)
+          for p in 3001 3002; do for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:$p/ && break; sleep 1; done; done
+          for p in 3001 3002; do echo "$p: $(curl -s "http://localhost:$p/api/feed?town=newmarket&range=month" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(len(d["articles"]), "stories; first:", d["articles"][0]["title"][:60])')"; done
+      - name: Lighthouse, taking turns
+        run: bash branch/.probe3/ab.sh
+      - name: Results
+        run: node branch/.probe3/summary.mjs lh-*.json
