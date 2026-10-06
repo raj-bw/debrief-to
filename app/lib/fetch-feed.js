@@ -45,6 +45,13 @@ const parsers = {
   chrome: new Parser({ timeout: 8000, headers: { "User-Agent": CHROME_UA, Accept: ACCEPT_XML }, customFields: itemFields }),
   honest: new Parser({ timeout: 8000, headers: { "User-Agent": HONEST_UA, Accept: ACCEPT_XML }, customFields: itemFields }),
 };
+/* A few small newsrooms' servers take longer than 8 seconds to build a feed
+   (Midwestern Newspapers': about 9). `slow` gives them 25 seconds, in the
+   background jobs only, so no reader ever waits that long. */
+const slowParsers = {
+  chrome: new Parser({ timeout: 25000, headers: { "User-Agent": CHROME_UA, Accept: ACCEPT_XML }, customFields: itemFields }),
+  honest: new Parser({ timeout: 25000, headers: { "User-Agent": HONEST_UA, Accept: ACCEPT_XML }, customFields: itemFields }),
+};
 
 // Refusals worth a second try under the other name. A 404 or a parse error
 // means the feed isn't there, and asking again politely won't change that.
@@ -119,13 +126,14 @@ async function politely(task, patient) {
   }
 }
 
-async function parseWithRetry(url) {
+async function parseWithRetry(url, slow = false) {
+  const p = slow ? slowParsers : parsers;
   try {
-    const feed = await parsers.chrome.parseURL(url);
+    const feed = await p.chrome.parseURL(url);
     return { feed, via: "chrome" };
   } catch (err) {
     if (!isRefusal(err?.message)) throw err;
-    const feed = await parsers.honest.parseURL(url);
+    const feed = await p.honest.parseURL(url);
     return { feed, via: "honest" };
   }
 }
@@ -255,7 +263,7 @@ function keyOf(src) {
 /* `onlyCategories` keeps the stories labelled with one of those names;
    `excludeCategories` drops any labelled with one, such as a magazine's
    sponsored "Paid Post". */
-const rawLabel = (c) => String(typeof c === "string" ? c : c?._ || "").trim();
+const rawLabel = (c) => String(typeof c === "string" ? c : c?._ || "").replace(/&amp;/g, "&").trim();
 const labelOf = (c) => rawLabel(c).toLowerCase();
 
 function keepWanted(src, items) {
@@ -297,9 +305,10 @@ async function fetchFresh(src, { patient = false } = {}) {
 
   let lastErr = null;
   let empty = null;
+  const slow = patient && src.slow;
   for (const url of src.urls || []) {
     try {
-      const get = () => politely(() => parseWithRetry(url), patient);
+      const get = () => politely(() => parseWithRetry(url, slow), patient);
       const { feed, via } = await (patient && isBloxUrl(url) ? inLine("blox", get) : get());
       let all = feed.items || [];
       if (all.length === 0) { empty ||= { items: all, url, via }; continue; }
@@ -308,10 +317,12 @@ async function fetchFresh(src, { patient = false } = {}) {
          or half of a weekly issue posted all at once (Orangeville Citizen).
          WordPress serves the older ones at ?paged=2, ?paged=3, so `pages`
          asks for those too, one after another. A page that fails just ends
-         the run of pages; the first one already answered. */
-      for (let page = 2; page <= (src.pages || 1); page++) {
+         the run of pages; the first one already answered. Only the
+         background jobs read further pages: a reader picking a town for
+         the first time gets page one at once, and the archive the rest. */
+      for (let page = 2; page <= (patient ? src.pages || 1 : 1); page++) {
         try {
-          const more = await politely(() => parseWithRetry(`${url}${url.includes("?") ? "&" : "?"}paged=${page}`), patient);
+          const more = await politely(() => parseWithRetry(`${url}${url.includes("?") ? "&" : "?"}paged=${page}`, slow), patient);
           const seen = new Set(all.map((i) => i.link));
           all = all.concat((more.feed.items || []).filter((i) => !seen.has(i.link)));
         } catch { break; }

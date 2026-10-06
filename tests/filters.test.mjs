@@ -43,3 +43,19 @@ test("paywall and opinion labels", () => {
   assert.equal(isOpinion({ link: "https://example.ca/news/x", title: "Editorial: x" }), true);
   assert.equal(isOpinion({ link: "https://example.ca/news/x", title: "Council votes" }), false);
 });
+
+test("listings, round-ups and e-editions from the October 2026 additions are left out", () => {
+  assert.equal(skip({ name: "NewsNow" }, "https://www.newsnowniagara.com/2026/09/30/x/", "NewsNow E-Edition October 1 2026"), true);
+  assert.equal(skip({ name: "kawarthaNOW" }, "https://kawarthanow.com/2026/10/05/x/", "encoreNOW – October 5, 2026"), true);
+  assert.equal(skip({ name: "kawarthaNOW" }, "https://kawarthanow.com/2026/10/01/x/", "nightlifeNOW – October 1 to 7"), true);
+  assert.equal(skip({ name: "Pembroke Today" }, "https://www.pembroketoday.ca/2026/10/06/1/", "Looking for the cheapest gas? Here's where"), true);
+  assert.equal(skip({ name: "Napanee Today" }, "https://www.napaneetoday.ca/2026/10/06/2/", "Things to do in L&A County: art and more"), true);
+  assert.equal(skip({ name: "Pembroke Today" }, "https://www.pembroketoday.ca/2026/10/05/3/", "City of Pembroke looking for feedback with services"), false);
+});
+
+test("letters are labelled Opinion, by headline or by the paper's own category", () => {
+  assert.equal(isOpinion({ link: "https://haldimandpress.com/x/", title: "Letter: Get out and vote" }), true);
+  assert.equal(isOpinion({ link: "https://www.rivertowntimes.com/post/x", title: "Reader puts forth items" }, ["Letters to the Editor", "All News"]), true);
+  assert.equal(isOpinion({ link: "https://www.rivertowntimes.com/post/y", title: "Event raises $16k" }, ["Local News", "Community"]), false);
+  assert.equal(isOpinion({ link: "https://x.example/a", title: "B" }, [{ _: "Columns" }]), true);
+});

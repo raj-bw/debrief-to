@@ -292,8 +292,10 @@ function toFeed(p) {
     reach: p.serves.length,
     ...(p.paywall ? { paywall: true } : {}),
     ...(p.onlyCategories ? { onlyCategories: p.onlyCategories } : {}),
+    ...(p.excludeCategories ? { excludeCategories: p.excludeCategories } : {}),
     ...(p.fallback ? { fallback: p.fallback } : {}),
     ...(p.pages ? { pages: p.pages } : {}),
+    ...(p.slow ? { slow: true } : {}),
   };
   if (p.village) return { ...villageMedia(p.name, p.village, base.color), ...base, kind: "village" };
   if (p.blox) return { ...metroland(p.name, p.blox, base.color, null, p.owner, p.paywall), ...base };
@@ -327,7 +329,10 @@ for (const p of PUBLISHERS) {
 }
 
 /* A census division with no regional newsroom yet takes the verified one
-   that serves the most of its municipalities. */
+   that serves the most of its municipalities; on a tie, the one covering
+   more ground overall, since this is the region's paper rather than one
+   town's own (Haldimand Press and the Simcoe Reformer each serve one
+   municipality of Haldimand-Norfolk; the Reformer is the regional one). */
 const DIVISION_LABELS = {
   "Brant": "Brant County", "Bruce": "Bruce County", "Chatham-Kent": "Chatham-Kent",
   "Elgin": "Elgin County", "Essex": "Windsor-Essex", "Grey": "Grey County",
@@ -354,7 +359,7 @@ const DIVISION_LABELS = {
   }
   for (const [d, m] of Object.entries(tally)) {
     if (DIVISION_FEEDS[d] || d === "Toronto") continue;
-    const best = [...m.values()].sort((a, b) => b.count - a.count)[0];
+    const best = [...m.values()].sort((a, b) => b.count - a.count || (b.feed.reach || 0) - (a.feed.reach || 0))[0];
     if (best) DIVISION_FEEDS[d] = { label: DIVISION_LABELS[d] || d, feeds: [best.feed] };
   }
 }

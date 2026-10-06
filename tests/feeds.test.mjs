@@ -45,10 +45,15 @@ test("RSS: one page by default", async () => {
   assert.equal(items.length, 10);
 });
 
-test("RSS: `pages` reads further pages, skips repeats, and stops at the last page", async () => {
-  const { items } = await fetchItems({ name: "Paper", urls: [`${base}/feed`], pages: 3 }, { fresh: true });
+test("RSS: `pages` reads further pages, skips repeats, and stops at the last page (background jobs)", async () => {
+  const { items } = await fetchItems({ name: "Paper", urls: [`${base}/feed`], pages: 3 }, { fresh: true, patient: true });
   assert.equal(items.length, 19);
   assert.equal(new Set(items.map((i) => i.link)).size, 19);
+});
+
+test("RSS: a reader's first visit reads page one only", async () => {
+  const { items } = await fetchItems({ name: "Paper", urls: [`${base}/feed`], pages: 3 }, { fresh: true });
+  assert.equal(items.length, 10);
 });
 
 test("WordPress API: only stories on the paper's own site", async () => {
@@ -76,4 +81,9 @@ test("collector: papers sharing a feed each keep their own stories, from one req
   assert.deepEqual(a.items.map((i) => i.title), ["Paris story 1", "Paris story 3"]);
   assert.deepEqual(b.items.map((i) => i.title), ["Cobourg story 2"]);
   assert.equal(sharedHits, 1);
+});
+
+test("excludeCategories drops a section, even when the feed writes & as &amp;", async () => {
+  const { items } = await fetchItems({ name: "Chain", urls: [`${base}/shared`], excludeCategories: ["Paris"] }, { fresh: true });
+  assert.deepEqual(items.map((i) => i.title), ["Cobourg story 2"]);
 });

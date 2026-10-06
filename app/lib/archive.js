@@ -175,7 +175,12 @@ function hash(str, seed) {
 export function bucketFor(src) {
   if (src.shared) return "shared";
   const where = src.kind === "wpjson" ? `${src.api}#${src.categoryId}` : (src.urls || [])[0] || src.name;
-  const key = `${where}|${(src.onlyCategories || []).join(",")}`;
+  let key = `${where}|${(src.onlyCategories || []).join(",")}`;
+  // Papers that share a feed and keep their own categories (Grant Haven's)
+  // were filed with each other's stories until October 2026 (see
+  // fetcherForRun). They start on clean shelves; the old, mixed ones are no
+  // longer read and empty themselves under the 33-day rule.
+  if (src.onlyCategories?.length) key += "|2";
   return `f${hash(key, 2166136261)}${hash(key, 374761393)}`;
 }
 

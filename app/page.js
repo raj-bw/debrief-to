@@ -678,7 +678,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <P>
             We remove stories that local papers republish from national news agencies, such as The Canadian Press,
             when they are not about Ontario. We also remove the following: sports, entertainment, weather, obituaries, press
-            releases, sponsored content and columns syndicated across newspaper chains. Filtering is based on the type
+            releases, sponsored content, event listings and round-ups, and columns syndicated across newspaper chains. Filtering is based on the type
             of item, never on its subject or viewpoint.
           </P>
           <H3>Labels</H3>

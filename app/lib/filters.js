@@ -113,6 +113,14 @@ const SKIP_TITLES = {
   "Toronto Sun": [/^[A-Z][A-Z'’.\-]{2,}(?:\s+[A-Z][A-Z'’.\-]{2,})?\s*:/],
   // The daily weather post
   "Toronto Star": [/forecast:/i, /^weather:/i],
+  // The weekly e-edition is a link to the whole paper, not a story
+  "NewsNow": [/^newsnow e-edition\b/i],
+  // Event round-ups, and the county's paid "Local Advantage" series
+  "kawarthaNOW": [/^(encore|nightlife)NOW\b/i, /^the local advantage\b/i],
+  // Daily price and listings posts, should either ever be filed as news
+  "Pembroke Today": [/^looking for the cheapest gas/i, /^things (to do|happening) in\b/i],
+  "Napanee Today": [/^looking for the cheapest gas/i, /^things (to do|happening) in\b/i],
+  "Strathroy Today": [/^looking for the cheapest gas/i, /^things (to do|happening) in\b/i],
 };
 
 /* Which individual articles actually need a subscription.
@@ -142,7 +150,9 @@ export function isPaywalled(src, link) {
 const OPINION_PATHS = ["/opinion/", "/opinions/", "/commentary/", "/editorial/",
   // A reader's letter is commentary, so it gets the label rather than the axe.
   "/letters-to-the-editor/", "/letters/"];
-const OPINION_TITLES = [/^op-?ed\b/i, /^opinion\b/i, /^editorial\b/i, /^analysis\b/i, /^column\b/i];
+const OPINION_TITLES = [/^op-?ed\b/i, /^opinion\b/i, /^editorial\b/i, /^analysis\b/i, /^column\b/i, /^letters?( to the editor)?:/i];
+// Many small papers' links carry no section, but their categories do
+const OPINION_CATEGORIES = ["opinion", "editorial", "editorials", "letters", "letter to the editor", "letters to the editor", "columns", "column", "commentary"];
 
 export function shouldSkip(src, article) {
   const path = pathOf(article.link);
@@ -159,9 +169,10 @@ export function shouldSkip(src, article) {
   return false;
 }
 
-export function isOpinion(article) {
+export function isOpinion(article, categories = []) {
   const path = pathOf(article.link);
-  return OPINION_PATHS.some((p) => path.includes(p)) || OPINION_TITLES.some((re) => re.test(article.title));
+  return OPINION_PATHS.some((p) => path.includes(p)) || OPINION_TITLES.some((re) => re.test(article.title))
+    || categories.some((c) => OPINION_CATEGORIES.includes(String(typeof c === "string" ? c : c?._ ?? c?.name ?? "").trim().toLowerCase()));
 }
 
 
