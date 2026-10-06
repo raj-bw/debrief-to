@@ -4,6 +4,7 @@ import { buildJobs } from "../../lib/collect-jobs";
 import {
   archiveEnabled, archiveBackend, storeArticles,
   trimAll, makeRoom, getState, setState, torontoDay, RETENTION_DAYS,
+  newestDate, recordFeedAnswers,
 } from "../../lib/archive";
 
 /* ---- The collector ----
@@ -53,7 +54,7 @@ async function collectOne(job, fetchOnce) {
     const got = await fetchOnce(job.src);
     const articles = buildArticles(job.src, got.items, { limit: 60 });
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
-    return { name: job.src.name, ok: true, items: articles.length, added, via: got.via };
+    return { name: job.src.name, ok: true, items: articles.length, added, via: got.via, newest: newestDate(got.items) };
   } catch (err) {
     return { name: job.src.name, ok: false, error: String(err?.message || err).slice(0, 120), job };
   }
@@ -153,6 +154,18 @@ export async function GET(request) {
     retentionDays: room?.retentionDays ?? null,
   };
   await setState({ lastRun: summary }).catch(() => {});
+
+  // Each newsroom's answer, for the nightly report (see feedWatch). A paper
+  // filed on several shelves counts as answering if any of them got through.
+  const answers = new Map();
+  for (const r of results) {
+    if (!answers.has(r.name) || (r.ok && !answers.get(r.name).ok)) {
+      answers.set(r.name, r.ok
+        ? { name: r.name, ok: true, newest: r.newest, items: r.items }
+        : { name: r.name, ok: false, error: r.error });
+    }
+  }
+  await recordFeedAnswers([...answers.values()]).catch(() => {});
 
   return Response.json({
     ok: true,
