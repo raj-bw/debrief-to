@@ -108,6 +108,10 @@ async function getClient() {
       const { createClient } = await import("redis");
       const c = createClient({
         url: TCP.url,
+        // The replies this file reads (HGETALL, ZRANGE ... WITHSCORES) are
+        // the flat lists of the classic protocol. node-redis 6 switched its
+        // default to RESP3, which answers those with maps instead.
+        RESP: 2,
         socket: { connectTimeout: 5000, keepAlive: true, reconnectStrategy: (n) => (n > 3 ? false : 200 * n) },
       });
       c.on("error", (err) => console.warn("[debrief.to] redis:", err?.message));
