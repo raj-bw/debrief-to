@@ -1,4 +1,4 @@
-import { fetchItems, lineOf, isBloxUrl } from "../../lib/fetch-feed";
+import { fetcherForRun, lineOf, isBloxUrl } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
 import { buildJobs } from "../../lib/collect-jobs";
 import {
@@ -36,18 +36,6 @@ const BUDGET_MS = 240 * 1000;         // stop starting new work after four minut
 const CONCURRENCY = 6;
 const MIN_GAP_WITHOUT_SECRET_MS = 20 * 60 * 1000;
 
-
-/* Several towns can share a feed under different shelves (Orangeville.com
-   is both a town's own paper and its county's). Ask the publisher once per
-   run and give every shelf the same answer. */
-function fetcherForRun() {
-  const asked = new Map();
-  return (src) => {
-    const key = src.kind === "wpjson" ? `${src.api}#${src.categoryId}#${src.category}` : (src.urls || []).join("|");
-    if (!asked.has(key)) asked.set(key, fetchItems(src, { fresh: true, patient: true }));
-    return asked.get(key);
-  };
-}
 
 async function collectOne(job, fetchOnce) {
   try {

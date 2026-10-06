@@ -337,6 +337,24 @@ async function fetchFresh(src, { patient = false } = {}) {
   throw lastErr || new Error("all candidate URLs failed");
 }
 
+/* ---- One ask per feed, per collector run ----
+   Several shelves can share a feed (Orangeville.com is both a town's own
+   paper and its county's), and several papers can share one feed and keep
+   only their own stories by category (Grant Haven's papers, which once got
+   each other's stories this way: the first paper's filtered answer was
+   handed to the rest). So the feed is asked once, unfiltered, and each
+   paper keeps its own categories from that one answer. */
+export function fetcherForRun() {
+  const asked = new Map();
+  return async (src) => {
+    const { onlyCategories, excludeCategories, ...whole } = src;
+    const key = whole.kind === "wpjson" ? `${whole.api}#${whole.categoryId}#${whole.category}` : (whole.urls || []).join("|");
+    if (!asked.has(key)) asked.set(key, fetchItems(whole, { fresh: true, patient: true }));
+    const got = await asked.get(key);
+    return { ...got, items: keepWanted(src, got.items) };
+  };
+}
+
 export async function fetchItems(src, { fresh = false, patient = false } = {}) {
   if (fresh) return fetchFresh(src, { patient });
   const key = keyOf(src);
