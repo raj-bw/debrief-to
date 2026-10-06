@@ -15,7 +15,7 @@ name: Checks
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, claude/gracious-albattani-7lpq3a]   # TEMPORARY: remove before merging
 
 permissions:
   contents: read
