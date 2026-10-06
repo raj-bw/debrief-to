@@ -1,7 +1,7 @@
 import { itemsFromXml, isBlox } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
 import { buildJobs } from "../../lib/collect-jobs";
-import { archiveEnabled, storeArticles, getState, setState } from "../../lib/archive";
+import { archiveEnabled, storeArticles, getState, setState, newestDate, recordFeedAnswers } from "../../lib/archive";
 
 /* ---- Stories fetched by the second network ----
    The collector hands the GitHub Action the Metroland/Torstar feeds that
@@ -65,8 +65,10 @@ export async function POST(request) {
     }
     const articles = buildArticles(job.src, items, { limit: 60 });
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
-    stored.push({ name: job.src.name, items: articles.length, added });
+    stored.push({ name: job.src.name, items: articles.length, added, newest: newestDate(items) });
   }
+  // Delivered counts as answering, for the nightly report
+  await recordFeedAnswers(stored.map((s) => ({ name: s.name, ok: true, newest: s.newest, items: s.items }))).catch(() => {});
 
   // A running record of what came this way, per paper, for /api/health.
   const at = new Date().toISOString();

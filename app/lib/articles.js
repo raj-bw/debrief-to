@@ -67,7 +67,7 @@ export function buildArticles(src, items, { limit = 40, undatedAs } = {}) {
     if (shouldSkip(src, base)) continue;
     articles.push({
       ...base,
-      opinion: isOpinion(base),
+      opinion: isOpinion(base, item.categories),
       // What the story is about — worked out per article, so one newsroom's
       // output can land in several topic tabs.
       topics: topicsFor(base, item),

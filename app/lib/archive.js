@@ -108,6 +108,10 @@ async function getClient() {
       const { createClient } = await import("redis");
       const c = createClient({
         url: TCP.url,
+        // The replies this file reads (HGETALL, ZRANGE ... WITHSCORES) are
+        // the flat lists of the classic protocol. node-redis 6 switched its
+        // default to RESP3, which answers those with maps instead.
+        RESP: 2,
         socket: { connectTimeout: 5000, keepAlive: true, reconnectStrategy: (n) => (n > 3 ? false : 200 * n) },
       });
       c.on("error", (err) => console.warn("[debrief.to] redis:", err?.message));
@@ -171,7 +175,12 @@ function hash(str, seed) {
 export function bucketFor(src) {
   if (src.shared) return "shared";
   const where = src.kind === "wpjson" ? `${src.api}#${src.categoryId}` : (src.urls || [])[0] || src.name;
-  const key = `${where}|${(src.onlyCategories || []).join(",")}`;
+  let key = `${where}|${(src.onlyCategories || []).join(",")}`;
+  // Papers that share a feed and keep their own categories (Grant Haven's)
+  // were filed with each other's stories until October 2026 (see
+  // fetcherForRun). They start on clean shelves; the old, mixed ones are no
+  // longer read and empty themselves under the 33-day rule.
+  if (src.onlyCategories?.length) key += "|2";
   return `f${hash(key, 2166136261)}${hash(key, 374761393)}`;
 }
 
@@ -405,6 +414,88 @@ export async function setState(fields) {
   await pipeline([cmd]);
 }
 
+/* ---- Each newsroom's last answer ----
+   In October 2026 eight papers had stopped arriving, one of them for a
+   month, before anyone noticed: a feed switched off, or quietly emptied of
+   news, looks like nothing at all on the site. So the collector notes, for
+   every publication it visits, when it last answered and how recent its
+   newest story was, and /api/health hands that back as `feedWatch` for the
+   nightly report. Nothing is asked of any newsroom to produce it.
+
+   Per name: lastTry, lastOk, failingSince (the first failure after the last
+   good answer), error, newest (its newest story's date) and items (stories
+   kept after the filters). A newsroom no longer visited (a town nobody has
+   picked lately, a source removed) drops out after a week. */
+const FEEDS_KEY = "archive:feeds";
+const NOT_ANSWERING_MS = DAY;          // no good answer for a day
+const QUIET_MS = 10 * DAY;             // weeklies post at least once a week
+const STILL_ASKED_MS = 2 * DAY;
+const FORGET_MS = 7 * DAY;
+
+// The newest story date in a feed, ignoring dates more than a day ahead.
+export function newestDate(items) {
+  let newest = null;
+  for (const it of items || []) {
+    const t = Date.parse(it.isoDate || it.pubDate || "");
+    if (Number.isFinite(t) && t <= Date.now() + DAY && (newest === null || t > newest)) newest = t;
+  }
+  return newest === null ? null : new Date(newest).toISOString();
+}
+
+// answers: [{ name, ok, error?, newest?, items? }], one per publication.
+export async function recordFeedAnswers(answers) {
+  if (!archiveEnabled() || !answers.length) return;
+  const [flat] = await pipeline([["HGETALL", FEEDS_KEY]]);
+  const prev = {};
+  for (let i = 0; i < (flat || []).length; i += 2) {
+    try { prev[flat[i]] = JSON.parse(flat[i + 1]); } catch { /* rewritten below */ }
+  }
+  const at = new Date().toISOString();
+  const set = ["HSET", FEEDS_KEY];
+  for (const a of answers) {
+    const p = prev[a.name] || {};
+    const next = a.ok
+      ? { lastTry: at, lastOk: at, newest: a.newest ?? null, items: a.items ?? null }
+      : { lastTry: at, lastOk: p.lastOk ?? null, failingSince: p.failingSince || at, error: a.error, newest: p.newest ?? null, items: p.items ?? null };
+    set.push(a.name, JSON.stringify(next));
+    delete prev[a.name];
+  }
+  const forget = Object.entries(prev)
+    .filter(([, p]) => !(Date.parse(p?.lastTry) > Date.now() - FORGET_MS))
+    .map(([name]) => name);
+  await pipeline(forget.length ? [set, ["HDEL", FEEDS_KEY, ...forget]] : [set]);
+}
+
+async function feedWatch() {
+  const [flat] = await pipeline([["HGETALL", FEEDS_KEY]]);
+  const now = Date.now();
+  let watched = 0;
+  const notAnswering = [];
+  const quiet = [];
+  for (let i = 0; i < (flat || []).length; i += 2) {
+    let f;
+    try { f = JSON.parse(flat[i + 1]); } catch { continue; }
+    if (!(Date.parse(f.lastTry) > now - STILL_ASKED_MS)) continue;
+    watched++;
+    const name = flat[i];
+    const newestDaysAgo = f.newest ? Math.floor((now - Date.parse(f.newest)) / DAY) : null;
+    if (!(Date.parse(f.lastOk) > now - NOT_ANSWERING_MS)) {
+      notAnswering.push({ name, failingSince: f.failingSince || null, lastAnswered: f.lastOk || null, error: f.error || null });
+    } else if (!(Date.parse(f.newest) > now - QUIET_MS) || f.items === 0) {
+      // Stale, or answering with fresh stories the filters keep none of
+      quiet.push({ name, newestDaysAgo, items: f.items });
+    }
+  }
+  notAnswering.sort((a, b) => String(b.failingSince).localeCompare(String(a.failingSince)));
+  quiet.sort((a, b) => (a.newestDaysAgo ?? 1e9) - (b.newestDaysAgo ?? 1e9));
+  return {
+    watched,
+    rules: "notAnswering: no good answer in 24 hours. quiet: newest story over 10 days old, or every story filtered out.",
+    notAnswering,
+    quiet,
+  };
+}
+
 /* ---- Taking turns ----
    /api/health and /api/verify-feeds ask every publisher for its feed. They
    are public so they can be opened in a browser, which also means anyone
@@ -470,6 +561,7 @@ export async function archiveStats() {
     let secondNetwork = null;
     try { secondNetwork = st.secondNetwork ? JSON.parse(st.secondNetwork) : null; } catch { secondNetwork = null; }
     const qrScans = await recentScans().catch(() => null);
+    const feeds = await feedWatch().catch((err) => ({ error: err?.message }));
     return {
       enabled: true,
       backend: archiveBackend(),
@@ -485,6 +577,8 @@ export async function archiveStats() {
       secondNetwork,
       // Printed QR codes used in the last 7 Toronto days: { day: { code: count } }.
       qrScans,
+      // Newsrooms the collector visits that have stopped answering or gone quiet.
+      feedWatch: feeds,
       lastTrimDay: st.lastTrimDay || null,
     };
   } catch (err) {

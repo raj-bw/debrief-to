@@ -5,15 +5,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs",
+    "test:browser": "node tests/browser.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.0",
     "next": "16.3.8",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "redis": "^5.12.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "redis": "^6.3.0",
     "rss-parser": "^3.13.0"
   }
 }

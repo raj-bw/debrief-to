@@ -1,9 +1,10 @@
-import { fetchItems, lineOf, isBloxUrl } from "../../lib/fetch-feed";
+import { fetcherForRun, lineOf, isBloxUrl } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
 import { buildJobs } from "../../lib/collect-jobs";
 import {
   archiveEnabled, archiveBackend, storeArticles,
   trimAll, makeRoom, getState, setState, torontoDay, RETENTION_DAYS,
+  newestDate, recordFeedAnswers,
 } from "../../lib/archive";
 
 /* ---- The collector ----
@@ -36,24 +37,12 @@ const CONCURRENCY = 6;
 const MIN_GAP_WITHOUT_SECRET_MS = 20 * 60 * 1000;
 
 
-/* Several towns can share a feed under different shelves (Orangeville.com
-   is both a town's own paper and its county's). Ask the publisher once per
-   run and give every shelf the same answer. */
-function fetcherForRun() {
-  const asked = new Map();
-  return (src) => {
-    const key = src.kind === "wpjson" ? `${src.api}#${src.categoryId}#${src.category}` : (src.urls || []).join("|");
-    if (!asked.has(key)) asked.set(key, fetchItems(src, { fresh: true, patient: true }));
-    return asked.get(key);
-  };
-}
-
 async function collectOne(job, fetchOnce) {
   try {
     const got = await fetchOnce(job.src);
     const articles = buildArticles(job.src, got.items, { limit: 60 });
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
-    return { name: job.src.name, ok: true, items: articles.length, added, via: got.via };
+    return { name: job.src.name, ok: true, items: articles.length, added, via: got.via, newest: newestDate(got.items) };
   } catch (err) {
     return { name: job.src.name, ok: false, error: String(err?.message || err).slice(0, 120), job };
   }
@@ -153,6 +142,18 @@ export async function GET(request) {
     retentionDays: room?.retentionDays ?? null,
   };
   await setState({ lastRun: summary }).catch(() => {});
+
+  // Each newsroom's answer, for the nightly report (see feedWatch). A paper
+  // filed on several shelves counts as answering if any of them got through.
+  const answers = new Map();
+  for (const r of results) {
+    if (!answers.has(r.name) || (r.ok && !answers.get(r.name).ok)) {
+      answers.set(r.name, r.ok
+        ? { name: r.name, ok: true, newest: r.newest, items: r.items }
+        : { name: r.name, ok: false, error: r.error });
+    }
+  }
+  await recordFeedAnswers([...answers.values()]).catch(() => {});
 
   return Response.json({
     ok: true,

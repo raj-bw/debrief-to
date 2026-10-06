@@ -1,0 +1,66 @@
+# Checks every pull request (and main) before it can reach readers:
+#
+#   1. npm test: the newsroom list (names, towns, ways in, About page entries),
+#      the filtering rules, and feed reading against a stand-in publisher.
+#   2. The production build.
+#   3. The site in a real browser on a phone-sized and a computer-sized
+#      screen, against that build with made-up stories in a throwaway Redis.
+#
+# Nothing here reaches a newsroom, a council calendar or debrief.to: the
+# browser checks block every outside request, and the stories and photos are
+# made up (tests/seed.mjs). So a run never counts as a visit or a QR scan.
+
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Test, build and browse
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      - name: Newsroom list, filters and feed reading
+        run: npm test
+
+      - name: Build
+        run: npx next build
+
+      - name: Browser checks (phone and computer)
+        env:
+          REDIS_URL: redis://localhost:6379
+          BASE: http://localhost:3000
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --import ./tests/register.mjs tests/seed.mjs
+          npx next start -p 3000 > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null "$BASE/" && break; sleep 1; done
+          npm run test:browser
+
+      - name: Server log, if anything failed
+        if: failure()
+        run: tail -n 80 server.log || true

@@ -32,7 +32,14 @@
    and, for plain RSS:
      pages     also read the feed's page 2, 3... (WordPress ?paged=), for
                newsrooms that can post more than 10 stories between two
-               collector runs
+               collector runs (the collector does; a reader's first visit
+               reads page one)
+     slow      a server that takes longer than 8 seconds to answer: the
+               background jobs give it 25 (readers are never kept waiting)
+     onlyCategories / excludeCategories
+               keep only the stories filed under one of these categories, or
+               drop those filed under any of them (a sister paper's stories
+               on a shared feed, a sports or obituaries section)
 
    `owner` is shown on the About page. Left blank where we haven't confirmed
    it, rather than guessed.
@@ -91,6 +98,8 @@ export const PUBLISHERS = [
   { name: "Orangeville Citizen", urls: ["https://citizen.on.ca/feed"], pages: 3, area: "Dufferin County", serves: ["Amaranth", "East Garafraxa", "Grand Valley", "Melancthon", "Mono", "Mulmur"] },
   { name: "Shelburne Free Press", urls: ["https://shelburnefreepress.ca/feed"], serves: ["Shelburne"] },
   { name: "CK News Today", urls: ["https://cknewstoday.ca/feed"], owner: "Blackburn Media", serves: ["Chatham-Kent"] },
+  { name: "Windsor News Today", urls: ["https://windsornewstoday.ca/feed"], excludeCategories: ["Sports"], owner: "Blackburn Media", home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Kingsville", "Lakeshore", "LaSalle", "Leamington", "Pelee", "Tecumseh", "Windsor"] },
+  { name: "Sarnia News Today", urls: ["https://sarnianewstoday.ca/feed"], excludeCategories: ["Sports"], owner: "Blackburn Media", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Brooke-Alvinston", "Dawn-Euphemia", "Enniskillen", "Lambton Shores", "Oil Springs", "Petrolia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
   { name: "CKNX News Today", urls: ["https://cknxnewstoday.ca/feed"], owner: "Blackburn Media", area: "Huron County", serves: ["Ashfield-Colborne-Wawanosh", "Bluewater", "Goderich", "Howick", "Huron East", "Huron-Kinloss", "North Huron", "South Huron"] },
   { name: "Seaway News", wp: { api: "https://www.cornwallseawaynews.com", categoryId: 19, category: "local" }, home: "Cornwall", area: "Stormont, Dundas and Glengarry", serves: ["Cornwall", "North Dundas", "North Glengarry", "North Stormont", "South Dundas", "South Glengarry", "South Stormont"] },
   { name: "Countylive", urls: ["https://www.countylive.ca/feed"], serves: ["Prince Edward"] },
@@ -101,12 +110,38 @@ export const PUBLISHERS = [
   { name: "The Highlander", urls: ["https://thehighlander.ca/feed"], serves: ["Algonquin Highlands", "Haliburton", "Minden Hills"] },
   { name: "Kawartha411", urls: ["https://www.kawartha411.ca/feed"], serves: ["Kawartha Lakes"] },
   { name: "Manitoulin Expositor", urls: ["https://www.manitoulin.com/feed"], area: "Manitoulin Island", serves: ["Assiginack", "Billings", "Burpee and Mills", "Gordon/Barrie Island", "Gore Bay", "Northeastern Manitoulin", "Tehkummah"] },
-  { name: "Wingham Advance Times", urls: ["https://www.midwesternnewspapers.com/feed"], serves: ["Howick", "North Huron"] },
+  /* Midwestern Newspapers publishes several weeklies on one site. Each has
+     its own category feed (the site-wide feed mixed them all under one
+     name); five stories a page, a week's issue posted on Thursday, and a
+     server that takes about nine seconds per page. */
+  { name: "Wingham Advance Times", urls: ["https://midwesternnewspapers.com/category/wingham-advanced-times/feed/"], pages: 3, slow: true, excludeCategories: ["Sports"], owner: "Midwestern Newspapers", serves: ["Howick", "Morris-Turnberry", "North Huron"] },
+  { name: "Listowel Banner", urls: ["https://midwesternnewspapers.com/category/listowel-banner/feed/"], pages: 4, slow: true, excludeCategories: ["Sports"], owner: "Midwestern Newspapers", serves: ["North Perth"] },
+  { name: "Walkerton Herald-Times", urls: ["https://midwesternnewspapers.com/category/walkerton-herald-times/feed/"], pages: 3, slow: true, excludeCategories: ["Sports"], owner: "Midwestern Newspapers", serves: ["Brockton"] },
+  { name: "Mildmay Town Crier", urls: ["https://midwesternnewspapers.com/category/mildmay-town-crier/feed/"], pages: 2, slow: true, excludeCategories: ["Sports"], owner: "Midwestern Newspapers", serves: ["South Bruce"] },
   { name: "The Morrisburg Leader", urls: ["https://www.morrisburgleader.ca/feed"], serves: ["South Dundas"] },
   { name: "Niagara-on-the-Lake Local", urls: ["https://www.notllocal.com/rss"], serves: ["Niagara-on-the-Lake"] },
   { name: "Oakville News", urls: ["https://www.oakvillenews.org/rss"], serves: ["Oakville"] },
   { name: "Woolwich Observer", urls: ["https://observerxtra.com/feed"], serves: ["Woolwich"] },
-  { name: "The Independent", urls: ["https://petrolialambtonindependent.ca/feed"], serves: ["Plympton-Wyoming", "Warwick"] },
+  { name: "The Independent", urls: ["https://petrolialambtonindependent.ca/feed"], serves: ["Petrolia", "Plympton-Wyoming", "Warwick"] },
+  // A week's issue (about 30 stories) goes up at once on Thursday
+  { name: "Haldimand Press", urls: ["https://haldimandpress.com/feed/"], pages: 4, excludeCategories: ["Sports", "hockey"], serves: ["Haldimand"] },
+  { name: "River Town Times", urls: ["https://www.rivertowntimes.com/blog-feed.xml"], excludeCategories: ["Sports"], serves: ["Amherstburg"] },
+  { name: "Southpoint Sun", urls: ["https://southpointsun.ca/feed/"], excludeCategories: ["Sports"], serves: ["Kingsville", "Leamington"] },
+  { name: "NewsNow", urls: ["https://www.newsnowniagara.com/feed/"], serves: ["Grimsby", "Lincoln", "West Lincoln"] },
+  // Its obituaries, sports and the local MPP's announcements are filed as their own categories
+  { name: "The Meaford Independent", urls: ["https://themeafordindependent.ca/feed/"], excludeCategories: ["Obituaries", "Athletics", "Queen's Park News"], serves: ["Meaford"] },
+  // Bilingual: each story runs in English ("News") and French ("Actualité")
+  { name: "West Nipissing This Week", urls: ["https://westnipissing.com/feed/"], onlyCategories: ["News"], serves: ["West Nipissing"] },
+  /* Peterborough and the Kawarthas. Its arts and entertainment, event
+     round-ups (encoreNOW, nightlifeNOW) and sponsored business and tourism
+     features are left out (see filters.js). */
+  { name: "kawarthaNOW", urls: ["https://kawarthanow.com/feed/"], excludeCategories: ["Arts & Entertainment", "Local Business", "Keep It In The Kawarthas"], home: "Peterborough", area: "Peterborough and the Kawarthas", serves: ["Asphodel-Norwood", "Cavan Monaghan", "Douro-Dummer", "Havelock-Belmont-Methuen", "Kawartha Lakes", "North Kawartha", "Otonabee-South Monaghan", "Peterborough", "Selwyn", "Trent Lakes"] },
+  /* Three sister sites run by a radio newsroom. Only what they file as news
+     is kept: the daily gas-price and things-to-do posts, event promotions
+     and obituaries are filed apart. */
+  { name: "Pembroke Today", urls: ["https://www.pembroketoday.ca/feed/"], pages: 2, onlyCategories: ["Post To 104.9 Pembroke"], home: "Pembroke", area: "Upper Ottawa Valley", serves: ["Admaston/Bromley", "Bonnechere Valley", "Brudenell, Lyndoch and Raglan", "Deep River", "Greater Madawaska", "Head, Clara and Maria", "Horton", "Killaloe, Hagarty, Richards", "Laurentian Hills", "Laurentian Valley", "Madawaska Valley", "McNab/Braeside", "North Algona Wilberforce", "Pembroke", "Petawawa", "Renfrew"] },
+  { name: "Napanee Today", urls: ["https://www.napaneetoday.ca/feed/"], pages: 2, onlyCategories: ["Post To Napanee News"], home: "Greater Napanee", area: "Lennox and Addington", serves: ["Addington Highlands", "Deseronto", "Greater Napanee", "Loyalist", "Stone Mills", "Tyendinaga"] },
+  { name: "Strathroy Today", urls: ["https://www.strathroytoday.ca/feed/"], pages: 2, onlyCategories: ["Post To Strathroy News"], serves: ["Strathroy-Caradoc"] },
   { name: "Quinte News", urls: ["https://www.quintenews.com/feed"], pages: 3, owner: "Quinte Broadcasting", home: "Belleville", area: "Quinte and Hastings", serves: ["Bancroft", "Belleville", "Carlow/Mayo", "Centre Hastings", "Deseronto", "Faraday", "Hastings Highlands", "Limerick", "Madoc", "Marmora and Lake", "Quinte West", "Stirling-Rawdon", "Tudor and Cashel", "Tweed", "Tyendinaga"] },
   { name: "Renfrew Today", urls: ["https://renfrewtoday.ca/feed"], serves: ["Renfrew"] },
   { name: "Wellington Advertiser", urls: ["https://www.wellingtonadvertiser.com/feed"], home: "Centre Wellington", area: "Wellington County", serves: ["Centre Wellington", "Erin", "Guelph", "Guelph/Eramosa", "Mapleton", "Minto", "Puslinch", "Wellington North"] },
@@ -116,6 +151,8 @@ export const PUBLISHERS = [
   { name: "Your Kenora", urls: ["https://yourkenora.ca/feed"], home: "Kenora", area: "Kenora District", serves: ["Dryden", "Ear Falls", "Ignace", "Kenora", "Machin", "Pickle Lake", "Red Lake", "Sioux Lookout", "Sioux Narrows-Nestor Falls"] },
   { name: "Bayshore Broadcasting", urls: ["https://www.bayshorebroadcasting.ca/feed"], pages: 3, owner: "Bayshore Broadcasting", home: "Owen Sound", area: "Grey-Bruce", serves: ["Arran-Elderslie", "Brockton", "Chatsworth", "Georgian Bluffs", "Hanover", "Kincardine", "Northern Bruce Peninsula", "Owen Sound", "Saugeen Shores", "South Bruce", "South Bruce Peninsula", "Southgate", "West Grey"] },
   { name: "My Bancroft Now", urls: ["https://www.mybancroftnow.com/feed/"], fallback: myBroadcastingApi("mybancroftnow.com"), owner: "My Broadcasting Corporation", serves: ["Bancroft"] },
+  { name: "My Kap-Hearst Now", urls: ["https://www.mykaphearstnow.com/feed/"], fallback: myBroadcastingApi("mykaphearstnow.com"), owner: "My Broadcasting Corporation", serves: ["Hearst", "Kapuskasing"] },
+  { name: "My West Nipissing Now", urls: ["https://www.mywestnipissingnow.com/feed/"], fallback: myBroadcastingApi("mywestnipissingnow.com"), owner: "My Broadcasting Corporation", serves: ["West Nipissing"] },
   { name: "My Kemptville Now", urls: ["https://www.mykemptvillenow.com/feed/"], fallback: myBroadcastingApi("mykemptvillenow.com"), owner: "My Broadcasting Corporation", serves: ["North Grenville"] },
   { name: "My Parry Sound Now", urls: ["https://www.myparrysoundnow.com/feed/"], fallback: myBroadcastingApi("myparrysoundnow.com"), owner: "My Broadcasting Corporation", serves: ["Parry Sound"] },
   { name: "My Stratford Now", urls: ["https://www.mystratfordnow.com/feed/"], fallback: myBroadcastingApi("mystratfordnow.com"), owner: "My Broadcasting Corporation", home: "Stratford", area: "Stratford and Perth County", serves: ["Perth East", "Perth South", "St. Marys", "Stratford", "West Perth"] },
@@ -133,12 +170,12 @@ export const PUBLISHERS = [
   { name: "Northern News", wp: { api: "https://www.northernnews.ca", categoryId: 73, category: "news" }, owner: "Postmedia", home: "Kirkland Lake", area: "Kirkland Lake and area", serves: ["Gauthier", "Kirkland Lake", "Larder Lake", "Matachewan", "McGarry"] },
   { name: "North Bay Nugget", wp: { api: "https://www.nugget.ca", categoryId: 14, category: "news" }, owner: "Postmedia", paywall: true, serves: ["North Bay"] },
   { name: "Ottawa Citizen", urls: ["https://www.ottawacitizen.com/feed"], owner: "Postmedia", paywall: true, serves: ["Ottawa"] },
-  { name: "Sarnia Observer", wp: { api: "https://www.theobserver.ca", categoryId: 10, category: "news" }, owner: "Postmedia", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Dawn-Euphemia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
+  { name: "Sarnia Observer", wp: { api: "https://www.theobserver.ca", categoryId: 10, category: "news" }, owner: "Postmedia", home: "Sarnia", area: "Sarnia-Lambton", serves: ["Brooke-Alvinston", "Dawn-Euphemia", "Enniskillen", "Lambton Shores", "Oil Springs", "Petrolia", "Plympton-Wyoming", "Point Edward", "Sarnia", "St. Clair", "Warwick"] },
   { name: "Simcoe Reformer", wp: { api: "https://www.simcoereformer.ca", categoryId: 8, category: "news" }, owner: "Postmedia", serves: ["Norfolk", "Tillsonburg"] },
   { name: "Timmins Daily Press", wp: { api: "https://www.timminspress.com", categoryId: 5, category: "news" }, owner: "Postmedia", paywall: true, serves: ["Timmins"] },
   { name: "Mid-North Monitor", wp: { api: "https://www.thesudburystar.com", categoryId: 6143, category: "mid-north" }, owner: "Postmedia", serves: ["Espanola", "Sables-Spanish Rivers"] },
   { name: "Kingston Whig-Standard", wp: { api: "https://www.thewhig.com", categoryId: 5, category: "news" }, owner: "Postmedia", serves: ["Kingston"] },
-  { name: "Windsor Star", wp: { api: "https://windsorstar.com", categoryId: 2382, category: "news" }, owner: "Postmedia", home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Pelee", "Tecumseh", "Windsor"] },
+  { name: "Windsor Star", wp: { api: "https://windsorstar.com", categoryId: 2382, category: "news" }, owner: "Postmedia", home: "Windsor", area: "Windsor-Essex", serves: ["Amherstburg", "Essex", "Kingsville", "Lakeshore", "LaSalle", "Leamington", "Pelee", "Tecumseh", "Windsor"] },
   { name: "London Free Press", wp: { api: "https://lfpress.com", categoryId: 12, category: "news" }, owner: "Postmedia", home: "London", area: "London and area", serves: ["Adelaide Metcalfe", "London", "Lucan Biddulph", "Strathroy-Caradoc", "Thames Centre"] },
   { name: "Goderich Signal-Star", wp: { api: "https://lfpress.com", categoryId: 5, category: "goderich" }, owner: "Postmedia", serves: ["Ashfield-Colborne-Wawanosh", "Bluewater", "Goderich"] },
   { name: "Clinton News-Record", wp: { api: "https://lfpress.com", categoryId: 6, category: "clinton" }, owner: "Postmedia", serves: ["Central Huron"] },

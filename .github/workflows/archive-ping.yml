@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 15
     steps:
       # Only the second network's script is needed from the repository.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           sparse-checkout: scripts
           persist-credentials: false
