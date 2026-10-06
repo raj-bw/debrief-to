@@ -95,9 +95,6 @@ const UNIVERSAL_SKIP_TITLES = [
 ];
 
 const SKIP_PATHS = {
-  // Toronto Sun was removed as a source in Sept 2026 — too much tabloid copy.
-  // These rules stay as a pattern for any future tabloid-style source.
-  "Canadaland": ["/live/"],
   // Sports, lifestyle and entertainment aren't what people come here for
   "Toronto Star": ["/sports/", "/life/", "/entertainment/"],
   // Audio and video clips rather than articles; CBC Arts and CBC Sports
@@ -105,19 +102,17 @@ const SKIP_PATHS = {
   "CBC Toronto": ["/player/", "/arts/", "/sports/"],
   // Council coverage for other Ontario towns (Barrie, Milton, Springwater...)
   "The Trillium": ["/municipalities-newsletter/"],
+  // Sponsored posts ("Publi-t", "Non classé"): all its RSS carried after 5 Sept
+  "Seaway News": ["/publi-t/", "/non-classe/", "/advertorials/", "/sponsored-content/"],
 };
 
 const SKIP_TITLES = {
+  // Toronto Sun was removed as a source in Sept 2026 — too much tabloid copy.
+  // This rule stays as a pattern for any future tabloid-style source.
   // Postmedia-style columns: "WARMINGTON: ...", "MANDEL: ..."
   "Toronto Sun": [/^[A-Z][A-Z'’.\-]{2,}(?:\s+[A-Z][A-Z'’.\-]{2,})?\s*:/],
   // The daily weather post
   "Toronto Star": [/forecast:/i, /^weather:/i],
-  // Canadaland's own notices rather than reporting
-  "Canadaland": [
-    /^apply for/i, /fellowship/i, /live call-?in/i, /live event/i,
-    /transparency report/i, /artificial intelligence policy/i,
-    /corrections and clarifications/i, /^retraction and apology/i,
-  ],
 };
 
 /* Which individual articles actually need a subscription.

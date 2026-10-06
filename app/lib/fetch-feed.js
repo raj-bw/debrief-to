@@ -301,8 +301,21 @@ async function fetchFresh(src, { patient = false } = {}) {
     try {
       const get = () => politely(() => parseWithRetry(url), patient);
       const { feed, via } = await (patient && isBloxUrl(url) ? inLine("blox", get) : get());
-      const all = feed.items || [];
+      let all = feed.items || [];
       if (all.length === 0) { empty ||= { items: all, url, via }; continue; }
+      /* A few busy WordPress newsrooms list only their newest 10 stories, which
+         can be under five hours of news (Quinte News, Bayshore Broadcasting),
+         or half of a weekly issue posted all at once (Orangeville Citizen).
+         WordPress serves the older ones at ?paged=2, ?paged=3, so `pages`
+         asks for those too, one after another. A page that fails just ends
+         the run of pages; the first one already answered. */
+      for (let page = 2; page <= (src.pages || 1); page++) {
+        try {
+          const more = await politely(() => parseWithRetry(`${url}${url.includes("?") ? "&" : "?"}paged=${page}`), patient);
+          const seen = new Set(all.map((i) => i.link));
+          all = all.concat((more.feed.items || []).filter((i) => !seen.has(i.link)));
+        } catch { break; }
+      }
       const items = keepWanted(src, all);
       return {
         items, url, via,

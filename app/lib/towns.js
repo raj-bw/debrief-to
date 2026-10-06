@@ -293,6 +293,7 @@ function toFeed(p) {
     ...(p.paywall ? { paywall: true } : {}),
     ...(p.onlyCategories ? { onlyCategories: p.onlyCategories } : {}),
     ...(p.fallback ? { fallback: p.fallback } : {}),
+    ...(p.pages ? { pages: p.pages } : {}),
   };
   if (p.village) return { ...villageMedia(p.name, p.village, base.color), ...base, kind: "village" };
   if (p.blox) return { ...metroland(p.name, p.blox, base.color, null, p.owner, p.paywall), ...base };

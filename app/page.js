@@ -31,7 +31,6 @@ const PUBLISHERS = [
   { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader" },
   { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "Canada", funding: "reader" },
   { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "Canada", funding: "reader" },
-  { name: "Canadaland", color: "#C62828", url: "https://www.canadaland.com", place: "Canada", funding: "reader" },
   { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader" },
 ];
 
@@ -1097,6 +1096,14 @@ export default function Home() {
   const visibleArticles = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
 
+  /* The photos in the first row of cards are on screen the moment the feed
+     arrives, so they are fetched straight away and ahead of everything else,
+     rather than when the browser gets round to checking what's visible.
+     That row is one card on a phone (the grid goes to two or more columns at
+     about 712px) and up to three on a computer. Fetching the next ones early
+     too would only make them compete with it on a phone connection. */
+  const firstRow = typeof window !== "undefined" && window.matchMedia("(min-width: 712px)").matches ? 3 : 1;
+
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(21); }, [activeCategories, timeFilter, searchQuery, townSlug]);
 
@@ -1567,12 +1574,13 @@ export default function Home() {
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = dm ? "0 12px 32px rgba(0,0,0,0.35)" : "0 12px 32px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = dm ? "0 2px 8px rgba(0,0,0,0.2)" : "0 1px 4px rgba(0,0,0,0.04)"; }}
               >
-                {/* Translucent background image */}
+                {/* Translucent background image (see firstRow) */}
                 {article.image && (
                   <img
                     src={cardImage(article.image)}
                     alt=""
-                    loading="lazy"
+                    loading={i < firstRow ? "eager" : "lazy"}
+                    fetchPriority={i < firstRow ? "high" : undefined}
                     decoding="async"
                     style={{
                       position: "absolute",

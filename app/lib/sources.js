@@ -23,7 +23,7 @@ const STANDING = [
   { name: "IJF",             urls: ["https://theijf.org/rss.xml", "https://theijf.org/feed", "https://theijf.org/rss"], color: "#8B5E00", place: "Canada" },
   { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", place: "Canada" },
   { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", place: "Canada" },
-  { name: "Canadaland",      urls: ["https://www.canadaland.com/feed/"], color: "#C62828", place: "Canada" },
+  // Canadaland was removed in Oct 2026: no new story on its feed in 105 days.
   /* The Walrus serves its RSS to browsers and refuses servers (403 from
      Vercel on every attempt, though the same feed opens normally at home).
      Its WordPress API is a separate door that may be screened differently,
