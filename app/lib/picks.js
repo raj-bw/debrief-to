@@ -26,6 +26,14 @@ export const PICKS_DAYS = 33;
 
 export const PICKS = [
   {
+    url: "https://thegreenline.to/stories/toronto-chinatown-city-council-candidates/",
+    title: "Toronto councillors outline plan to protect Chinatown",
+    source: "The Green Line",
+    published: "2026-10-28T20:30:31Z",
+    description: "Toronto Chinatown residents ask Spadina Fort-York and University-Rosedale candidates about affordability and cultural preservation plans.",
+    image: "https://thegreenline.to/wp-content/uploads/2026/10/CHINATOWN--1024x768.webp",
+  },
+  {
     url: "https://www.thetrillium.ca/news/energy-and-the-environment/ontario-environment-minister-hopes-to-burn-more-garbage-build-more-landfills-12952369",
     title: "Ontario environment minister hopes to burn more garbage, build more landfills",
     source: "The Trillium",
