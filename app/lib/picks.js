@@ -26,6 +26,39 @@ export const PICKS_DAYS = 33;
 
 export const PICKS = [
   {
+    url: "https://thegreenline.to/stories/toronto-chinatown-city-council-candidates/",
+    title: "Toronto councillors outline plan to protect Chinatown",
+    source: "The Green Line",
+    published: "2026-10-28T20:30:31Z",
+    description: "Toronto Chinatown residents ask Spadina Fort-York and University-Rosedale candidates about affordability and cultural preservation plans.",
+    image: "https://thegreenline.to/wp-content/uploads/2026/10/CHINATOWN--1024x768.webp",
+  },
+  {
+    url: "https://www.thetrillium.ca/news/energy-and-the-environment/ontario-environment-minister-hopes-to-burn-more-garbage-build-more-landfills-12952369",
+    title: "Ontario environment minister hopes to burn more garbage, build more landfills",
+    source: "The Trillium",
+    published: "2026-10-28T19:58:35Z",
+    description: "Ontario's environment minister hopes to burn more garbage for energy and build more landfills as the province runs out of space to dump its trash.",
+    image: "https://www.vmcdn.ca/f/files/shared/feeds/cp/2026/10/3f6d0fdb82d78f07c8e2a10a27594ed53f404dc5d2df237b12d037633738a0a6.jpg;w=960",
+    paywall: true,
+  },
+  {
+    url: "https://thenarwhal.ca/canada-youth-climate-change-case/",
+    title: "Canadian youth ask courts to hold governments accountable for meaningful climate action",
+    source: "The Narwhal",
+    published: "2026-10-26T21:33:14Z",
+    description: "A landmark trial in Canada is part of a growing global wave of climate litigation testing whether governments can be held legally responsible for failing to protect people from a warming world.",
+    image: "https://thenarwhal.ca/wp-content/uploads/2026/10/Natl-FireSmart-Yellowknifeevacuation-PatKane-HayRiver_Summer_005-1400x933.jpg",
+  },
+  {
+    url: "https://theijf.org/brief/finance-minister-discussed-west-coast-pipeline-with-enbridge",
+    title: "Finance minister discussed West Coast pipeline with Enbridge",
+    source: "IJF",
+    published: "2026-10-22T12:00:00Z",
+    description: "Briefing note reveals Champagne sought Enbridge CEO’s view before federal government championed pipeline project.",
+    image: "https://storage.ghost.io/c/f9/62/f9622874-fed0-4058-bf3d-67605eb66d47/content/images/2026/10/CP177015511.JPG",
+  },
+  {
     url: "https://spacing.ca/toronto/2026/09/28/exclusive-inside-the-contract-to-rip-out-torontos-bike-lanes/",
     title: "EXCLUSIVE: Inside the contract to rip out Toronto’s bike lanes",
     source: "Spacing Toronto",
