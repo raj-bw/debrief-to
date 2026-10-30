@@ -107,3 +107,11 @@ test("Editor's Picks are well formed", () => {
     if (p.image) assert.ok(isHttps(p.image), `image: ${p.url}`);
   }
 });
+
+test("no town's page address is taken by another part of the site", () => {
+  const taken = new Set(["api", "go", "icons", "web-app-manifest", "sitemap.xml", "robots.txt", "favicon.ico", "_next", "_vercel"]);
+  const clash = townOptions().map((t) => t.slug).filter((s) => taken.has(s));
+  assert.deepEqual(clash, []);
+  const slugs = townOptions().map((t) => t.slug);
+  assert.equal(new Set(slugs).size, slugs.length, "two towns share an address");
+});

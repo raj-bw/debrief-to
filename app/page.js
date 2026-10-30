@@ -816,8 +816,13 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
   );
 }
 
-/* ---- Main App ---- */
-export default function Home() {
+/* ---- Main App ----
+   At debrief.to the reader's own town (Newmarket until they pick one). At a
+   town's own address (debrief.to/kingston, see app/[town]/page.js) that
+   town, so a link to it shows what it says. */
+export default function Home({ pageTown = null } = {}) {
+  // Where the feed lives in the address bar: "/" or the town's page
+  const base = pageTown ? `/${pageTown}` : "/";
   // --- Persisted state: preferences and saved articles live in localStorage (this browser only) ---
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -835,7 +840,7 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   // The reader's town. Newmarket until they say otherwise — it's the town the
   // site was built for.
-  const [townSlug, setTownSlug] = useState(DEFAULT_TOWN);
+  const [townSlug, setTownSlug] = useState(pageTown || DEFAULT_TOWN);
   const [townChosen, setTownChosen] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [archiveInfo, setArchiveInfo] = useState({ enabled: false, days: 0 });
@@ -870,7 +875,15 @@ export default function Home() {
       const saved = localStorage.getItem("cp_town");
       const asked = localStorage.getItem("cp_townAsked");
       const fromApp = params.get("town");
-      if (saved) { setTownSlug(saved); setTownChosen(true); }
+      if (pageTown) {
+        // A town's own page shows that town. Someone with no town yet takes
+        // it as theirs; someone who already has one keeps it for next time,
+        // and sees this town's news, selected, while they're here.
+        setTownSlug(pageTown); setTownChosen(true);
+        if (!saved) { localStorage.setItem("cp_town", pageTown); localStorage.setItem("cp_townAsked", "1"); }
+        if (saved !== pageTown) { const label = resolveTown(pageTown).label; setActiveCategories(label ? [label] : []); }
+      }
+      else if (saved) { setTownSlug(saved); setTownChosen(true); }
       else if (fromApp && /^[a-z0-9-]{1,60}$/.test(fromApp)) {
         // First launch of the Home Screen app: take the browser's town
         setTownSlug(fromApp); setTownChosen(true);
@@ -881,7 +894,7 @@ export default function Home() {
     const view = params.get("view");
     if (["about", "saved", "picks"].includes(view)) applyView(view);
     if (params.has("town") || params.has("dark")) {
-      window.history.replaceState(window.history.state, "", view ? `/?view=${view}` : "/");
+      window.history.replaceState(window.history.state, "", view ? `${base}?view=${view}` : base);
     }
     setHydrated(true);
   }, []);
@@ -947,6 +960,8 @@ export default function Home() {
     setActiveCategories(next.label ? [next.label] : []);
     setTownSlug(slug);
     setShowPicker(false);
+    // On a town's page, picking another town goes to that town's page
+    if (pageTown && slug !== pageTown) window.location.assign(`/${slug}`);
   };
   const skipTown = () => {
     try { localStorage.setItem("cp_townAsked", "1"); } catch {}
@@ -1174,7 +1189,7 @@ export default function Home() {
   const goTo = (view) => {
     if (page === "feed" && !showPicks) feedScrollRef.current = window.scrollY;
     const depth = (window.history.state?.debriefDepth || 0) + 1;
-    window.history.pushState({ debriefDepth: depth }, "", `/?view=${view}`);
+    window.history.pushState({ debriefDepth: depth }, "", `${base}?view=${view}`);
     applyView(view);
     window.scrollTo(0, 0);
   };
@@ -1184,7 +1199,7 @@ export default function Home() {
     // leaves the site as expected rather than reopening About or Saved.
     if (depth > 0) window.history.go(-depth);
     else {
-      window.history.replaceState({ ...window.history.state, debriefDepth: 0 }, "", "/");
+      window.history.replaceState({ ...window.history.state, debriefDepth: 0 }, "", base);
       restoreFeedScrollRef.current = true;
       applyView("feed");
     }
@@ -1208,13 +1223,14 @@ export default function Home() {
     const want = page === "about" ? "About — Debrief.TO"
       : page === "bookmarks" ? "Saved articles — Debrief.TO"
       : showPicks ? `${PICKS_LABEL} — Debrief.TO`
+      : pageTown ? `${resolveTown(pageTown).townName} news — Debrief.TO`
       : "Debrief.TO — Ontario's local news, in one place";
     const apply = () => { if (document.title !== want) document.title = want; };
     apply();
     const watch = new MutationObserver(apply);
     watch.observe(document.head, { subtree: true, childList: true, characterData: true });
     return () => watch.disconnect();
-  }, [page, showPicks]);
+  }, [page, showPicks, pageTown]);
   useEffect(() => {
     if (page !== "feed" || showPicks || !restoreFeedScrollRef.current) return;
     restoreFeedScrollRef.current = false;
@@ -1451,6 +1467,9 @@ export default function Home() {
           the stories load, the short loading cards left the footer on screen,
           and it jumped away when the stories arrived (a layout shift). */}
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
+        {pageTown && !showPicks && (
+          <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: t.text }}>{resolveTown(pageTown).townName} news</h2>
+        )}
         <div style={{ marginBottom: 20, fontSize: 13, color: t.textSec, fontWeight: 400, letterSpacing: "0.2px", textTransform: "none" }}>
           Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} {showPicks ? "pick" : "article"}{filtered.length !== 1 ? "s" : ""} {"·"} {showPicks ? PICKS_LABEL : showingFallback ? "most recent" : timeFilter.toLowerCase()}
           {activeCats.length > 0 && ` · ${activeCats.join(", ")}`}
