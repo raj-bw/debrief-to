@@ -16,6 +16,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Run by hand from the Actions tab, e.g. when GitHub drops a pull
+  # request's event and the checks never start
+  workflow_dispatch:
 
 permissions:
   contents: read
