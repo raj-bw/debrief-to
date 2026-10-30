@@ -3,11 +3,12 @@
    feed, nothing here is collected automatically: a story is added by
    putting it in the list below.
 
-   Each pick stays up for 33 days from the day the newsroom published it —
-   the same window as the rest of the archive — and then drops off on its own.
-   A pick can be given its own end date instead (`until`), for a story that
-   matters for longer, such as one about an upcoming election.
-   Nothing needs deleting; old entries can be tidied away whenever.
+   Each pick stays at the top of Editor's Picks for 90 days from the day the
+   newsroom published it, then moves on its own to "Past picks", a plain
+   list further down the same view. A pick can be given its own end date
+   instead (`until`), such as one about an upcoming election, which moves
+   down the day after the vote. Nothing needs deleting: the list below is
+   the archive.
 
    To add a pick, copy an entry and fill in:
      url        the story's address on the newsroom's own site
@@ -17,12 +18,12 @@
      description  one or two sentences, usually the newsroom's own summary
      image      optional: the article's preview image
      paywall    optional: true if the story is subscriber-only
-     until      optional: when to take it down instead of after 33 days,
+     until      optional: when to move it to Past picks, instead of after 90 days,
                 e.g. "2026-10-27T23:59:59-04:00" for the end of Oct 27 in Toronto
    ---- */
 
 export const PICKS_LABEL = "Editor's Picks";
-export const PICKS_DAYS = 33;
+export const PICKS_DAYS = 90;
 
 export const PICKS = [
   {
@@ -92,15 +93,22 @@ export const PICKS = [
   },
 ];
 
-// The picks still up — inside their 33 days, or before their own `until`
-// date — newest first.
+// "current" (inside its 90 days, or before its own `until` date), "past",
+// or null for a pick dated more than a day ahead or without a usable date.
+function stage(p, now) {
+  const t = Date.parse(p.published);
+  if (!Number.isFinite(t) || t > now + 86400000) return null;
+  const end = p.until ? Date.parse(p.until) : t + PICKS_DAYS * 86400000;
+  return now <= end ? "current" : "past";
+}
+const newestFirst = (a, b) => Date.parse(b.published) - Date.parse(a.published);
+
+// The picks at the top of Editor's Picks, newest first.
 export function currentPicks(now = Date.now()) {
-  return PICKS
-    .filter((p) => {
-      const t = Date.parse(p.published);
-      if (!Number.isFinite(t) || t > now + 86400000) return false;
-      const end = p.until ? Date.parse(p.until) : t + PICKS_DAYS * 86400000;
-      return now <= end;
-    })
-    .sort((a, b) => Date.parse(b.published) - Date.parse(a.published));
+  return PICKS.filter((p) => stage(p, now) === "current").sort(newestFirst);
+}
+
+// Every pick that has moved down to Past picks, newest first.
+export function pastPicks(now = Date.now()) {
+  return PICKS.filter((p) => stage(p, now) === "past").sort(newestFirst);
 }

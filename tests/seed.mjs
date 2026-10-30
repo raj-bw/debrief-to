@@ -31,6 +31,18 @@ for (const s of SOURCES) {
   const host = new URL(s.urls[0]).host;
   added += (await storeArticles("shared", s.name, buildArticles(s, items(host, 3, 20, "news"), { limit: 60 }))).added;
 }
+// One story two standing sources both covered, which the feed folds into a
+// single card that links to the other's version
+const twice = [
+  ["CBC Toronto", "Province should burn more garbage, build more landfills, Ontario environment minister says"],
+  ["The Trillium", "Ontario environment minister hopes to burn more garbage, build more landfills"],
+];
+for (const [name, title] of twice) {
+  const s = SOURCES.find((x) => x.name === name);
+  const host = new URL(s.urls[0]).host;
+  const item = { title, link: `https://${host}/news/landfills-test-story`, isoDate: new Date(Date.now() - 2 * HOUR).toISOString(), contentSnippet: "A made-up story the site's checks expect to see once." };
+  added += (await storeArticles("shared", s.name, buildArticles(s, [item], { limit: 60 }))).added;
+}
 // Picked before, so the feed reads the archive rather than asking Newmarket Today
 await activateTown("newmarket");
 console.log(`seeded ${added} stories`);

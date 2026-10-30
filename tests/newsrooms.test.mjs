@@ -115,3 +115,18 @@ test("no town's page address is taken by another part of the site", () => {
   const slugs = townOptions().map((t) => t.slug);
   assert.equal(new Set(slugs).size, slugs.length, "two towns share an address");
 });
+
+test("a pick moves from the top to Past picks after 90 days, or after its own end date", async () => {
+  const { currentPicks, pastPicks, PICKS } = await import("../app/lib/picks.js");
+  const now = Date.now();
+  for (const p of PICKS) {
+    const inTop = currentPicks(now).includes(p), below = pastPicks(now).includes(p);
+    assert.ok(!(inTop && below), `${p.url} is in both lists`);
+    const age = (now - Date.parse(p.published)) / 86400000;
+    if (!p.until && age >= 0 && age < 89) assert.ok(inTop, `${p.url} left the top early`);
+    if (!p.until && age > 91) assert.ok(below, `${p.url} should be in Past picks`);
+  }
+  const later = now + 400 * 86400000;
+  assert.equal(currentPicks(later).length, 0);
+  assert.equal(pastPicks(later).length, PICKS.length);
+});
