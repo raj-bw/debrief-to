@@ -47,9 +47,18 @@ const NOISE = new Set([
   "within", "around", "through", "when", "which", "who", "whose", "will",
   "can", "could", "should", "would", "may", "might", "must", "has", "have",
   "was", "were", "are", "its", "their", "your", "our", "his", "her",
+  // Election season: every race's headline has these, whatever the race
+  "election", "elections", "vote", "votes", "voters", "voting", "ballot",
+  "candidate", "candidates", "ward", "wards", "race", "campaign", "results",
 ]);
 
 const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
+const THIRTY_SIX_HOURS = 36 * 60 * 60 * 1000;
+// Headlines with no name in common: the same story only if they share at
+// least this many uncommon words, and those make up this much of the
+// shorter headline's.
+const WORDS_ALONE_MIN = 4;
+const WORDS_ALONE_SHARE = 0.75;
 
 /* The names in a headline, as whole entities rather than loose words.
    "Doug Ford" is one name, not two — counting it as two was enough on its own
@@ -133,7 +142,8 @@ function makeFinder(n) {
 }
 
 /* Takes the articles, returns the same list with matched stories folded into
-   a single card carrying `alsoCoveredBy`. Order is otherwise preserved. */
+   a single card carrying `alsoCoveredBy` (the other newsrooms' names) and
+   `alsoLinks` (each one's version). Order is otherwise preserved. */
 export function clusterStories(articles) {
   if (!Array.isArray(articles) || articles.length < 2) return articles || [];
 
@@ -169,7 +179,7 @@ export function clusterStories(articles) {
      they never could be, as the 48-hour test always failed for them. */
   const { find, union } = makeFinder(articles.length);
   const order = articles.map((_, i) => i)
-    .filter((i) => Number.isFinite(times[i]) && rareNames[i].size >= 1)   // no name, no story
+    .filter((i) => Number.isFinite(times[i]) && (rareNames[i].size >= 1 || rareWords[i].size >= WORDS_ALONE_MIN))
     .sort((x, y) => times[y] - times[x] || x - y);
   for (let p = 0; p < order.length; p++) {
     const i = order[p];
@@ -178,16 +188,27 @@ export function clusterStories(articles) {
       if (times[i] - times[j] > FORTY_EIGHT_HOURS) break;            // everything further is older still
       if (articles[i].source === articles[j].source) continue;      // a newsroom doesn't corroborate itself
 
-      // Two signals are needed, and at least one of them must be a name.
+      // Two signals are needed, and usually one of them must be a name.
       // A shared name alone means only that two stories mention the same
-      // person; a shared subject word alone is the word-overlap matching that
-      // produced nothing but false positives when we tested it.
+      // person; a word or two in common is the loose word-overlap matching
+      // that produced nothing but false positives when we tested it.
       let sharedNames = 0;
       for (const n of rareNames[i]) if (rareNames[j].has(n)) sharedNames++;
-      if (sharedNames === 0) continue;
       let sharedWords = 0;
       for (const w of rareWords[i]) if (rareWords[j].has(w)) sharedWords++;
-      if (sharedNames + sharedWords >= 2) union(i, j);
+      if (sharedNames > 0) {
+        if (sharedNames + sharedWords >= 2) union(i, j);
+        continue;
+      }
+      /* No name in common: a provincial announcement written up by two
+         newsrooms ("Ontario environment minister hopes to burn more garbage,
+         build more landfills" / "Province should burn more garbage, build
+         more landfills, Ontario environment minister says") names nobody
+         rare. Those match only when nearly the whole headline is the same
+         uncommon words, and within a day and a half. */
+      if (times[i] - times[j] > THIRTY_SIX_HOURS) continue;
+      const shorter = Math.min(rareWords[i].size, rareWords[j].size);
+      if (sharedWords >= WORDS_ALONE_MIN && sharedWords >= WORDS_ALONE_SHARE * shorter) union(i, j);
     }
   }
 
@@ -218,11 +239,15 @@ export function clusterStories(articles) {
     if (emitted.has(winner)) continue;
     emitted.add(winner);
     const members = groups.get(find(i)) || [i];
-    const others = members
-      .filter((m) => m !== winner)
-      .map((m) => articles[m].source)
-      .filter((s, idx, arr) => arr.indexOf(s) === idx);   // one mention per newsroom
-    out.push(others.length ? { ...articles[winner], alsoCoveredBy: others } : articles[winner]);
+    // One mention per newsroom: its name, and a link to its version
+    const also = [];
+    for (const m of members) {
+      if (m === winner || also.some((x) => x.source === articles[m].source)) continue;
+      also.push({ source: articles[m].source, link: articles[m].link });
+    }
+    out.push(also.length
+      ? { ...articles[winner], alsoCoveredBy: also.map((x) => x.source), alsoLinks: also }
+      : articles[winner]);
   }
   return out;
 }

@@ -4,7 +4,7 @@ import { buildJobs } from "../../lib/collect-jobs";
 import {
   archiveEnabled, archiveBackend, storeArticles,
   trimAll, makeRoom, getState, setState, torontoDay, RETENTION_DAYS,
-  newestDate, recordFeedAnswers,
+  newestDate, recordFeedAnswers, shelfNewest,
 } from "../../lib/archive";
 
 /* ---- The collector ----
@@ -42,7 +42,11 @@ async function collectOne(job, fetchOnce) {
     const got = await fetchOnce(job.src);
     const articles = buildArticles(job.src, got.items, { limit: 60 });
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
-    return { name: job.src.name, ok: true, items: articles.length, added, via: got.via, newest: newestDate(got.items) };
+    // A paper sharing a feed may have none of its stories in this run; its
+    // newest is then the newest already on its shelf.
+    const shared = Boolean(job.src.onlyCategories?.length);
+    const newest = newestDate(got.items) ?? (shared ? await shelfNewest(job.bucket).catch(() => null) : null);
+    return { name: job.src.name, ok: true, items: articles.length, added, via: got.via, newest, shared };
   } catch (err) {
     return { name: job.src.name, ok: false, error: String(err?.message || err).slice(0, 120), job };
   }
@@ -149,7 +153,7 @@ export async function GET(request) {
   for (const r of results) {
     if (!answers.has(r.name) || (r.ok && !answers.get(r.name).ok)) {
       answers.set(r.name, r.ok
-        ? { name: r.name, ok: true, newest: r.newest, items: r.items }
+        ? { name: r.name, ok: true, newest: r.newest, items: r.items, shared: r.shared }
         : { name: r.name, ok: false, error: r.error });
     }
   }

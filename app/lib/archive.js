@@ -247,6 +247,14 @@ export async function storeArticles(bucket, label, articles) {
   return { added: toAdd.length };
 }
 
+// The date of the newest story on a shelf, or null if it is empty.
+export async function shelfNewest(bucket) {
+  if (!archiveEnabled()) return null;
+  const [res] = await pipeline([["ZRANGE", `z:${bucket}`, "-1", "-1", "WITHSCORES"]]);
+  const t = Number(res?.[1]);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
+}
+
 /* ---- Reading (every feed request) ----
    Everything on these shelves published since `sinceMs`. Two round trips:
    which links are in the window, then the stories themselves. Kept in
@@ -424,7 +432,11 @@ export async function setState(fields) {
 
    Per name: lastTry, lastOk, failingSince (the first failure after the last
    good answer), error, newest (its newest story's date) and items (stories
-   kept after the filters). A newsroom no longer visited (a town nobody has
+   kept after the filters). A paper that keeps its own categories from a
+   feed it shares with sister papers (Grant Haven's) is `shared`: a run with
+   none of its stories is normal for it, so it only counts as quiet once its
+   newest story, carried over from earlier runs or read off its shelf, is
+   over ten days old. A newsroom no longer visited (a town nobody has
    picked lately, a source removed) drops out after a week. */
 const FEEDS_KEY = "archive:feeds";
 const NOT_ANSWERING_MS = DAY;          // no good answer for a day
@@ -455,7 +467,7 @@ export async function recordFeedAnswers(answers) {
   for (const a of answers) {
     const p = prev[a.name] || {};
     const next = a.ok
-      ? { lastTry: at, lastOk: at, newest: a.newest ?? null, items: a.items ?? null }
+      ? { lastTry: at, lastOk: at, newest: a.newest ?? p.newest ?? null, items: a.items ?? null, ...(a.shared ? { shared: true } : {}) }
       : { lastTry: at, lastOk: p.lastOk ?? null, failingSince: p.failingSince || at, error: a.error, newest: p.newest ?? null, items: p.items ?? null };
     set.push(a.name, JSON.stringify(next));
     delete prev[a.name];
@@ -481,7 +493,7 @@ async function feedWatch() {
     const newestDaysAgo = f.newest ? Math.floor((now - Date.parse(f.newest)) / DAY) : null;
     if (!(Date.parse(f.lastOk) > now - NOT_ANSWERING_MS)) {
       notAnswering.push({ name, failingSince: f.failingSince || null, lastAnswered: f.lastOk || null, error: f.error || null });
-    } else if (!(Date.parse(f.newest) > now - QUIET_MS) || f.items === 0) {
+    } else if (!(Date.parse(f.newest) > now - QUIET_MS) || (f.items === 0 && !f.shared)) {
       // Stale, or answering with fresh stories the filters keep none of
       quiet.push({ name, newestDaysAgo, items: f.items });
     }
@@ -490,7 +502,7 @@ async function feedWatch() {
   quiet.sort((a, b) => (a.newestDaysAgo ?? 1e9) - (b.newestDaysAgo ?? 1e9));
   return {
     watched,
-    rules: "notAnswering: no good answer in 24 hours. quiet: newest story over 10 days old, or every story filtered out.",
+    rules: "notAnswering: no good answer in 24 hours. quiet: newest story over 10 days old, or every story filtered out (except papers sharing a feed, where that is normal).",
     notAnswering,
     quiet,
   };

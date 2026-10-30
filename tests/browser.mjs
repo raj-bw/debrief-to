@@ -6,6 +6,7 @@
    BASE=http://localhost:3000 node tests/browser.mjs    (exits 1 on any failure) */
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
+import { pastPicks } from "../app/lib/picks.js";
 
 const BASE = process.env.BASE || "http://localhost:3000";
 const PHOTO = readFileSync(new URL("../public/icons/apple-touch-icon.png", import.meta.url));
@@ -32,7 +33,8 @@ const sideways = (page) => page.evaluate(() => {
 
 async function run({ name, width, height, phone }) {
   screen = name;
-  const browser = await chromium.launch();
+  // CHROMIUM: a browser already on the machine, instead of Playwright's own
+  const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
   const context = await browser.newContext({ viewport: { width, height }, ...(phone ? { isMobile: true, hasTouch: true } : {}) });
   await context.route("**/*", (route) => {
     const url = new URL(route.request().url());
@@ -149,6 +151,56 @@ async function run({ name, width, height, phone }) {
       return sideways(page);
     });
   }
+
+  await check("Past picks lists earlier picks, each linking to its story", async () => {
+    const past = pastPicks();
+    await page.goto(BASE + "/?view=picks", { waitUntil: "load" });
+    await page.locator(`${storySel}, :text("No picks right now")`).first().waitFor({ timeout: 5000 });
+    const heading = page.getByRole("heading", { name: "Past picks" });
+    if (!past.length) return (await heading.count()) ? "a Past picks list with nothing in it" : null;
+    await heading.waitFor({ timeout: 5000 });
+    const link = page.locator(`a[href="${past[0].url}"]`);
+    if ((await link.count()) !== 1) return `newest past pick not listed: ${past[0].url}`;
+    if ((await link.getAttribute("target")) !== "_blank") return "past pick doesn't open in a new tab";
+  });
+
+  await check("a story two newsrooms covered is one card, linking to the other's version", async () => {
+    // The whole feed, not just the town picked earlier
+    await page.evaluate(() => localStorage.setItem("cp_categories", "[]"));
+    await page.goto(BASE + "/", { waitUntil: "load" });
+    const cards = page.locator('h3:has-text("burn more garbage")');
+    await cards.first().waitFor({ timeout: 15000 });
+    if ((await cards.count()) !== 1) return `${await cards.count()} cards for one story`;
+    const other = page.getByRole("link", { name: /version of this story/ }).first();
+    if ((await other.getAttribute("target")) !== "_blank") return "the other version doesn't open in a new tab";
+    if (!/landfills-test-story/.test(await other.getAttribute("href"))) return `links to ${await other.getAttribute("href")}`;
+  });
+
+  await check("a town's page opens on that town, under its own title and address", async () => {
+    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    if (!/^Newmarket news/.test(await page.title())) return `title "${await page.title()}"`;
+    const canonical = await page.locator('link[rel="canonical"]').getAttribute("href");
+    if (canonical !== "https://debrief.to/newmarket") return `canonical ${canonical}`;
+    await page.getByRole("heading", { name: "Newmarket news" }).waitFor({ timeout: 5000 });
+    await page.locator(storySel).first().waitFor({ timeout: 15000 });
+  });
+
+  await check("About and back, from a town's page, keep the town's address", async () => {
+    await page.getByRole("button", { name: "Open About" }).click();
+    await page.waitForURL(/\/newmarket\?view=about$/);
+    await page.goBack();
+    await page.waitForURL(/\/newmarket$/);
+    await page.getByLabel("Search articles").waitFor({ timeout: 5000 });
+  });
+
+  await check("every town's page is in the sitemap, and names its own town", async () => {
+    const xml = await (await page.request.get(BASE + "/sitemap.xml")).text();
+    const n = (xml.match(/<loc>https:\/\/debrief\.to\/[a-z0-9-]+<\/loc>/g) || []).length;
+    if (n < 400) return `only ${n} town pages listed`;
+    const html = await (await page.request.get(BASE + "/greater-napanee")).text();
+    if (!html.includes("<title>Greater Napanee news — Debrief.TO</title>")) return "Greater Napanee's page has another title";
+    if (!html.includes('href="https://debrief.to/greater-napanee"')) return "Greater Napanee's page has another canonical address";
+  });
 
   await check("a missing page answers 404 with a way back", async () => {
     const res = await page.goto(BASE + "/no-such-page", { waitUntil: "load" });

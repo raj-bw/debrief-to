@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
-import { currentPicks, PICKS_LABEL } from "./lib/picks";
+import { currentPicks, pastPicks, PICKS_LABEL } from "./lib/picks";
 import { councilPortal } from "./lib/councils";
 import { TORONTO_PORTAL } from "./lib/toronto-council";
 
@@ -816,8 +816,13 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
   );
 }
 
-/* ---- Main App ---- */
-export default function Home() {
+/* ---- Main App ----
+   At debrief.to the reader's own town (Newmarket until they pick one). At a
+   town's own address (debrief.to/kingston, see app/[town]/page.js) that
+   town, so a link to it shows what it says. */
+export default function Home({ pageTown = null } = {}) {
+  // Where the feed lives in the address bar: "/" or the town's page
+  const base = pageTown ? `/${pageTown}` : "/";
   // --- Persisted state: preferences and saved articles live in localStorage (this browser only) ---
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -835,7 +840,7 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   // The reader's town. Newmarket until they say otherwise — it's the town the
   // site was built for.
-  const [townSlug, setTownSlug] = useState(DEFAULT_TOWN);
+  const [townSlug, setTownSlug] = useState(pageTown || DEFAULT_TOWN);
   const [townChosen, setTownChosen] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [archiveInfo, setArchiveInfo] = useState({ enabled: false, days: 0 });
@@ -870,7 +875,15 @@ export default function Home() {
       const saved = localStorage.getItem("cp_town");
       const asked = localStorage.getItem("cp_townAsked");
       const fromApp = params.get("town");
-      if (saved) { setTownSlug(saved); setTownChosen(true); }
+      if (pageTown) {
+        // A town's own page shows that town. Someone with no town yet takes
+        // it as theirs; someone who already has one keeps it for next time,
+        // and sees this town's news, selected, while they're here.
+        setTownSlug(pageTown); setTownChosen(true);
+        if (!saved) { localStorage.setItem("cp_town", pageTown); localStorage.setItem("cp_townAsked", "1"); }
+        if (saved !== pageTown) { const label = resolveTown(pageTown).label; setActiveCategories(label ? [label] : []); }
+      }
+      else if (saved) { setTownSlug(saved); setTownChosen(true); }
       else if (fromApp && /^[a-z0-9-]{1,60}$/.test(fromApp)) {
         // First launch of the Home Screen app: take the browser's town
         setTownSlug(fromApp); setTownChosen(true);
@@ -881,7 +894,7 @@ export default function Home() {
     const view = params.get("view");
     if (["about", "saved", "picks"].includes(view)) applyView(view);
     if (params.has("town") || params.has("dark")) {
-      window.history.replaceState(window.history.state, "", view ? `/?view=${view}` : "/");
+      window.history.replaceState(window.history.state, "", view ? `${base}?view=${view}` : base);
     }
     setHydrated(true);
   }, []);
@@ -947,6 +960,8 @@ export default function Home() {
     setActiveCategories(next.label ? [next.label] : []);
     setTownSlug(slug);
     setShowPicker(false);
+    // On a town's page, picking another town goes to that town's page
+    if (pageTown && slug !== pageTown) window.location.assign(`/${slug}`);
   };
   const skipTown = () => {
     try { localStorage.setItem("cp_townAsked", "1"); } catch {}
@@ -1078,15 +1093,19 @@ export default function Home() {
     paywall: Boolean(p.paywall), topics: [], places: [], pick: true,
   }));
 
+  // Past picks: a plain list under the current ones, searched the same way
+  const searchHit = (title, description) => !searchQuery || title.toLowerCase().includes(searchQuery.toLowerCase()) || (description || "").toLowerCase().includes(searchQuery.toLowerCase());
+  const past = showPicks ? pastPicks().filter((p) => searchHit(p.title, p.description)) : [];
+
   // Step 0: which list, the feed or the picks
   const pool = showPicks ? picks : articles;
   // Step 1: apply the category + search filters (picks ignore the chips)
   const matchesOtherFilters = pool.filter((a) => {
-    const matchesSearch = !searchQuery || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || (a.description || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchHit(a.title, a.description);
     return (showPicks || matchesCategory(a)) && matchesSearch;
   });
   // Step 2: apply the time filter (Today / This Week / This Month); picks
-  // have their own 33-day window instead
+  // have their own 90-day window instead
   const timeFiltered = showPicks ? matchesOtherFilters : filterByTime(matchesOtherFilters, timeFilter);
   // Safety net: if the time filter leaves nothing but there ARE matching articles,
   // show the most recent ones instead of an empty page.
@@ -1174,7 +1193,7 @@ export default function Home() {
   const goTo = (view) => {
     if (page === "feed" && !showPicks) feedScrollRef.current = window.scrollY;
     const depth = (window.history.state?.debriefDepth || 0) + 1;
-    window.history.pushState({ debriefDepth: depth }, "", `/?view=${view}`);
+    window.history.pushState({ debriefDepth: depth }, "", `${base}?view=${view}`);
     applyView(view);
     window.scrollTo(0, 0);
   };
@@ -1184,7 +1203,7 @@ export default function Home() {
     // leaves the site as expected rather than reopening About or Saved.
     if (depth > 0) window.history.go(-depth);
     else {
-      window.history.replaceState({ ...window.history.state, debriefDepth: 0 }, "", "/");
+      window.history.replaceState({ ...window.history.state, debriefDepth: 0 }, "", base);
       restoreFeedScrollRef.current = true;
       applyView("feed");
     }
@@ -1208,13 +1227,14 @@ export default function Home() {
     const want = page === "about" ? "About — Debrief.TO"
       : page === "bookmarks" ? "Saved articles — Debrief.TO"
       : showPicks ? `${PICKS_LABEL} — Debrief.TO`
+      : pageTown ? `${resolveTown(pageTown).townName} news — Debrief.TO`
       : "Debrief.TO — Ontario's local news, in one place";
     const apply = () => { if (document.title !== want) document.title = want; };
     apply();
     const watch = new MutationObserver(apply);
     watch.observe(document.head, { subtree: true, childList: true, characterData: true });
     return () => watch.disconnect();
-  }, [page, showPicks]);
+  }, [page, showPicks, pageTown]);
   useEffect(() => {
     if (page !== "feed" || showPicks || !restoreFeedScrollRef.current) return;
     restoreFeedScrollRef.current = false;
@@ -1451,6 +1471,9 @@ export default function Home() {
           the stories load, the short loading cards left the footer on screen,
           and it jumped away when the stories arrived (a layout shift). */}
       <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
+        {pageTown && !showPicks && (
+          <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: t.text }}>{resolveTown(pageTown).townName} news</h2>
+        )}
         <div style={{ marginBottom: 20, fontSize: 13, color: t.textSec, fontWeight: 400, letterSpacing: "0.2px", textTransform: "none" }}>
           Showing {visibleArticles.length}{hasMore ? ` of ${filtered.length}` : ""} {showPicks ? "pick" : "article"}{filtered.length !== 1 ? "s" : ""} {"·"} {showPicks ? PICKS_LABEL : showingFallback ? "most recent" : timeFilter.toLowerCase()}
           {activeCats.length > 0 && ` · ${activeCats.join(", ")}`}
@@ -1633,15 +1656,6 @@ export default function Home() {
                   <a href={article.link} target="_blank" rel="noopener" style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", flexDirection: "column" }}>
                     <h3 style={{ fontFamily: "'Georgia', serif", fontSize: 17, fontWeight: 600, lineHeight: 1.4, marginBottom: 8, color: t.title, letterSpacing: "-0.3px" }}>{article.title}</h3>
                     <p style={{ fontSize: 14, lineHeight: 1.65, color: t.desc, flex: 1, marginBottom: 14 }}>{article.description}</p>
-                    {/* When several newsrooms covered the same story, that is
-                        itself worth knowing — so the story appears once, and
-                        says who else was on it. */}
-                    {article.alsoCoveredBy?.length > 0 && (
-                      <p style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        Also covered by {article.alsoCoveredBy.join(", ")}
-                      </p>
-                    )}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${dm ? "#333" : "#F0EDE8"}`, paddingTop: 14, marginTop: "auto" }}>
                       <span style={{ fontSize: 12, color: t.textMuted }}>{timeAgo(article.pubDate)}</span>
                       <span style={{ fontSize: 13, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F", display: "flex", alignItems: "center", gap: 4, letterSpacing: "0.2px" }}>
@@ -1649,6 +1663,26 @@ export default function Home() {
                       </span>
                     </div>
                   </a>
+                  {/* When several newsrooms covered the same story, that is
+                      itself worth knowing — so the story appears once, says
+                      who else was on it, and links to each of their versions.
+                      Outside the card's link, since a link can't hold links. */}
+                  {article.alsoCoveredBy?.length > 0 && (
+                    <p style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5, margin: "12px 0 0", display: "flex", alignItems: "baseline", gap: 6 }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, alignSelf: "center" }} aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      <span>
+                        Also covered by{" "}
+                        {(article.alsoLinks || article.alsoCoveredBy.map((source) => ({ source }))).map((x, k, all) => (
+                          <React.Fragment key={x.source}>
+                            {x.link
+                              ? <a href={x.link} target="_blank" rel="noopener" aria-label={`${x.source}'s version of this story`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>{x.source}</a>
+                              : x.source}
+                            {k < all.length - 1 ? ", " : ""}
+                          </React.Fragment>
+                        ))}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </div>
               {/* After the first four stories, so the news always comes first */}
@@ -1669,6 +1703,26 @@ export default function Home() {
           <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
             <span style={{ fontSize: 13, color: t.textMuted }}>You&apos;re all caught up ✓</span>
           </div>
+        )}
+
+        {/* Past picks: each pick moves here 90 days after it was published
+            (or after its own end date), as a plain list of links, newest first */}
+        {past.length > 0 && (
+          <section aria-labelledby="past-picks" style={{ marginTop: 40 }}>
+            <h2 id="past-picks" style={{ fontFamily: "'Georgia', serif", fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: t.text }}>Past picks</h2>
+            <p style={{ fontSize: 13, color: t.textSec, margin: "0 0 14px" }}>Earlier {PICKS_LABEL}, newest first.</p>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, background: t.cardBg, border: `1px solid ${t.cardBorder}`, borderRadius: 10 }}>
+              {past.map((p, i) => (
+                <li key={p.url} style={{ padding: "14px 18px", borderTop: i ? `1px solid ${t.cardBorder}` : "none" }}>
+                  <a href={p.url} target="_blank" rel="noopener" style={{ fontFamily: "'Georgia', serif", fontSize: 16, fontWeight: 600, lineHeight: 1.35, color: t.text, textDecoration: "none" }}>{p.title}</a>
+                  <div style={{ fontSize: 13, color: t.textSec, marginTop: 4 }}>
+                    {p.source} {"·"} {new Date(p.published).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric", timeZone: "America/Toronto" })}
+                    {p.paywall ? " · Subscribers" : ""}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </main>
 
