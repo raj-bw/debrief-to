@@ -2,7 +2,7 @@
    real headlines from October 2026, the ones that taught the rules. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clusterStories } from "../app/lib/cluster.js";
+import { clusterStories, newestPerHeadline } from "../app/lib/cluster.js";
 
 let n = 0;
 const story = (source, title, hoursAgo = 1, sourcePlace = "Toronto") => ({
@@ -55,4 +55,14 @@ test("headlines sharing a few words, and no name, stay apart", () => {
     ...filler(),
   ]);
   assert.equal(out.filter((a) => a.alsoCoveredBy).length, 0);
+});
+
+test("a newsroom's weekly repeat of a headline shows once, the newest", () => {
+  const week = (n, source = "Toronto Star") => story(source, "Where North York home break-ins were reported this week", n * 24 * 7);
+  const out = newestPerHeadline([week(0), week(1), week(2), week(1, "CBC Toronto"), story("Toronto Star", "", 1), story("Toronto Star", "", 2)]);
+  const star = out.filter((a) => a.source === "Toronto Star" && a.title);
+  assert.equal(star.length, 1);
+  assert.equal(star[0].link, out[0].link, "the newest edition is the one kept");
+  assert.equal(out.filter((a) => a.source === "CBC Toronto").length, 1, "another newsroom's copy is left to clusterStories");
+  assert.equal(out.filter((a) => !a.title).length, 2, "stories without a headline aren't folded together");
 });

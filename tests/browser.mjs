@@ -193,6 +193,18 @@ async function run({ name, width, height, phone }) {
     await page.getByLabel("Search articles").waitFor({ timeout: 5000 });
   });
 
+  await check("visiting another town's page leaves the reader's own filters as they were", async () => {
+    // A reader whose town is Aurora, with Aurora's tab picked, opens Newmarket's page
+    await page.evaluate(() => { localStorage.setItem("cp_town", "aurora"); localStorage.setItem("cp_categories", JSON.stringify(["Aurora"])); });
+    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    await page.locator(storySel).first().waitFor({ timeout: 15000 });
+    const kept = await page.evaluate(() => [localStorage.getItem("cp_town"), localStorage.getItem("cp_categories")]);
+    // Back to Newmarket as the reader's town, for the checks that follow
+    await page.evaluate(() => { localStorage.setItem("cp_town", "newmarket"); localStorage.setItem("cp_categories", "[]"); });
+    if (kept[0] !== "aurora") return `own town became ${kept[0]}`;
+    if (kept[1] !== JSON.stringify(["Aurora"])) return `own filters became ${kept[1]}`;
+  });
+
   await check("every town's page is in the sitemap, and names its own town", async () => {
     const xml = await (await page.request.get(BASE + "/sitemap.xml")).text();
     const n = (xml.match(/<loc>https:\/\/debrief\.to\/[a-z0-9-]+<\/loc>/g) || []).length;

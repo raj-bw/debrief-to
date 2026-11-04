@@ -2,7 +2,7 @@
    rule the About page promises readers. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { shouldSkip, isPaywalled, isOpinion } from "../app/lib/filters.js";
+import { shouldSkip, isPaywalled, isOpinion, isLotteryWin } from "../app/lib/filters.js";
 
 const village = { name: "Newmarket Today", kind: "village" };
 const postmedia = { name: "Sarnia Observer", owner: "Postmedia" };
@@ -58,4 +58,25 @@ test("letters are labelled Opinion, by headline or by the paper's own category",
   assert.equal(isOpinion({ link: "https://www.rivertowntimes.com/post/x", title: "Reader puts forth items" }, ["Letters to the Editor", "All News"]), true);
   assert.equal(isOpinion({ link: "https://www.rivertowntimes.com/post/y", title: "Event raises $16k" }, ["Local News", "Community"]), false);
   assert.equal(isOpinion({ link: "https://x.example/a", title: "B" }, [{ _: "Columns" }]), true);
+});
+
+test("lottery jackpots and winners are left out, from every newsroom", () => {
+  for (const title of [
+    "Record $90-million Lotto Max jackpot up for grabs again Tuesday",
+    "Lotto Max reaches historic $85-million jackpot",
+    "Feeling lucky? Canada's highest-ever lottery jackpot up for grabs on Tuesday",
+    "Brampton man wins $1M OLG prize",
+    "Newmarket couple celebrates lottery win",
+    "Winning Lotto 6/49 ticket sold in Aurora",
+    "No winning ticket for Friday's $70M jackpot draw",
+  ]) assert.equal(skip(plain, "https://example.ca/2026/11/03/x/", title), true, title);
+});
+
+test("stories that only involve the lottery stay", () => {
+  for (const title of [
+    "Man accused of pushing clerk, stealing lottery tickets at Vaughan gas station",
+    "OLG plans new casino in Pickering",
+    "Province to review lottery funding for charities",
+    "Developers hit the jackpot with Greenbelt land swap, watchdog says",
+  ]) assert.equal(isLotteryWin(title), false, title);
 });

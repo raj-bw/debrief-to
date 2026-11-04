@@ -1,6 +1,6 @@
 import { resolveTown, DEFAULT_TOWN } from "../../lib/towns";
 import { topicsFor, placesFor, settleTopics, TOPIC_RULES_VERSION } from "../../lib/topics";
-import { clusterStories } from "../../lib/cluster";
+import { clusterStories, newestPerHeadline } from "../../lib/cluster";
 import { archiveEnabled, readArticles, shelfSizes, bucketFor, activateTown, storeArticles } from "../../lib/archive";
 import { SOURCES } from "../../lib/sources";
 import { buildArticles } from "../../lib/articles";
@@ -119,6 +119,9 @@ function spreadOutSources(list, maxRun = 2) {
 // How far back each view reaches. "This Month" is the last 31 days.
 const RANGE_DAYS = { today: 1, week: 7, month: 31 };
 
+// Search engines, link previews and other automated readers
+const CRAWLER = /bot|crawl|spider|slurp|facebookexternalhit/i;
+
 // Colours and places for articles coming back out of the archive, which stores
 // neither (they'd only go stale if a source ever changed colour).
 function rehydrate(a, colorBySource) {
@@ -213,8 +216,12 @@ export async function GET(request) {
   if (!archiveOk) {
     await fetchLive(allSources);
   } else {
-    // A town becomes active the first time anyone picks it, and stays so.
-    const isNew = town.label && townSources.length ? await activateTown(town.slug) : false;
+    // A reader's visit keeps the town in hourly collection (see activateTown).
+    // A crawler's doesn't: it is shown the town's news like anyone, but with
+    // a page for every town in the sitemap, one crawl would otherwise put
+    // all 412 into collection. What it was shown isn't filed either.
+    const crawler = CRAWLER.test(request.headers.get("user-agent") || "");
+    const isNew = town.label && townSources.length && !crawler ? await activateTown(town.slug) : false;
     const storedHome = stored.articles.some((a) => townBuckets.includes(a.bucket));
     let neverCollected = false;
     if (!isNew && townSources.length && !storedHome) {
@@ -229,7 +236,7 @@ export async function GET(request) {
     if (toFetch.length) await fetchLive(toFetch);
     askedTownLive = isNew || neverCollected;
     // File what was just fetched for the town, so its shelf starts now.
-    if (isNew || neverCollected) {
+    if ((isNew || neverCollected) && !crawler) {
       await Promise.all(townSources.map((src, i) =>
         storeArticles(townBuckets[i], src.name, live.filter((a) => a.source === src.name)).catch(() => null)));
     }
@@ -308,6 +315,8 @@ export async function GET(request) {
     articles.sort((a, b) => at(b) - at(a));
   }
 
+  // 0. a newsroom's recurring headline shows once, its newest edition
+  articles = newestPerHeadline(articles);
   // 1. fold stories several newsrooms covered into a single card
   articles = clusterStories(articles);
   // 2. no newsroom gets more than PER_SOURCE_PER_DAY stories on any given day

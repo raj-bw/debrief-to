@@ -34,7 +34,7 @@
      z:<bucket>   sorted set — each story's link, scored by publish time
      h:<bucket>   hash — link → the story, as JSON
    and for the site as a whole:
-     archive:active   sorted set — town slugs, scored by when first chosen
+     archive:active   sorted set — town slugs, scored by a reader's last visit
      archive:buckets  hash — bucket → which publication it is
      archive:state    hash — when the collector last ran, and what it did
 
@@ -310,16 +310,29 @@ export async function shelfSizes(buckets) {
 }
 
 /* ---- Active towns ----
-   A town is added the first time anyone picks it, and stays. Returns true
-   when this call is what added it, so the feed route can seed its shelf
-   straight away instead of waiting for the next collector run. */
-const knownActive = new Set();
+   The towns the collector visits: Newmarket, and every town a reader has
+   opened in the last 30 days. Each reader's visit renews its town (at most
+   hourly per server), and a town nobody has read for 30 days drops out.
+   Until November 2026 a town stayed for good once anyone had opened it;
+   with a page for every town, a search engine's crawl alone would have put
+   all 412 into hourly collection, past what one collector run can finish
+   and past what the free database holds. (Crawlers don't make a town
+   active at all: see the feed route.)
+
+   activateTown returns true when the town wasn't being collected, new or
+   lapsed, so the feed route fetches its news straight away instead of
+   showing an empty or month-old shelf until the next collector run. */
+export const ACTIVE_DAYS = 30;
+const RENEW_MS = 60 * 60 * 1000;
+const renewedAt = new Map();
 export async function activateTown(slug) {
-  if (!archiveEnabled() || !slug || knownActive.has(slug)) return false;
+  if (!archiveEnabled() || !slug) return false;
+  const now = Date.now();
+  if (now - (renewedAt.get(slug) || 0) < RENEW_MS) return false;
   try {
-    const [added] = await pipeline([["ZADD", "archive:active", "NX", Date.now(), slug]]);
-    knownActive.add(slug);
-    return added === 1;
+    const [last] = await pipeline([["ZSCORE", "archive:active", slug], ["ZADD", "archive:active", now, slug]]);
+    renewedAt.set(slug, now);
+    return !(Number(last) > now - ACTIVE_DAYS * DAY);
   } catch {
     return false;
   }
@@ -328,7 +341,7 @@ export async function activateTown(slug) {
 export async function activeTowns() {
   if (!archiveEnabled()) return [];
   try {
-    const [slugs] = await pipeline([["ZRANGE", "archive:active", 0, -1]]);
+    const [slugs] = await pipeline([["ZRANGEBYSCORE", "archive:active", String(Date.now() - ACTIVE_DAYS * DAY), "+inf"]]);
     return slugs || [];
   } catch {
     return [];
@@ -558,7 +571,7 @@ export async function archiveStats() {
     const memory = await memoryUsage();
     const [bucketMap, active, state] = await pipeline([
       ["HGETALL", "archive:buckets"],
-      ["ZCARD", "archive:active"],
+      ["ZCOUNT", "archive:active", String(Date.now() - ACTIVE_DAYS * DAY), "+inf"],
       ["HGETALL", "archive:state"],
     ]);
     const buckets = [];

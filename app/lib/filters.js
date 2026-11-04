@@ -94,6 +94,22 @@ const UNIVERSAL_SKIP_TITLES = [
   /^sponsored\b/i, /^advertorial\b/i, /^paid content\b/i,
 ];
 
+/* Lottery jackpots and winners ("Lotto Max reaches historic $85-million
+   jackpot", "Brampton man wins $1M OLG prize"), from every newsroom.
+   A headline is left out when it names one of the games, or pairs the
+   lottery (or OLG, or a jackpot) with a win, a prize or a draw. A story
+   that only involves the lottery is still news and stays: lottery tickets
+   stolen in a robbery, OLG's casino plans. */
+const LOTTERY_TITLES = [
+  [/\b(lotto|lottario|6\/49)\b/i],
+  [/\blotter(y|ies)\b/i, /\b(jackpots?|win|wins|won|winners?|winning|prizes?|millionaires?|draws?)\b/i],
+  [/\bOLG\b/, /\b(jackpots?|winners?|winning|prizes?|millionaires?|draws?|scratch)\b/i],
+  [/\bjackpots?\b/i, /\b(up for grabs|draws?|tickets?)\b/i],
+];
+export function isLotteryWin(title = "") {
+  return LOTTERY_TITLES.some((all) => all.every((re) => re.test(title)));
+}
+
 const SKIP_PATHS = {
   // Sports, lifestyle and entertainment aren't what people come here for
   "Toronto Star": ["/sports/", "/life/", "/entertainment/"],
@@ -164,6 +180,7 @@ export function shouldSkip(src, article) {
   if (src.owner === "Postmedia" && COLUMN_TITLE.test(article.title || "")) return true;
   if (UNIVERSAL_SKIP_PATHS.some((p) => path.includes(p))) return true;
   if (UNIVERSAL_SKIP_TITLES.some((re) => re.test(article.title))) return true;
+  if (isLotteryWin(article.title)) return true;
   if ((SKIP_PATHS[src.name] || []).some((p) => path.includes(p))) return true;
   if ((SKIP_TITLES[src.name] || []).some((re) => re.test(article.title))) return true;
   return false;
