@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo, startTransition } from "react";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
 import { currentPicks, pastPicks, PICKS_LABEL } from "./lib/picks";
@@ -315,13 +315,25 @@ function TownPicker({ dm, onPick, onSkip }) {
   const dialogRef = useRef(null);
   // Escape is the same as Skip: nothing changes
   useDialog(dialogRef, onSkip);
-  const options = townOptions();
+  const options = useMemo(() => townOptions(), []);
   const q = query.trim().toLowerCase();
   // Every town, always — the list scrolls. Showing only the first handful made
   // it look like those were the only places on offer.
   const matches = q
     ? options.filter((t) => t.name.toLowerCase().includes(q) || t.regionName.toLowerCase().includes(q))
     : options;
+  /* All 412 rows at once held up a phone's first visit by about a second,
+     with the dialog itself waiting behind them. So the first screenful
+     comes at once and the rest a moment later, drawn in the background
+     (a transition, which React does in small steps between taps and
+     scrolls), before anyone could have scrolled that far. Rows out of
+     sight aren't laid out until scrolled to (content-visibility). */
+  const [allRows, setAllRows] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => startTransition(() => setAllRows(true)));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const shown = q || allRows ? matches : matches.slice(0, 30);
 
   const c = {
     panel: dm ? "#242424" : "#FFF",
@@ -365,9 +377,9 @@ function TownPicker({ dm, onPick, onSkip }) {
               Nothing matches that. Try fewer letters — the list uses each municipality&apos;s official name, so Stouffville is &ldquo;Whitchurch-Stouffville&rdquo;.
             </p>
           ) : (
-            matches.map((t) => (
+            shown.map((t) => (
               <button key={t.slug} onClick={() => onPick(t.slug)}
-                style={{ display: "flex", width: "100%", alignItems: "baseline", justifyContent: "space-between", gap: 10, textAlign: "left", background: "transparent", border: "none", borderRadius: 10, padding: "12px 12px", cursor: "pointer", fontFamily: "inherit", color: c.text }}
+                style={{ display: "flex", width: "100%", alignItems: "baseline", justifyContent: "space-between", gap: 10, textAlign: "left", background: "transparent", border: "none", borderRadius: 10, padding: "12px 12px", cursor: "pointer", fontFamily: "inherit", color: c.text, contentVisibility: "auto", containIntrinsicSize: "auto 46px" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = c.rowHover; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
                 <span style={{ fontSize: 15.5, fontWeight: t.tier === "town" ? 600 : 500, color: t.tier === "province" ? c.muted : c.text }}>{t.name}</span>
@@ -842,6 +854,8 @@ export default function Home({ pageTown = null } = {}) {
   // site was built for.
   const [townSlug, setTownSlug] = useState(pageTown || DEFAULT_TOWN);
   const [townChosen, setTownChosen] = useState(false);
+  // On another town's page than the reader's own (see the hydration below)
+  const visitingRef = useRef(false);
   const [showPicker, setShowPicker] = useState(false);
   const [archiveInfo, setArchiveInfo] = useState({ enabled: false, days: 0 });
   // What the server says the local tab is called. Usually the same as what we
@@ -882,6 +896,9 @@ export default function Home({ pageTown = null } = {}) {
         setTownSlug(pageTown); setTownChosen(true);
         if (!saved) { localStorage.setItem("cp_town", pageTown); localStorage.setItem("cp_townAsked", "1"); }
         if (saved !== pageTown) { const label = resolveTown(pageTown).label; setActiveCategories(label ? [label] : []); }
+        // Only visiting: the filters picked here aren't saved over the
+        // reader's own, which their town's feed needs when they go back.
+        visitingRef.current = Boolean(saved) && saved !== pageTown;
       }
       else if (saved) { setTownSlug(saved); setTownChosen(true); }
       else if (fromApp && /^[a-z0-9-]{1,60}$/.test(fromApp)) {
@@ -900,7 +917,7 @@ export default function Home({ pageTown = null } = {}) {
   }, []);
 
   // Save preferences to localStorage when they change (only after hydration)
-  useEffect(() => { if (hydrated) localStorage.setItem("cp_categories", JSON.stringify(activeCategories)); }, [activeCategories, hydrated]);
+  useEffect(() => { if (hydrated && !visitingRef.current) localStorage.setItem("cp_categories", JSON.stringify(activeCategories)); }, [activeCategories, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_showSources", JSON.stringify(showSources)); }, [showSources, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_timeFilter", timeFilter); }, [timeFilter, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem("cp_darkMode", JSON.stringify(darkMode)); }, [darkMode, hydrated]);
@@ -958,6 +975,10 @@ export default function Home({ pageTown = null } = {}) {
        A town with no newsroom has no tab to select, so it clears instead. */
     const next = resolveTown(slug);
     setActiveCategories(next.label ? [next.label] : []);
+    // A town chosen is home now, so its filter is saved even on a visit, and
+    // straight away, before a town page moves on to that town's page
+    visitingRef.current = false;
+    try { localStorage.setItem("cp_categories", JSON.stringify(next.label ? [next.label] : [])); } catch {}
     setTownSlug(slug);
     setShowPicker(false);
     // On a town's page, picking another town goes to that town's page

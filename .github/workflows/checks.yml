@@ -46,7 +46,9 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
 
-      - name: Newsroom list, filters and feed reading
+      - name: Newsroom list, filters, feed reading and the archive
+        env:
+          REDIS_URL: redis://localhost:6379
         run: npm test
 
       - name: Build

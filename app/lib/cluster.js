@@ -251,3 +251,20 @@ export function clusterStories(articles) {
   }
   return out;
 }
+
+/* One newsroom, one headline. Some posts recur under the same headline: the
+   Star's weekly "Where North York home break-ins were reported this week",
+   one per neighbourhood, every week, came up three or four times in a month.
+   Given stories newest first, keeps each newsroom's newest edition of a
+   headline. Different newsrooms' matching headlines are clusterStories'. */
+export function newestPerHeadline(articles) {
+  const seen = new Set();
+  return (articles || []).filter((a) => {
+    const words = String(a.title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!words) return true;
+    const key = `${a.source}|${words}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
