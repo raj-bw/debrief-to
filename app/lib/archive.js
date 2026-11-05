@@ -323,25 +323,33 @@ export async function shelfSizes(buckets) {
    lapsed, so the feed route fetches its news straight away instead of
    showing an empty or month-old shelf until the next collector run. */
 export const ACTIVE_DAYS = 30;
+/* Before November 4, 2026 a town's score was when it was first chosen, not
+   when it was last read, so towns first opened in early October looked
+   unread for 30 days the day after the change. Every town opened before
+   then gets the full 30 days from the change. */
+const ACTIVE_SINCE_CHANGE = Date.parse("2026-12-04T19:30:00Z");
+function activeFrom(now = Date.now()) {
+  return now < ACTIVE_SINCE_CHANGE ? "-inf" : String(now - ACTIVE_DAYS * DAY);
+}
 const RENEW_MS = 60 * 60 * 1000;
 const renewedAt = new Map();
-export async function activateTown(slug) {
+export async function activateTown(slug, now = Date.now()) {
   if (!archiveEnabled() || !slug) return false;
-  const now = Date.now();
   if (now - (renewedAt.get(slug) || 0) < RENEW_MS) return false;
   try {
     const [last] = await pipeline([["ZSCORE", "archive:active", slug], ["ZADD", "archive:active", now, slug]]);
     renewedAt.set(slug, now);
-    return !(Number(last) > now - ACTIVE_DAYS * DAY);
+    const wasActive = last !== null && last !== undefined && (activeFrom(now) === "-inf" || Number(last) > now - ACTIVE_DAYS * DAY);
+    return !wasActive;
   } catch {
     return false;
   }
 }
 
-export async function activeTowns() {
+export async function activeTowns(now = Date.now()) {
   if (!archiveEnabled()) return [];
   try {
-    const [slugs] = await pipeline([["ZRANGEBYSCORE", "archive:active", String(Date.now() - ACTIVE_DAYS * DAY), "+inf"]]);
+    const [slugs] = await pipeline([["ZRANGEBYSCORE", "archive:active", activeFrom(now), "+inf"]]);
     return slugs || [];
   } catch {
     return [];
@@ -504,7 +512,9 @@ async function feedWatch() {
     watched++;
     const name = flat[i];
     const newestDaysAgo = f.newest ? Math.floor((now - Date.parse(f.newest)) / DAY) : null;
-    if (!(Date.parse(f.lastOk) > now - NOT_ANSWERING_MS)) {
+    // Only a newsroom whose last try failed: one the collector simply stopped
+    // asking (its towns unread for 30 days) isn't failing
+    if (f.failingSince && !(Date.parse(f.lastOk) > now - NOT_ANSWERING_MS)) {
       notAnswering.push({ name, failingSince: f.failingSince || null, lastAnswered: f.lastOk || null, error: f.error || null });
     } else if (!(Date.parse(f.newest) > now - QUIET_MS) || (f.items === 0 && !f.shared)) {
       // Stale, or answering with fresh stories the filters keep none of
@@ -571,7 +581,7 @@ export async function archiveStats() {
     const memory = await memoryUsage();
     const [bucketMap, active, state] = await pipeline([
       ["HGETALL", "archive:buckets"],
-      ["ZCOUNT", "archive:active", String(Date.now() - ACTIVE_DAYS * DAY), "+inf"],
+      ["ZCOUNT", "archive:active", activeFrom(), "+inf"],
       ["HGETALL", "archive:state"],
     ]);
     const buckets = [];

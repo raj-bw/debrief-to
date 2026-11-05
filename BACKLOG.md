@@ -52,6 +52,7 @@ All free to read. Picks stay at the top for 90 days from publication.
   - The nightly stats report lists them.
 - **Room to grow.** The collector covers 66 publications in about 200 of its 240 seconds, and the database is 63% of the free 30 MB.
   - Towns now drop out of collection after 30 days without a reader, and crawlers never add one, so this should stay flat.
+  - Towns opened before November 4 stay collected until December 4, then follow the 30-day rule.
   - Recheck if the town pages bring real traffic.
 
 ## Known, leave for now
