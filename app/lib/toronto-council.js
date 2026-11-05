@@ -16,6 +16,8 @@
    hearings, dog-bite tribunals, bid awards, staff appraisals) are left out:
    they are public, but they are not what a resident means by "council". */
 
+import { notOverYet, torontoClock, withoutRepeats } from "./meetings";
+
 const BASE = "https://secure.toronto.ca/council";
 export const TORONTO_PORTAL = `${BASE}/`;
 
@@ -103,7 +105,7 @@ function clock(t) {
   return { h, min: Number(m[2]) };
 }
 
-async function fromOpenData({ daysAhead, max }) {
+async function fromOpenData({ daysAhead }) {
   const resources = await termResources();
   if (!resources.length) throw new Error("no schedule resource on the Open Data portal");
   const day = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -120,12 +122,13 @@ async function fromOpenData({ daysAhead, max }) {
     .filter((r) => r.name && r.date >= today && r.date <= last && !SKIP.test(r.name))
     .filter((r) => { const k = `${r.name}|${r.date}`; return seen.has(k) ? false : seen.add(k); })
     .sort((a, b) => a.date.localeCompare(b.date) || ((a.time?.h ?? 0) * 60 + (a.time?.min ?? 0)) - ((b.time?.h ?? 0) * 60 + (b.time?.min ?? 0)))
-    .slice(0, max)
     .map((r) => {
       const [y, mo, d] = r.date.split("-").map(Number);
       const dayName = new Date(Date.UTC(y, mo - 1, d, 12)).toLocaleDateString("en-CA", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric" });
       const t = r.time ? new Date(Date.UTC(2000, 0, 1, r.time.h, r.time.min)).toLocaleTimeString("en-CA", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }) : null;
+      const hm = r.time ? `${String(r.time.h).padStart(2, "0")}:${String(r.time.min).padStart(2, "0")}` : null;
       return {
+        localStart: hm ? `${r.date} ${hm}` : r.date,
         name: r.name,
         when: t ? `${dayName} @ ${t}` : dayName,
         start: `${r.date}T${r.time ? String(r.time.h).padStart(2, "0") + ":" + String(r.time.min).padStart(2, "0") : "00:00"}`,
@@ -139,11 +142,16 @@ async function fromOpenData({ daysAhead, max }) {
 }
 
 export async function torontoMeetings({ daysAhead = 21, max = 6 } = {}) {
-  if (memo && Date.now() - memo.at < MEMO_MS) return memo.value;
+  // The list is kept for an hour, so what has already happened is left out
+  // each time it's served, not only when it's read (see notOverYet)
+  const serve = (list) => withoutRepeats(list.filter((m) => notOverYet(m.localStart)))
+    .slice(0, max)
+    .map(({ localStart, ...m }) => m);
+  if (memo && Date.now() - memo.at < MEMO_MS) return serve(memo.value);
   try {
-    const value = await fromOpenData({ daysAhead, max });
+    const value = await fromOpenData({ daysAhead });
     memo = { at: Date.now(), value };
-    return value;
+    return serve(value);
   } catch (err) {
     console.warn("[debrief.to] Toronto Open Data schedule failed, trying TMMIS:", err?.message);
   }
@@ -163,12 +171,14 @@ export async function torontoMeetings({ daysAhead = 21, max = 6 } = {}) {
     .filter((m) => !/CANC/i.test(m.mtgStatusCd || ""))
     .filter((m) => (seen.has(m.meetingId) ? false : seen.add(m.meetingId)))
     .sort((a, b) => a.meetingDate - b.meetingDate || (a.body.tier || 9) - (b.body.tier || 9))
-    .slice(0, max)
     .map((m) => {
       const page = `${BASE}/#/committees/${m.decisionBodyId}/${m.meetingId}`;
       // Until the agenda is published the meeting is only "scheduled".
       const agendaOut = !/^SCHED|^SCHDL/i.test(m.mtgStatusCd || "");
+      // TMMIS often records only the date, as midnight: then it's all that day
+      const at = torontoClock(m.meetingDate);
       return {
+        localStart: at.endsWith(" 00:00") ? at.slice(0, 10) : at,
         name: (m.body.decisionBodyName || "").trim(),
         when: when(m.meetingDate),
         start: new Date(m.meetingDate).toISOString(),
@@ -178,5 +188,5 @@ export async function torontoMeetings({ daysAhead = 21, max = 6 } = {}) {
       };
     });
   memo = { at: Date.now(), value: meetings };
-  return meetings;
+  return serve(meetings);
 }

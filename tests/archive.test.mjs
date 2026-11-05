@@ -16,7 +16,7 @@ async function redis() {
 after(async () => {
   if (skip) return;
   const r = await redis();
-  await r.zRem("archive:active", ["test-new", "test-lapsed", "test-recent"]);
+  await r.zRem("archive:active", ["test-new", "test-lapsed", "test-recent", "test-old"]);
   await r.quit();
   setTimeout(() => process.exit(0), 50).unref();   // the site's own connection stays open
 });
@@ -28,14 +28,23 @@ test("a town opened for the first time is collected from then on", { skip }, asy
 });
 
 test(`a town nobody has read for ${ACTIVE_DAYS} days drops out, and a reader brings it back`, { skip }, async () => {
+  // After the grace period for towns opened before the change (see archive.js)
+  const later = Date.parse("2026-12-20T12:00:00Z");
   const r = await redis();
   await r.zAdd("archive:active", [
-    { score: Date.now() - (ACTIVE_DAYS + 1) * DAY, value: "test-lapsed" },
-    { score: Date.now() - 2 * DAY, value: "test-recent" },
+    { score: later - (ACTIVE_DAYS + 1) * DAY, value: "test-lapsed" },
+    { score: later - 2 * DAY, value: "test-recent" },
   ]);
-  const before = await activeTowns();
+  const before = await activeTowns(later);
   assert.ok(!before.includes("test-lapsed"), "a lapsed town is still collected");
   assert.ok(before.includes("test-recent"), "a recently read town was dropped");
-  assert.equal(await activateTown("test-lapsed"), true, "a lapsed town's reader should get its news fetched at once");
-  assert.ok((await activeTowns()).includes("test-lapsed"));
+  assert.equal(await activateTown("test-lapsed", later), true, "a lapsed town's reader should get its news fetched at once");
+  assert.ok((await activeTowns(later)).includes("test-lapsed"));
+});
+
+test("towns opened before the change keep 30 days from it", { skip }, async () => {
+  const r = await redis();
+  await r.zAdd("archive:active", [{ score: Date.parse("2026-10-01T12:00:00Z"), value: "test-old" }]);
+  assert.ok((await activeTowns(Date.parse("2026-11-05T18:00:00Z"))).includes("test-old"), "dropped before its 30 days");
+  assert.ok(!(await activeTowns(Date.parse("2026-12-05T18:00:00Z"))).includes("test-old"), "still collected after them");
 });

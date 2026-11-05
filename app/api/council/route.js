@@ -1,6 +1,7 @@
 import { resolveTown } from "../../lib/towns";
 import { councilPortal } from "../../lib/councils";
 import { torontoMeetings, TORONTO_PORTAL } from "../../lib/toronto-council";
+import { notOverYet, withoutRepeats } from "../../lib/meetings";
 
 /* ---- Coming up at council ----
    The next few weeks of meetings for the reader's own municipality, with a
@@ -26,16 +27,6 @@ export const dynamic = "force-dynamic";
 const CDN_CACHE = "public, s-maxage=3600, stale-while-revalidate=7200";
 const DAYS_AHEAD = 21;
 const MAX_MEETINGS = 6;
-
-// eSCRIBE gives local Toronto-time strings ("2026/09/22 16:00:06") with no
-// zone, so compare them against "now" written the same way.
-function torontoNow() {
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Toronto", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  }).formatToParts(new Date()).map((x) => [x.type, x.value]));
-  return `${p.year}/${p.month}/${p.day} ${p.hour === "24" ? "00" : p.hour}:${p.minute}:${p.second}`;
-}
 
 const ymd = (d) => d.toISOString().slice(0, 10);
 
@@ -90,13 +81,13 @@ export async function GET(request) {
     if (!res.ok) throw new Error(`Status code ${res.status}`);
     const data = await res.json();
     const list = Array.isArray(data?.d) ? data.d : [];
-    const now = torontoNow();
+    // eSCRIBE gives Toronto-time strings ("2026/09/22 16:00:06") with no zone
+    const localStart = (m) => String(m.StartDate || "").slice(0, 16).replace(/\//g, "-");
 
-    const meetings = list
-      .filter((m) => m.StartDate && m.StartDate >= now.slice(0, 10) + " 00:00:00")   // today onward
+    const meetings = withoutRepeats(list
+      .filter((m) => m.StartDate && notOverYet(localStart(m)))
       .filter((m) => !/cancel/i.test(`${m.MeetingName} ${m.Location} ${m.Description}`))
       .sort((a, b) => a.StartDate.localeCompare(b.StartDate))
-      .slice(0, MAX_MEETINGS)
       .map((m) => ({
         name: clean(m.MeetingName),
         when: clean(m.FormattedStart),          // "Tuesday, September 22, 2026 @ 4:00 PM"
@@ -104,7 +95,8 @@ export async function GET(request) {
         where: clean(m.Location),
         agenda: m.HasAgenda ? agendaLink(base, m) : null,
         page: m.Url || base,
-      }));
+      })))
+      .slice(0, MAX_MEETINGS);
 
     return Response.json({ town: town.townName, available: true, portal: base, meetings, checkedAt: new Date().toISOString() },
       { headers: { "Cache-Control": "public, max-age=0", "Vercel-CDN-Cache-Control": CDN_CACHE } });
