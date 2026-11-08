@@ -212,6 +212,30 @@ export function clusterStories(articles) {
     }
   }
 
+  /* Identical headlines from different newsrooms, within 48 hours, are one
+     story whatever words they use: a Canadian Press story carried word for
+     word ("Ontario to allow over-the-counter hearing aids for sale in the
+     province", in CBC and TorontoToday), or one Village Media feature on
+     several of its sites ("Is this the end of math as we know it?"). Neither
+     names anyone, so the rules above can't see it. Headlines under five
+     words ("Letters to the editor") are too generic to go on alone. */
+  const byHeadline = new Map();
+  for (let i = 0; i < articles.length; i++) {
+    if (!Number.isFinite(times[i])) continue;
+    const words = String(articles[i].title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (words.split(" ").length < 5) continue;
+    if (!byHeadline.has(words)) byHeadline.set(words, []);
+    byHeadline.get(words).push(i);
+  }
+  for (const same of byHeadline.values()) {
+    for (let a = 0; a < same.length; a++) {
+      for (let b = a + 1; b < same.length; b++) {
+        const i = same[a], j = same[b];
+        if (articles[i].source !== articles[j].source && Math.abs(times[i] - times[j]) <= FORTY_EIGHT_HOURS) union(i, j);
+      }
+    }
+  }
+
   // Gather the clusters
   const groups = new Map();
   for (let i = 0; i < articles.length; i++) {

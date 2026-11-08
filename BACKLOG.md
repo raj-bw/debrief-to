@@ -1,7 +1,7 @@
 # Backlog
 
 Agreed with Raj, not started yet. Take an item off when it's done.
-Last updated November 4, 2026.
+Last updated November 8, 2026.
 
 ## Waiting on Raj (about 10 minutes each)
 
@@ -27,6 +27,7 @@ Last updated November 4, 2026.
    - It has refused connections ("socket hang up") since October 16, on both addresses.
    - Its stored stories expire around November 18.
    - Draft Raj a short email to the paper if it's still down.
+6. **Split each collector run in two** if runs keep hitting the time limit (see Watching).
 
 ## Editor's Picks suggested on November 4 (not added)
 
@@ -44,16 +45,17 @@ All free to read. Picks stay at the top for 90 days from publication.
 
 ## Watching
 
-- **Metroland/Torstar papers turned away with "too many requests"** (429), from Vercel and from GitHub's network alike:
-  - Brampton Guardian, since November 2.
-  - Peterborough Examiner, since November 3.
-  - InsideOttawaValley, InsideHalton and Orangeville.com, since the afternoon of November 3.
+- **Metroland/Torstar papers turned away with "too many requests"** (429), from Vercel and from GitHub's network alike.
+  - Twelve were refused at once between November 2 and 5; all came back by November 7.
+  - On November 8, Peterborough Examiner was refused again (since November 7).
   - We ask each paper once per run, slowly, so this is their limit and not to be worked around.
   - The nightly stats report lists them.
-- **Room to grow.** The collector covers 66 publications in about 200 of its 240 seconds, and the database is 63% of the free 30 MB.
-  - Towns now drop out of collection after 30 days without a reader, and crawlers never add one, so this should stay flat.
-  - Towns opened before November 4 stay collected until December 4, then follow the 30-day rule.
-  - Recheck if the town pages bring real traffic.
+- **The collector's time limit.** With 52 towns (85 publications) a run takes about 240 of its 240 seconds. Some runs leave 2 or 3 publications unvisited.
+  - Each run starts at a different place, so nothing is missed every time.
+  - Towns opened before November 4 stay collected until December 4, then follow the 30-day rule. That should bring it back under the limit.
+  - If not, split each run in two (Website work, item 6).
+- **Database space.** 65% of the free 30 MB on November 8, growing about half a point a day. At 85% the oldest days start being trimmed early, around mid-December at this pace. December 4 should slow it.
+- **Village Media features.** Some appear on several Village Media sites at once (the same article number on TorontoToday and Newmarket Today), filed under local news. They now show once, as one card. Ask Raj whether they belong in a town's local news at all.
 
 ## Known, leave for now
 
