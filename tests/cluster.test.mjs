@@ -66,3 +66,28 @@ test("a newsroom's weekly repeat of a headline shows once, the newest", () => {
   assert.equal(out.filter((a) => a.source === "CBC Toronto").length, 1, "another newsroom's copy is left to clusterStories");
   assert.equal(out.filter((a) => !a.title).length, 2, "stories without a headline aren't folded together");
 });
+
+test("the same headline from two newsrooms is one card, even with no name in it", () => {
+  const out = clusterStories([
+    story("TorontoToday", "Is this the end of math as we know it?", 3),
+    story("Newmarket Today", "Is this the end of math as we know it?", 3, "home"),
+    story("CBC Toronto", "Ontario to allow over-the-counter hearing aids for sale in the province", 2),
+    story("TorontoToday", "Ontario to allow over-the-counter hearing aids for sale in the province", 9),
+    ...filler(),
+  ]);
+  const math = out.filter((a) => /end of math/.test(a.title));
+  assert.equal(math.length, 1);
+  assert.equal(math[0].source, "Newmarket Today", "the town's own newsroom leads");
+  assert.equal(out.filter((a) => /hearing aids/.test(a.title)).length, 1);
+});
+
+test("short or distant identical headlines stay apart", () => {
+  const out = clusterStories([
+    story("CBC Toronto", "things to do today", 1),
+    story("Toronto Star", "things to do today", 2),
+    story("The Trillium", "Province announces new funding for long-term care homes", 1),
+    story("CBC Toronto", "Province announces new funding for long-term care homes", 80),
+    ...filler(),
+  ]);
+  assert.equal(out.filter((a) => a.alsoCoveredBy).length, 0);
+});
