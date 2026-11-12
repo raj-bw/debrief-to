@@ -2,7 +2,7 @@ import { SOURCES } from "../../lib/sources";
 import { publisherFeeds } from "../../lib/towns";
 // The same door the live feed uses, so a green light here means readers get it.
 import { fetchItems, lineOf } from "../../lib/fetch-feed";
-import { archiveStats, takeTurn } from "../../lib/archive";
+import { archiveStats, takeTurn, getState, setState } from "../../lib/archive";
 import { republishedFrom } from "../../lib/republished";
 import { buildArticles } from "../../lib/articles";
 
@@ -76,6 +76,17 @@ export async function GET(request) {
   const all = searchParams.get("scope") === "standing"
     ? SOURCES
     : publisherFeeds(wantTowns ? "town" : "region");
+  /* ?last=1 hands back the last full feed check, which is also saved. A
+     check of thirty feeds with Metroland's papers among them takes a few
+     minutes (they're asked one at a time), longer than some tools wait, so
+     it can be started, left to finish, and read here afterwards. */
+  if (searchParams.get("last") === "1") {
+    const st = await getState();
+    let last = null;
+    try { last = JSON.parse(st.lastFeedCheck || "null"); } catch { last = null; }
+    return Response.json(last || { ok: false, error: "No feed check saved yet." }, { headers: { "Cache-Control": "no-store" } });
+  }
+
   /* ?sample=Be Giant shows what one newsroom's feed actually carries for
      its first stories: byline, categories, any credit line, and the
      "Republished from" label we'd give each. Read-only, one feed. */
@@ -155,7 +166,8 @@ export async function GET(request) {
      If lastCollectorRun is more than a day old, the schedules have stopped. */
   const archive = await archiveStats();
 
-  return Response.json({
+  const report = {
+    finishedAt: new Date().toISOString(),
     checked: searchParams.get("scope") === "standing" ? "standing sources" : wantTowns ? "town feeds" : "region feeds",
     summary: `${ok.length} of ${checked.length} answering${failed.length ? `, ${failed.length} failing` : ""}${empty.length ? `, ${empty.length} empty` : ""}${stale.length ? `, ${stale.length} stale` : ""}${notChecked.length ? `, ${notChecked.length} not checked (out of time)` : ""}`,
     page: { offset, limit: targets.length, of: all.length, next: offset + targets.length < all.length ? offset + targets.length : null },
@@ -166,5 +178,7 @@ export async function GET(request) {
     stale: stale.map((r) => ({ name: r.name, daysSinceNewest: r.daysSinceNewest })),
     answering: ok.map((r) => ({ name: r.name, items: r.items, kept: r.kept, daysSinceNewest: r.daysSinceNewest, keptDaysSinceNewest: r.keptDaysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}) })),
     archive,
-  }, { headers: { "Cache-Control": "no-store" } });
+  };
+  if (targets.length) await setState({ lastFeedCheck: { ...report, archive: undefined } }).catch(() => {});
+  return Response.json(report, { headers: { "Cache-Control": "no-store" } });
 }
