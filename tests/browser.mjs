@@ -176,6 +176,17 @@ async function run({ name, width, height, phone }) {
     if (!/landfills-test-story/.test(await other.getAttribute("href"))) return `links to ${await other.getAttribute("href")}`;
   });
 
+  await check("a republished story says where it came from and links to the original", async () => {
+    await page.evaluate(() => localStorage.setItem("cp_timeFilter", "This Month"));
+    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    const label = page.getByRole("link", { name: "Republished from Be Giant" });
+    await label.first().waitFor({ timeout: 15000 });
+    if ((await label.count()) !== 1) return `${await label.count()} labels`;
+    if ((await label.getAttribute("href")) !== "https://www.begiant.ca/stories/water-bomber-test-story") return `links to ${await label.getAttribute("href")}`;
+    const cards = page.locator('h3:has-text("made-up water bomber")');
+    if ((await cards.count()) !== 1) return `${await cards.count()} cards for one story`;
+  });
+
   await check("a town's page opens on that town, under its own title and address", async () => {
     await page.goto(BASE + "/newmarket", { waitUntil: "load" });
     if (!/^Newmarket news/.test(await page.title())) return `title "${await page.title()}"`;

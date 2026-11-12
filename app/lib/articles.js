@@ -7,6 +7,7 @@
 
 import { isPaywalled, shouldSkip, isOpinion } from "./filters";
 import { topicsFor } from "./topics";
+import { republishedFrom } from "./republished";
 
 export function stripHtml(html) {
   if (!html) return "";
@@ -63,6 +64,9 @@ export function buildArticles(src, items, { limit = 40, undatedAs } = {}) {
       paywall: isPaywalled(src, item.link || ""),
       image: extractImage(item),
     };
+    // Another newsroom's story, carried under this one's name
+    const from = republishedFrom(src, item);
+    if (from) base.republishedFrom = from;
     if (!base.link || !base.title) continue;
     if (shouldSkip(src, base)) continue;
     articles.push({

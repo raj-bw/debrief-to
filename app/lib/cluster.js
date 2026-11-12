@@ -218,7 +218,15 @@ export function clusterStories(articles) {
      province", in CBC and TorontoToday), or one Village Media feature on
      several of its sites ("Is this the end of math as we know it?"). Neither
      names anyone, so the rules above can't see it. Headlines under five
-     words ("Letters to the editor") are too generic to go on alone. */
+     words ("Letters to the editor") are too generic to go on alone.
+
+     Further apart than 48 hours, an identical headline can be one newsroom
+     republishing another's story days later (Village Media's sites carry Be
+     Giant's features a week or more after Be Giant runs them), but it can
+     also be a new announcement under a stock headline ("Province announces
+     new funding for long-term care homes"). So the summary must match too:
+     then it's one card, and the later copy is marked as republished from the
+     first. */
   const byHeadline = new Map();
   for (let i = 0; i < articles.length; i++) {
     if (!Number.isFinite(times[i])) continue;
@@ -227,11 +235,19 @@ export function clusterStories(articles) {
     if (!byHeadline.has(words)) byHeadline.set(words, []);
     byHeadline.get(words).push(i);
   }
+  const copyOf = new Map();    // index of a later copy -> index of the first
   for (const same of byHeadline.values()) {
     for (let a = 0; a < same.length; a++) {
       for (let b = a + 1; b < same.length; b++) {
         const i = same[a], j = same[b];
-        if (articles[i].source !== articles[j].source && Math.abs(times[i] - times[j]) <= FORTY_EIGHT_HOURS) union(i, j);
+        if (articles[i].source === articles[j].source) continue;
+        if (Math.abs(times[i] - times[j]) <= FORTY_EIGHT_HOURS) { union(i, j); continue; }
+        if (sameSummary(articles[i], articles[j])) {
+          union(i, j);
+          const [first, later] = times[i] <= times[j] ? [i, j] : [j, i];
+          const known = copyOf.get(later);
+          if (known === undefined || times[first] < times[known]) copyOf.set(later, first);
+        }
       }
     }
   }
@@ -263,17 +279,34 @@ export function clusterStories(articles) {
     if (emitted.has(winner)) continue;
     emitted.add(winner);
     const members = groups.get(find(i)) || [i];
+    /* A republished story names where it came from, and links to the
+       original when that is in view; the original isn't then listed as
+       having "also covered" its own story. */
+    const card = { ...articles[winner] };
+    if (!card.republishedFrom && copyOf.has(winner)) card.republishedFrom = articles[copyOf.get(winner)].source;
+    if (card.republishedFrom) {
+      const original = members.find((m) => articles[m].source === card.republishedFrom);
+      if (original !== undefined) card.republishedLink = articles[original].link;
+    }
     // One mention per newsroom: its name, and a link to its version
     const also = [];
     for (const m of members) {
       if (m === winner || also.some((x) => x.source === articles[m].source)) continue;
+      if (articles[m].source === card.republishedFrom || articles[m].source === card.source) continue;
       also.push({ source: articles[m].source, link: articles[m].link });
     }
-    out.push(also.length
-      ? { ...articles[winner], alsoCoveredBy: also.map((x) => x.source), alsoLinks: also }
-      : articles[winner]);
+    if (also.length) { card.alsoCoveredBy = also.map((x) => x.source); card.alsoLinks = also; }
+    out.push(card.republishedFrom || also.length ? card : articles[winner]);
   }
   return out;
+}
+
+// Two summaries that are the same text (one may be cut shorter than the other)
+function sameSummary(a, b) {
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const x = norm(a.description), y = norm(b.description);
+  const n = Math.min(x.length, y.length, 120);
+  return n >= 40 && x.slice(0, n) === y.slice(0, n);
 }
 
 /* One newsroom, one headline. Some posts recur under the same headline: the
