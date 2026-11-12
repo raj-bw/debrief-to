@@ -23,6 +23,11 @@ const STANDING = [
   { name: "IJF",             urls: ["https://theijf.org/rss.xml", "https://theijf.org/feed", "https://theijf.org/rss"], color: "#8B5E00", place: "Canada" },
   { name: "Ricochet",        urls: ["https://ricochet.media/feed/", "https://ricochet.media/en/feed"], color: "#B3261E", place: "Canada" },
   { name: "The Maple",       urls: ["https://www.readthemaple.com/rss/", "https://readthemaple.com/rss/"], color: "#A8324A", place: "Canada" },
+  /* Be Giant: a non-profit newsroom funded entirely by the Weston family
+     (Wittington Investments), added in Nov 2026 "for now". The About page
+     says who funds it. Its features also reach readers through Village
+     Media's local sites, which the "Republished from" label points out. */
+  { name: "Be Giant",        urls: ["https://www.begiant.ca/feed.xml"], color: "#9C2F6B", place: "Canada" },
   // Canadaland was removed in Oct 2026: no new story on its feed in 105 days.
   /* The Walrus serves its RSS to browsers and refuses servers (403 from
      Vercel on every attempt, though the same feed opens normally at home).

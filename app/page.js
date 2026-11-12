@@ -14,6 +14,8 @@ import { TORONTO_PORTAL } from "./lib/toronto-council";
                   an owner. Includes registered non-profits and charities.
      public     — funded by government (in practice, the CBC).
      commercial — privately owned and advertising- or subscriber-funded.
+     private    — a non-profit paid for by one private donor (Be Giant: the
+                  Weston family). `note` says who, beside its name.
    Kept coarse on purpose. Anything finer than this we could not state
    accurately for fifteen organisations, and each one publishes its own
    funding on its own site — which is where the links go. */
@@ -32,9 +34,10 @@ const PUBLISHERS = [
   { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "Canada", funding: "reader" },
   { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "Canada", funding: "reader" },
   { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader" },
+  { name: "Be Giant", color: "#9C2F6B", url: "https://www.begiant.ca", place: "Canada", funding: "private", owner: "Weston family (Wittington Investments)", note: "funded by the Weston family" },
 ];
 
-const FUNDING_LABEL = { reader: "Reader-funded", public: "Publicly funded", commercial: "Commercially owned" };
+const FUNDING_LABEL = { reader: "Reader-funded", public: "Publicly funded", commercial: "Commercially owned", private: "Funded by one private donor" };
 
 /* Two kinds of filter, shown as two rows in the Sources panel: WHERE the news
    is from, and WHAT it covers.
@@ -562,6 +565,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <span key={n.name} style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
           <a href={n.url} target="_blank" rel="noopener" style={{ color: c.body, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>{n.label || n.name}</a>
           {n.paywall && <Sub />}
+          {n.note && <span style={{ marginLeft: 6, fontSize: 13, color: c.muted }}>({n.note})</span>}
         </span>
       ))}
     </div>
@@ -697,6 +701,11 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
             <li style={{ marginBottom: 6 }}><Strong>Subscription</Strong> marks stories the publisher lists as subscriber-only.</li>
             <li style={{ marginBottom: 6 }}><Strong>Opinion</Strong> marks commentary.</li>
+            <li style={{ marginBottom: 6 }}>
+              <Strong>Republished from</Strong> marks a story one newsroom carries from another, such as a Be Giant
+              feature on a Village Media local site. It names the newsroom that wrote it and links to the original
+              when we have it.
+            </li>
             <li>
               <Strong>Also covered by</Strong> appears when several newsrooms report the same story. The story is shown
               once, from the most local newsroom; where two are equally local, from the one that published first. The
@@ -1660,6 +1669,13 @@ export default function Home({ pageTown = null } = {}) {
                           Opinion
                         </span>
                       )}
+                      {article.republishedFrom && (() => {
+                        const style = { marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#C9C3BA" : "#5F5A54", background: dm ? "#2A2826" : "#F2F0EC", border: `1px solid ${dm ? "#45413C" : "#DEDAD3"}`, textDecoration: "none" };
+                        const text = `Republished from ${article.republishedFrom}`;
+                        return article.republishedLink
+                          ? <a href={article.republishedLink} target="_blank" rel="noopener" title={`Written by ${article.republishedFrom}. Open the original`} style={style}>{text}</a>
+                          : <span title={`Written by ${article.republishedFrom}, carried by ${article.source}`} style={style}>{text}</span>;
+                      })()}
                       {article.paywall && (
                         <span title="This article needs a subscription" style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#E0B978" : "#8A5A12", background: dm ? "#3A2E1C" : "#F6ECD9", border: `1px solid ${dm ? "#5A4526" : "#E8D5B0"}` }}>
                           Subscription

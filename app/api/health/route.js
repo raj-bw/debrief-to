@@ -3,6 +3,7 @@ import { publisherFeeds } from "../../lib/towns";
 // The same door the live feed uses, so a green light here means readers get it.
 import { fetchItems, lineOf } from "../../lib/fetch-feed";
 import { archiveStats, takeTurn } from "../../lib/archive";
+import { republishedFrom } from "../../lib/republished";
 
 /* ---- Is everything still answering? ----
    Feeds break quietly. A newsroom redesigns its site, a feed URL moves, a
@@ -64,6 +65,41 @@ export async function GET(request) {
   const all = searchParams.get("scope") === "standing"
     ? SOURCES
     : publisherFeeds(wantTowns ? "town" : "region");
+  /* ?sample=Be Giant shows what one newsroom's feed actually carries for
+     its first stories: byline, categories, any credit line, and the
+     "Republished from" label we'd give each. Read-only, one feed. */
+  const sample = (searchParams.get("sample") || "").trim().toLowerCase();
+  if (sample) {
+    const feed = [...SOURCES, ...publisherFeeds()].find((f) => f.name.toLowerCase().includes(sample));
+    if (!feed) return Response.json({ ok: false, error: "No newsroom by that name." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+    const secret = process.env.CRON_SECRET;
+    const trusted = secret && request.headers.get("authorization") === `Bearer ${secret}`;
+    if (!trusted && !(await takeTurn("health", HEALTH_GAP_MS))) {
+      return Response.json({ ok: false, error: "A feed check ran in the last two minutes. Try again shortly." },
+        { status: 429, headers: { "Retry-After": String(HEALTH_GAP_MS / 1000), "Cache-Control": "no-store" } });
+    }
+    const plain = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    try {
+      const { items, url } = await fetchItems(feed, { fresh: true, patient: true });
+      const src = { ...feed, name: feed.name.replace(/^.*\((.*)\)$/, "$1") };
+      return Response.json({
+        name: feed.name, url, items: items.length,
+        first: items.slice(0, Number(searchParams.get("n") || 6)).map((it) => {
+          const text = plain(it.contentEncoded || it.content || it.description);
+          return {
+            title: it.title, link: it.link, date: it.isoDate || it.pubDate || null,
+            creator: it.creator || null, author: it.author || null, categories: it.categories || [],
+            republishedFrom: republishedFrom(src, it),
+            credits: [...text.matchAll(/[^.]{0,80}\b(originally|republished|first (?:published|appeared)|courtesy of|be giant)\b[^.]{0,80}/gi)].map((m) => m[0].trim()).slice(0, 3),
+            textEnd: text.slice(-200),
+          };
+        }),
+      }, { headers: { "Cache-Control": "no-store" } });
+    } catch (err) {
+      return Response.json({ name: feed.name, ok: false, error: err?.message || "failed" }, { headers: { "Cache-Control": "no-store" } });
+    }
+  }
+
   const offset = Number(searchParams.get("offset") || 0);
   const limit = Number(searchParams.get("limit") || all.length);
   const targets = all.slice(offset, offset + limit);

@@ -1,10 +1,11 @@
 import { fetcherForRun, lineOf, isBloxUrl } from "../../lib/fetch-feed";
 import { buildArticles } from "../../lib/articles";
+import { originalsIndex, markCopies } from "../../lib/cluster";
 import { buildJobs } from "../../lib/collect-jobs";
 import {
   archiveEnabled, archiveBackend, storeArticles,
   trimAll, makeRoom, getState, setState, torontoDay, RETENTION_DAYS,
-  newestDate, recordFeedAnswers, shelfNewest,
+  newestDate, recordFeedAnswers, shelfNewest, readArticles,
 } from "../../lib/archive";
 
 /* ---- The collector ----
@@ -37,10 +38,12 @@ const CONCURRENCY = 6;
 const MIN_GAP_WITHOUT_SECRET_MS = 20 * 60 * 1000;
 
 
-async function collectOne(job, fetchOnce) {
+async function collectOne(job, fetchOnce, originals) {
   try {
     const got = await fetchOnce(job.src);
     const articles = buildArticles(job.src, got.items, { limit: 60 });
+    // A town paper's copy of a standing newsroom's story (see markCopies)
+    if (job.bucket !== "shared") markCopies(articles, await originals);
     const { added } = await storeArticles(job.bucket, job.src.name, articles);
     // A paper sharing a feed may have none of its stories in this run; its
     // newest is then the newest already on its shelf.
@@ -100,13 +103,16 @@ export async function GET(request) {
   const results = [];
   const notReached = [];
   const fetchOnce = fetcherForRun();
+  // The standing newsrooms' last month, once per run, to recognise copies by
+  const originals = readArticles(["shared"], Date.now() - RETENTION_DAYS * 86400000, 6000)
+    .then((r) => originalsIndex(r.articles)).catch(() => null);
 
   // Most publishers: a few at a time.
   const queue = jobs.filter((j) => !lineOf(j.src));
   const worker = async () => {
     while (queue.length) {
       if (Date.now() - started > BUDGET_MS) { notReached.push(...queue.splice(0)); return; }
-      results.push(await collectOne(queue.shift(), fetchOnce));
+      results.push(await collectOne(queue.shift(), fetchOnce, originals));
     }
   };
   // Metroland/Torstar's papers, and the papers read through a WordPress API
@@ -116,7 +122,7 @@ export async function GET(request) {
   const lane = (name) => (async () => {
     for (const j of jobs.filter((x) => lineOf(x.src) === name)) {
       if (Date.now() - started > BUDGET_MS) { notReached.push(j); continue; }
-      results.push(await collectOne(j, fetchOnce));
+      results.push(await collectOne(j, fetchOnce, originals));
     }
   })();
   await Promise.all([...Array.from({ length: CONCURRENCY }, worker), lane("blox"), lane("wordpress")]);

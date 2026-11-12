@@ -205,6 +205,8 @@ function slim(a) {
     tv: TOPIC_RULES_VERSION,          // which version of the topic rules tagged it
     paywall: a.paywall || undefined,
     opinion: a.opinion || undefined,
+    republishedFrom: a.republishedFrom || undefined,
+    republishedLink: a.republishedLink || undefined,
     image: a.image || undefined,
   });
 }
