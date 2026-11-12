@@ -2,7 +2,7 @@
    real headlines from October 2026, the ones that taught the rules. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clusterStories, newestPerHeadline } from "../app/lib/cluster.js";
+import { clusterStories, newestPerHeadline, originalsIndex, markCopies } from "../app/lib/cluster.js";
 
 let n = 0;
 const story = (source, title, hoursAgo = 1, sourcePlace = "Toronto") => ({
@@ -104,4 +104,19 @@ test("a story carried word for word days later is one card, marked as republishe
   assert.ok(!out.some((a) => a.source === "Be Giant"), "the original is folded into the card");
   assert.ok(!(card.alsoCoveredBy || []).includes("Be Giant"), "the original isn't listed as also covering it");
   assert.ok(out.some((a) => a.source === "CBC Toronto"), "a different summary stays its own card");
+});
+
+test("the collector files a town paper's copy of a standing newsroom's story already labelled", () => {
+  const dek = "Hyperlocal, in-person debates are sprouting up in churches and town halls across the city";
+  const title = "A not-so-secret Toronto society is trying to get people off their phones";
+  const index = originalsIndex([{ ...story("Be Giant", title, 24 * 6, "Canada"), description: dek }]);
+  const [copy, sameDay, other] = markCopies([
+    { ...story("Newmarket Today", title, 2, "home"), description: dek },
+    { ...story("Aurora Today", title, 24 * 6 - 5, "home"), description: dek },
+    { ...story("Barrie Today", title, 2, "home"), description: "Something else under the same headline, about a different society" },
+  ], index);
+  assert.equal(copy.republishedFrom, "Be Giant");
+  assert.match(copy.republishedLink, /^https:\/\/example\.test\//);
+  assert.equal(sameDay.republishedFrom, undefined, "within 48 hours it's left to clusterStories");
+  assert.equal(other.republishedFrom, undefined, "a different summary isn't a copy");
 });

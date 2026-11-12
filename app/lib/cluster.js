@@ -230,8 +230,8 @@ export function clusterStories(articles) {
   const byHeadline = new Map();
   for (let i = 0; i < articles.length; i++) {
     if (!Number.isFinite(times[i])) continue;
-    const words = String(articles[i].title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    if (words.split(" ").length < 5) continue;
+    const words = headlineKey(articles[i].title);
+    if (!words) continue;
     if (!byHeadline.has(words)) byHeadline.set(words, []);
     byHeadline.get(words).push(i);
   }
@@ -299,6 +299,47 @@ export function clusterStories(articles) {
     out.push(card.republishedFrom || also.length ? card : articles[winner]);
   }
   return out;
+}
+
+// A headline as a matching key: lower case, letters and digits. Under five
+// words ("Letters to the editor") it's too generic to match on: null.
+export function headlineKey(title) {
+  const words = String(title || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return words && words.split(" ").length >= 5 ? words : null;
+}
+
+/* ---- Copies, found when they're filed ----
+   clusterStories only sees the stories in the reader's view, and in Today
+   that leaves out a Be Giant original from a week before. So the collector
+   also checks each new story against the Toronto, Ontario and Canada
+   newsrooms' last month: the same headline and summary, from another
+   newsroom, more than 48 hours earlier, and the copy is filed already
+   marked as republished, with a link to the original. */
+export function originalsIndex(articles) {
+  const index = new Map();
+  for (const a of articles || []) {
+    const key = headlineKey(a.title);
+    const t = new Date(a.pubDate).getTime();
+    if (!key || !Number.isFinite(t)) continue;
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push({ source: a.source, link: a.link, description: a.description, t });
+  }
+  return index;
+}
+
+export function markCopies(articles, index) {
+  if (!index?.size) return articles;
+  for (const a of articles || []) {
+    if (a.republishedFrom) continue;
+    const key = headlineKey(a.title);
+    const t = new Date(a.pubDate).getTime();
+    if (!key || !Number.isFinite(t) || !index.has(key)) continue;
+    const first = index.get(key)
+      .filter((o) => o.source !== a.source && o.t < t - FORTY_EIGHT_HOURS && sameSummary(o, a))
+      .sort((x, y) => x.t - y.t)[0];
+    if (first) { a.republishedFrom = first.source; a.republishedLink = first.link; }
+  }
+  return articles;
 }
 
 // Two summaries that are the same text (one may be cut shorter than the other)

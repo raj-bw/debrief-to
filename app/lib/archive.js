@@ -206,6 +206,7 @@ function slim(a) {
     paywall: a.paywall || undefined,
     opinion: a.opinion || undefined,
     republishedFrom: a.republishedFrom || undefined,
+    republishedLink: a.republishedLink || undefined,
     image: a.image || undefined,
   });
 }
