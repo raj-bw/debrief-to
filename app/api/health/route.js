@@ -4,6 +4,10 @@ import { publisherFeeds } from "../../lib/towns";
 import { fetchItems, lineOf } from "../../lib/fetch-feed";
 import { archiveStats, takeTurn } from "../../lib/archive";
 import { republishedFrom } from "../../lib/republished";
+import { buildArticles } from "../../lib/articles";
+
+// "Kingston (Kingstonist)" is Kingstonist, as far as the filters are concerned
+const asSource = (feed) => ({ ...feed, name: feed.name.replace(/^.*\((.*)\)$/, "$1") });
 
 /* ---- Is everything still answering? ----
    Feeds break quietly. A newsroom redesigns its site, a feed URL moves, a
@@ -34,8 +38,15 @@ async function check(feed) {
     const { items, url, via, filteredFrom, categoriesSeen } = await fetchItems(feed, { fresh: true, patient: true });
     const door = feed.fallback && url && !(feed.urls || []).includes(url) ? "api" : "rss";
     const newest = items[0]?.isoDate || items[0]?.pubDate || null;
+    /* What a reader would actually get: the stories left after our own
+       filters (wire copy, obituaries, sponsored posts...). A feed can answer
+       with 30 items and still give readers nothing. */
+    const kept = buildArticles(asSource(feed), items, { limit: 60 });
+    const keptNewest = kept.map((a) => a.pubDate).sort().pop() || null;
     return {
       name: feed.name, ok: true, url, items: items.length, newest, door,
+      kept: kept.length,
+      keptDaysSinceNewest: keptNewest ? Math.floor((Date.now() - new Date(keptNewest)) / 86400000) : null,
       // "honest" means the first attempt was refused and the plain-named
       // retry got through: the Cloudflare question, answered per feed.
       via,
@@ -81,7 +92,7 @@ export async function GET(request) {
     const plain = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     try {
       const { items, url } = await fetchItems(feed, { fresh: true, patient: true });
-      const src = { ...feed, name: feed.name.replace(/^.*\((.*)\)$/, "$1") };
+      const src = asSource(feed);
       return Response.json({
         name: feed.name, url, items: items.length,
         first: items.slice(0, Number(searchParams.get("n") || 6)).map((it) => {
@@ -153,7 +164,7 @@ export async function GET(request) {
     notChecked: notChecked.map((r) => r.name),
     empty: empty.map((r) => ({ name: r.name, url: r.url, filteredFrom: r.filteredFrom, categoriesSeen: r.categoriesSeen })),
     stale: stale.map((r) => ({ name: r.name, daysSinceNewest: r.daysSinceNewest })),
-    answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}) })),
+    answering: ok.map((r) => ({ name: r.name, items: r.items, kept: r.kept, daysSinceNewest: r.daysSinceNewest, keptDaysSinceNewest: r.keptDaysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}) })),
     archive,
   }, { headers: { "Cache-Control": "no-store" } });
 }
