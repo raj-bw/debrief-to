@@ -73,9 +73,15 @@ export async function GET(request) {
   // ?scope=standing checks the Toronto, Ontario and Canada newsrooms every
   // reader gets (and reports whether a publisher answered by RSS or by its
   // WordPress API — see The Walrus).
-  const all = searchParams.get("scope") === "standing"
+  /* ?skip=blox leaves out Metroland and Torstar's papers. They turn
+     Vercel away with "too many requests" when asked often, and every live
+     check spends the allowance the collector needs; the archive's own
+     record (feedWatch) says how they're doing instead. */
+  const skipBlox = searchParams.get("skip") === "blox";
+  const all = (searchParams.get("scope") === "standing"
     ? SOURCES
-    : publisherFeeds(wantTowns ? "town" : "region");
+    : publisherFeeds(wantTowns ? "town" : "region"))
+    .filter((f) => !skipBlox || lineOf(f) !== "blox");
   /* ?last=1 hands back the last full feed check, which is also saved. A
      check of thirty feeds with Metroland's papers among them takes a few
      minutes (they're asked one at a time), longer than some tools wait, so
