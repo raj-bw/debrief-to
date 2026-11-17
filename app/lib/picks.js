@@ -41,7 +41,6 @@ export const PICKS = [
     published: "2026-10-28T19:58:35Z",
     description: "Ontario's environment minister hopes to burn more garbage for energy and build more landfills as the province runs out of space to dump its trash.",
     image: "https://www.vmcdn.ca/f/files/shared/feeds/cp/2026/10/3f6d0fdb82d78f07c8e2a10a27594ed53f404dc5d2df237b12d037633738a0a6.jpg;w=960",
-    paywall: true,
   },
   {
     url: "https://thenarwhal.ca/canada-youth-climate-change-case/",

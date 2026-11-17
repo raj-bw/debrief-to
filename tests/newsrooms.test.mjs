@@ -8,6 +8,7 @@ import { PUBLISHERS } from "../app/lib/publishers.js";
 import { SOURCES } from "../app/lib/sources.js";
 import { NEWSROOM_REGION, HOMEPAGE_OVERRIDE, REGION_ORDER } from "../app/lib/regions.js";
 import { PICKS } from "../app/lib/picks.js";
+import { isPaywalled } from "../app/lib/filters.js";
 import { UNMATCHED_SERVES, townOptions, resolveTown, publisherFeeds, localNewsrooms, PLACE_COUNT } from "../app/lib/towns.js";
 
 const isHttps = (u) => { try { return new URL(u).protocol === "https:"; } catch { return false; } };
@@ -96,6 +97,16 @@ test("the About page's standing list matches the sources", () => {
   const block = page.slice(page.indexOf("const PUBLISHERS = ["), page.indexOf("];", page.indexOf("const PUBLISHERS = [")));
   const onAbout = [...block.matchAll(/name: "([^"]+)"/g)].map((m) => m[1]).sort();
   assert.deepEqual(onAbout, SOURCES.map((s) => s.name).sort());
+});
+
+test("an Editor's Pick's Subscription tag agrees with its newsroom's own rule", () => {
+  // The Trillium files free stories under /news/ and subscriber ones under
+  // /insider-news/; a pick tagged by hand once contradicted that.
+  for (const p of PICKS) {
+    const rule = isPaywalled({ name: p.source }, p.url);
+    if (rule) assert.equal(Boolean(p.paywall), true, `${p.url} is subscriber-only by ${p.source}'s rule`);
+    else if (["The Trillium", "Toronto Star"].includes(p.source)) assert.equal(Boolean(p.paywall), false, `${p.url} is free by ${p.source}'s rule`);
+  }
 });
 
 test("Editor's Picks are well formed", () => {
