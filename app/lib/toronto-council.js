@@ -141,6 +141,22 @@ async function fromOpenData({ daysAhead }) {
     });
 }
 
+/* What the Open Data portal is holding, for /api/council?town=toronto&check=1:
+   each term's resource, how many rows it has, and its latest dates. */
+export async function torontoSourceCheck() {
+  const pkg = await getJson(`${CKAN}/package_show?id=${PACKAGE}`);
+  const resources = pkg.result?.resources || [];
+  return Promise.all(resources.map(async (r) => {
+    let latest = null, sample = null;
+    if (r.datastore_active) {
+      const j = await getJson(`${CKAN}/datastore_search?resource_id=${r.id}&limit=5&sort=${encodeURIComponent("Date desc")}`).catch((e) => ({ error: e.message }));
+      latest = (j.result?.records || []).map((x) => `${x.Date} ${x["Start Time"] || ""} ${x.Committee || ""}`.trim());
+      sample = j.error || (j.result?.records?.[0] ? Object.keys(j.result.records[0]) : null);
+    }
+    return { name: r.name, datastore: Boolean(r.datastore_active), lastModified: r.last_modified, latest, fields: sample };
+  }));
+}
+
 export async function torontoMeetings({ daysAhead = 21, max = 6 } = {}) {
   // The list is kept for an hour, so what has already happened is left out
   // each time it's served, not only when it's read (see notOverYet)
