@@ -1,61 +1,39 @@
 # Backlog
 
 Agreed with Raj, not started yet. Take an item off when it's done.
-Last updated November 8, 2026.
+Last updated November 18, 2026.
 
-## Waiting on Raj (about 10 minutes each)
+## Waiting on Raj
 
-- **Google Search Console and Bing Webmaster Tools.** Raj is doing this.
+- **Google Search Console and Bing Webmaster Tools** (about 10 minutes each).
   - Google: add a Domain property for `debrief.to`, verified with a TXT record at Porkbun (blank host).
-  - Then submit `sitemap.xml`, which lists 413 pages.
+  - Then submit `sitemap.xml`, which lists 414 pages.
   - Bing: use "Import from Google Search Console".
-- **Truly hourly collection.** GitHub runs the hourly schedule only about four times a day, 4 to 10 hours apart.
-  - Fix: a free cron-job.org job every hour calls GitHub's `POST /repos/raj-bw/debrief-to/actions/workflows/archive-ping.yml/dispatches` with body `{"ref":"main"}`.
-  - It needs a fine-grained token with "Actions: read and write" on this repository only.
-  - The repository is public, so the extra runs cost nothing.
+- **Account security.** Two-factor login on Porkbun, GitHub, Vercel, the Redis host and the email behind them; auto-renew and Domain Lock on at Porkbun; a rule for `main` in GitHub (pull requests and passing checks required); Dependabot alerts on.
+- **The Walrus and The Napanee Beaver** are on the newsroom list but show nothing: The Walrus has refused us since October 6 (on purpose), the Napanee Beaver has been down since October 16 and its last stored stories expired November 18. Remove them, or keep them listed?
+- **The cron-job.org token** needs renewing by November 2, 2027 (GitHub → Settings → Developer settings → Fine-grained tokens), and paste the new one into the cron-job.org job's Authorization header.
+
+## Ready when Raj says go
+
+- **Test every town, 25 at a time.** A read-only check of what readers see in each of the 412 towns this week: stories, whether the tab falls back to the region, errors, the council box. On a preview copy, without signing towns up for collection or asking Metroland's papers directly. About 20 minutes to build, then 17 batches of 1 to 2 minutes.
 
 ## Website work, most useful first
 
 1. **Show the newest Editor's Pick in the main feed.** Picks are only behind the Editor's Picks button today. Small.
-2. **Put the latest headlines in the page itself, rendered on the server.** Today the front page and the 412 town pages arrive as loading placeholders, and stories load afterwards. With headlines in the HTML, Google sees real local news and phones show stories sooner. Medium; worth it once the sitemap is in Search Console.
+2. **Put the latest headlines in the page itself, rendered on the server.** The front page and town pages arrive as loading placeholders, and stories load afterwards. With headlines in the HTML, Google sees real local news and phones show stories sooner. Medium; worth it once the sitemap is in Search Console.
 3. **Sharing.**
    - A share button on stories and town pages that opens the phone's own share menu.
    - A preview image per town ("Kingston news — Debrief.TO") so shared links look local.
    - Almost all visitors type the address, so word of mouth is how the site grows. Small to medium.
-4. **A feed for each town for news reader apps** (`/kingston/feed.xml`). Parked by Raj: nice to have, not a priority.
-5. **The Napanee Beaver.**
-   - It has refused connections ("socket hang up") since October 16, on both addresses.
-   - Its stored stories expire around November 18.
-   - Draft Raj a short email to the paper if it's still down.
-6. **Split each collector run in two** if runs keep hitting the time limit (see Watching).
-
-## Editor's Picks suggested on November 4 (not added)
-
-All free to read. Picks stay at the top for 90 days from publication.
-
-- The Narwhal, Nov 4: [How the Ford government's new omnibus bill could affect Ontarians' say in environmental decisions](https://thenarwhal.ca/ontario-bill-140-environmental-rights/) (Bill 140; matters most while it's debated)
-- The Green Line, Oct 30: [What each councillor promised constituents in the 2026 Toronto municipal election](https://thegreenline.to/stories/toronto-councillors-2026-election-promises/)
-- IJF, Nov 3: [Record numbers of Canadian foreign workers claim abuse by employers](https://theijf.org/article/migrant-workers-visa-applications)
-- Ricochet, Oct 30: [Guns flow north. Toronto lawyer seeks to hold U.S. gun corporations accountable for Canadian deaths](https://ricochet.media/justice/guns-flow-north-toronto-lawyer-seeks-to-hold-u-s-gun-corporations-accountable-for-canadian-deaths/)
-- National Observer, Oct 28: [Federal government set to dismantle mandatory pesticide safety reviews](https://www.nationalobserver.com/2026/10/28/news/federal-government-set-dismantle-mandatory-pesticide-safety-reviews) (a vote is coming up)
-- Also strong:
-  - IJF, Oct 30: [CSIS examining Tether over China ties](https://theijf.org/article/csis-tether-prc-connections)
-  - IJF, Oct 27: [The $300 million con man](https://theijf.org/article/the-300-million-con-man)
-  - The Maple, Oct 26: [Canada sought U.S. approval before releasing Nazi war criminals report](https://www.readthemaple.com/canada-sought-u-s-approval-before-releasing-nazi-war-criminals-report/)
+4. **Owners for the 39 local newsrooms without one.** The About page shows who owns or funds each newsroom; these 39 show nothing until their owner is confirmed.
+5. **A feed for each town for news reader apps** (`/kingston/feed.xml`). Parked by Raj: nice to have, not a priority.
 
 ## Watching
 
-- **Metroland/Torstar papers turned away with "too many requests"** (429), from Vercel and from GitHub's network alike.
-  - Twelve were refused at once between November 2 and 5; all came back by November 7.
-  - On November 8, Peterborough Examiner was refused again (since November 7).
-  - We ask each paper once per run, slowly, so this is their limit and not to be worked around.
-  - The nightly stats report lists them.
-- **The collector's time limit.** With 52 towns (85 publications) a run takes about 240 of its 240 seconds. Some runs leave 2 or 3 publications unvisited.
-  - Each run starts at a different place, so nothing is missed every time.
-  - Towns opened before November 4 stay collected until December 4, then follow the 30-day rule. That should bring it back under the limit.
-  - If not, split each run in two (Website work, item 6).
-- **Database space.** 65% of the free 30 MB on November 8, growing about half a point a day. At 85% the oldest days start being trimmed early, around mid-December at this pace. December 4 should slow it.
-- **Village Media features.** Some appear on several Village Media sites at once (the same article number on TorontoToday and Newmarket Today), filed under local news. They now show once, as one card. Ask Raj whether they belong in a town's local news at all.
+- **Metroland/Torstar papers turned away with "too many requests"** (429), from Vercel and from GitHub's network alike. We ask each paper once per run, slowly, so this is their limit and not to be worked around. 75 towns depend on one of these papers for their own news; when it has nothing in the week, their tab shows the region's newsroom instead.
+- **The collector.** Runs hourly at :47 (cron-job.org) and :17 (GitHub's schedule, often late), each in two parts of four minutes, so every publication is reached. The nightly stats report lists failures.
+- **Database space.** 66% of the free 30 MB on November 18. At 85% the oldest days start being trimmed early. Towns opened before November 4 stop being collected on December 4 unless someone reads them, which should slow it.
+- **Toronto's council box** says the new council's schedule isn't published as open data yet. It fills on its own once the City publishes the 2026–2030 file.
 
 ## Known, leave for now
 
