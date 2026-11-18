@@ -63,6 +63,14 @@ for (const [name, title] of twice) {
   added += (await storeArticles(bucketFor(eg.feeds[0]), eg.feeds[0].name, buildArticles({ ...eg.feeds[0], place: "home" }, old, { limit: 60 }))).added;
   await activateTown("east-gwillimbury");
 }
+// One Newmarket transit story, and one Toronto one, for the filter checks:
+// Newmarket + Urbanism & Transit shows the first and not the second
+{
+  const nt = town.feeds[0];
+  added += (await storeArticles(bucketFor(nt), nt.name, buildArticles({ ...nt, place: "home" }, [{ title: "Newmarket approves new bike lanes on Davis Drive", link: "https://www.newmarkettoday.ca/local-news/bike-lanes-test-story", isoDate: new Date(Date.now() - 5 * HOUR).toISOString(), contentSnippet: "A made-up transit story for the filter checks.", enclosure: { url: "https://images.test/photo-3.png" } }], { limit: 60 }))).added;
+  const cbc = SOURCES.find((x) => x.name === "CBC Toronto");
+  added += (await storeArticles("shared", cbc.name, buildArticles(cbc, [{ title: "TTC adds new bus route along Eglinton", link: "https://www.cbc.ca/news/canada/toronto/ttc-route-test-story", isoDate: new Date(Date.now() - 6 * HOUR).toISOString(), contentSnippet: "A made-up Toronto transit story for the filter checks.", enclosure: { url: "https://images.test/photo-4.png" } }], { limit: 60 }))).added;
+}
 // Picked before, so the feed reads the archive rather than asking Newmarket Today
 await activateTown("newmarket");
 console.log(`seeded ${added} stories`);
