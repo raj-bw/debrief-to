@@ -225,6 +225,13 @@ async function run({ name, width, height, phone }) {
     if (!html.includes('href="https://debrief.to/greater-napanee"')) return "Greater Napanee's page has another canonical address";
   });
 
+  await check("a first visit opens on This Week", async () => {
+    await page.evaluate(() => localStorage.removeItem("cp_timeFilter"));
+    const asked = page.waitForRequest((r) => r.url().includes("/api/feed?") && r.url().includes("range=week"), { timeout: 15000 });
+    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    await asked;
+  });
+
   await check("stories come 24 at a time, and the footer can be reached", async () => {
     await page.evaluate(() => { localStorage.setItem("cp_categories", "[]"); localStorage.setItem("cp_timeFilter", "This Month"); });
     await page.goto(BASE + "/newmarket", { waitUntil: "load" });
