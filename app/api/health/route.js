@@ -2,8 +2,12 @@ import { SOURCES } from "../../lib/sources";
 import { publisherFeeds } from "../../lib/towns";
 // The same door the live feed uses, so a green light here means readers get it.
 import { fetchItems, lineOf } from "../../lib/fetch-feed";
-import { archiveStats, takeTurn } from "../../lib/archive";
+import { archiveStats, takeTurn, getState, setState } from "../../lib/archive";
 import { republishedFrom } from "../../lib/republished";
+import { buildArticles } from "../../lib/articles";
+
+// "Kingston (Kingstonist)" is Kingstonist, as far as the filters are concerned
+const asSource = (feed) => ({ ...feed, name: feed.name.replace(/^.*\((.*)\)$/, "$1") });
 
 /* ---- Is everything still answering? ----
    Feeds break quietly. A newsroom redesigns its site, a feed URL moves, a
@@ -34,8 +38,15 @@ async function check(feed) {
     const { items, url, via, filteredFrom, categoriesSeen } = await fetchItems(feed, { fresh: true, patient: true });
     const door = feed.fallback && url && !(feed.urls || []).includes(url) ? "api" : "rss";
     const newest = items[0]?.isoDate || items[0]?.pubDate || null;
+    /* What a reader would actually get: the stories left after our own
+       filters (wire copy, obituaries, sponsored posts...). A feed can answer
+       with 30 items and still give readers nothing. */
+    const kept = buildArticles(asSource(feed), items, { limit: 60 });
+    const keptNewest = kept.map((a) => a.pubDate).sort().pop() || null;
     return {
       name: feed.name, ok: true, url, items: items.length, newest, door,
+      kept: kept.length,
+      keptDaysSinceNewest: keptNewest ? Math.floor((Date.now() - new Date(keptNewest)) / 86400000) : null,
       // "honest" means the first attempt was refused and the plain-named
       // retry got through: the Cloudflare question, answered per feed.
       via,
@@ -62,9 +73,26 @@ export async function GET(request) {
   // ?scope=standing checks the Toronto, Ontario and Canada newsrooms every
   // reader gets (and reports whether a publisher answered by RSS or by its
   // WordPress API — see The Walrus).
-  const all = searchParams.get("scope") === "standing"
+  /* ?skip=blox leaves out Metroland and Torstar's papers. They turn
+     Vercel away with "too many requests" when asked often, and every live
+     check spends the allowance the collector needs; the archive's own
+     record (feedWatch) says how they're doing instead. */
+  const skipBlox = searchParams.get("skip") === "blox";
+  const all = (searchParams.get("scope") === "standing"
     ? SOURCES
-    : publisherFeeds(wantTowns ? "town" : "region");
+    : publisherFeeds(wantTowns ? "town" : "region"))
+    .filter((f) => !skipBlox || lineOf(f) !== "blox");
+  /* ?last=1 hands back the last full feed check, which is also saved. A
+     check of thirty feeds with Metroland's papers among them takes a few
+     minutes (they're asked one at a time), longer than some tools wait, so
+     it can be started, left to finish, and read here afterwards. */
+  if (searchParams.get("last") === "1") {
+    const st = await getState();
+    let last = null;
+    try { last = JSON.parse(st.lastFeedCheck || "null"); } catch { last = null; }
+    return Response.json(last || { ok: false, error: "No feed check saved yet." }, { headers: { "Cache-Control": "no-store" } });
+  }
+
   /* ?sample=Be Giant shows what one newsroom's feed actually carries for
      its first stories: byline, categories, any credit line, and the
      "Republished from" label we'd give each. Read-only, one feed. */
@@ -81,7 +109,7 @@ export async function GET(request) {
     const plain = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     try {
       const { items, url } = await fetchItems(feed, { fresh: true, patient: true });
-      const src = { ...feed, name: feed.name.replace(/^.*\((.*)\)$/, "$1") };
+      const src = asSource(feed);
       return Response.json({
         name: feed.name, url, items: items.length,
         first: items.slice(0, Number(searchParams.get("n") || 6)).map((it) => {
@@ -144,7 +172,8 @@ export async function GET(request) {
      If lastCollectorRun is more than a day old, the schedules have stopped. */
   const archive = await archiveStats();
 
-  return Response.json({
+  const report = {
+    finishedAt: new Date().toISOString(),
     checked: searchParams.get("scope") === "standing" ? "standing sources" : wantTowns ? "town feeds" : "region feeds",
     summary: `${ok.length} of ${checked.length} answering${failed.length ? `, ${failed.length} failing` : ""}${empty.length ? `, ${empty.length} empty` : ""}${stale.length ? `, ${stale.length} stale` : ""}${notChecked.length ? `, ${notChecked.length} not checked (out of time)` : ""}`,
     page: { offset, limit: targets.length, of: all.length, next: offset + targets.length < all.length ? offset + targets.length : null },
@@ -153,7 +182,9 @@ export async function GET(request) {
     notChecked: notChecked.map((r) => r.name),
     empty: empty.map((r) => ({ name: r.name, url: r.url, filteredFrom: r.filteredFrom, categoriesSeen: r.categoriesSeen })),
     stale: stale.map((r) => ({ name: r.name, daysSinceNewest: r.daysSinceNewest })),
-    answering: ok.map((r) => ({ name: r.name, items: r.items, daysSinceNewest: r.daysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}) })),
+    answering: ok.map((r) => ({ name: r.name, items: r.items, kept: r.kept, daysSinceNewest: r.daysSinceNewest, keptDaysSinceNewest: r.keptDaysSinceNewest, via: r.via, ...(r.door === "api" ? { door: "api" } : {}) })),
     archive,
-  }, { headers: { "Cache-Control": "no-store" } });
+  };
+  if (targets.length) await setState({ lastFeedCheck: { ...report, archive: undefined } }).catch(() => {});
+  return Response.json(report, { headers: { "Cache-Control": "no-store" } });
 }

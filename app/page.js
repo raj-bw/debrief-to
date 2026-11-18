@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, startTransition } from "react";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
-import { currentPicks, pastPicks, PICKS_LABEL } from "./lib/picks";
+import { currentPicks, pastPicks, PICKS_LABEL, PICKS_DAYS } from "./lib/picks";
 import { councilPortal } from "./lib/councils";
 import { TORONTO_PORTAL } from "./lib/toronto-council";
 
@@ -591,6 +591,9 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
     { name: "National Politics", icon: "\u{1F3DB}", text: "Federal government, Parliament, federal elections and national policy. Provincial politics is filed under Ontario." },
     { name: "Urbanism & Transit", icon: "\u{1F687}", text: "Housing, planning, development, public transit and roads." },
   ];
+  // Counted from the registry, so the page never states an old number.
+  const townCount = townOptions().length;
+  const newsroomCount = localNewsrooms().length;
 
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: c.bg, color: c.text }}>
@@ -612,21 +615,126 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>About Debrief.TO</H2>
           <P>
-            Debrief.TO is a free news reader for Ontario. It collects headlines from local and independent newsrooms
-            and shows them on one page, newest first. Each headline links to the original story on the publisher&apos;s website.
+            Debrief.TO is a free news reader for Ontario. It gathers headlines from local and independent newsrooms
+            and lists them on one page, newest first. Each headline opens the full story on the newsroom&apos;s own website.
           </P>
-          <P>There is no account, no paywall on our side, and no personalized or popularity-based ranking.</P>
+          <P>
+            Debrief.TO doesn&apos;t write or edit the news. Every story belongs to the newsroom that reported it.
+          </P>
+          <ul aria-label="Debrief.TO at a glance" style={{ listStyle: "none", padding: 0, margin: "4px 0 14px", display: "flex", flexWrap: "wrap", gap: "8px 10px" }}>
+            {[`${townCount} Ontario towns and cities`, `${newsroomCount} local newsrooms`, "No account, no ads"].map((fact) => (
+              <li key={fact} style={{ fontSize: 14, fontWeight: 600, color: c.title, padding: "6px 12px", borderRadius: 16, background: dm ? "#24302B" : "#EEF4F0", border: `1px solid ${dm ? "#33453C" : "#D5E3DA"}` }}>{fact}</li>
+            ))}
+          </ul>
+          <P>
+            <a href="#publications" onClick={(e) => { e.preventDefault(); document.getElementById("publications")?.scrollIntoView({ behavior: "smooth" }); }}
+              style={{ color: c.accent, fontWeight: 600, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>
+              See every newsroom we carry <span aria-hidden="true">↓</span>
+            </a>
+          </P>
         </section>
 
         <Divider />
 
         <section>
-          <H2>Why Debrief.TO exists</H2>
+          <H2>Why it exists</H2>
           <P>
-            Social media feeds are sorted by what keeps people scrolling, not by what matters in your community.
-            Debrief.TO is a reliable way to find local news without distractions, and it gives a platform to journalists
-            and independent publications. Every headline links to the original story, because local journalism depends
-            on people reading it at the source and supporting it where they can.
+            Local news in Ontario is spread across hundreds of websites, and on social media it competes with
+            everything else in the feed. Debrief.TO puts it in one place, in the order it was published, so it is easy
+            to keep up with what is happening where you live.
+          </P>
+          <P>
+            Every headline sends you to the newsroom that reported it. Local journalism depends on readers who visit,
+            subscribe and donate, and Debrief.TO is built to send them there.
+          </P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>How it works</H2>
+          <P>
+            <Strong>Your town.</Strong> Choose your town and the local tab shows the newsroom that covers it
+            {homeLabel ? <> (yours is set to <Strong>{homeLabel}</Strong>)</> : null}. If we don&apos;t carry a newsroom for your
+            town, the tab shows the one covering your region and is named after the region. Everyone also sees
+            newsrooms covering Toronto, Ontario and Canada.
+          </P>
+          <P>
+            <Strong>The newsrooms.</Strong> The list is chosen by hand: local papers, independent outlets and non-profit
+            newsrooms. It is published in full at the bottom of this page.
+          </P>
+          <P>
+            <Strong>The order.</Strong> Stories are listed newest first. Nothing is ranked by popularity or personalized.
+            New stories are collected several times a day.
+          </P>
+          <P>
+            <Strong>Filters.</Strong> Each story is filed under the places it concerns: your town, Toronto, Ontario or
+            Canada. A story is also filed under a topic when the newsroom&apos;s section or the headline makes the subject
+            clear:
+          </P>
+          <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
+            {topics.map((tp) => (
+              <li key={tp.name} style={{ marginBottom: 4 }}><Strong>{tp.name}:</Strong> {tp.text}</li>
+            ))}
+          </ul>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Editor&apos;s Picks</H2>
+          <P>
+            Editor&apos;s Picks are stories chosen by hand for the strength of their reporting or their importance to
+            Ontarians, often investigations and explainers from independent newsrooms. Each pick stays at the top for
+            {" "}{PICKS_DAYS} days, then moves to Past picks.
+          </P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Labels on stories</H2>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
+            <li style={{ marginBottom: 8 }}>
+              <Strong>Subscription:</Strong> the story may need a subscription to read. Either the newsroom keeps it for
+              subscribers, or the newsroom limits how many free stories you can read each month.
+            </li>
+            <li style={{ marginBottom: 8 }}><Strong>Opinion:</Strong> commentary rather than news reporting.</li>
+            <li style={{ marginBottom: 8 }}>
+              <Strong>Republished from:</Strong> one newsroom is carrying another&apos;s story. The label names the newsroom
+              that wrote it and links to the original when we have it.
+            </li>
+            <li>
+              <Strong>Also covered by:</Strong> several newsrooms reported the same story. It is shown once, from the
+              most local newsroom (or, between equally local ones, the first to publish), with links to the others.
+            </li>
+          </ul>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>What we leave out</H2>
+          <P>To keep the feed focused on local reporting, Debrief.TO leaves out:</P>
+          <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
+            <li>national and international wire stories that aren&apos;t about Ontario</li>
+            <li>sports, entertainment and weather</li>
+            <li>obituaries</li>
+            <li>press releases and sponsored content</li>
+            <li>event listings and round-ups</li>
+            <li>lottery results</li>
+            <li>columns syndicated across newspaper chains</li>
+          </ul>
+          <P>These rules are based on the type of item, never on its subject or point of view.</P>
+        </section>
+
+        <Divider />
+
+        <section>
+          <H2>Council meetings</H2>
+          <P>
+            Where a town posts its meetings online, the local tab lists upcoming council and committee meetings, with a
+            link to each agenda. These come from the municipality, not a newsroom, and are shown separately from the news.
           </P>
         </section>
 
@@ -635,107 +743,27 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Privacy</H2>
           <P>
-            Your town, saved stories and settings are stored only in your browser. Debrief.TO has no accounts and does
-            not track what you read. It counts visits, without cookies or anything that identifies you, to know how
-            many people use it.
+            There are no accounts and no ads. Your town, saved stories and settings stay in your own browser. Debrief.TO
+            does not track what you read. It counts visits, without cookies or anything that identifies you, to know how
+            many people use the site.
           </P>
         </section>
 
         <Divider />
 
         <section>
-          <H2>Where the news comes from</H2>
+          <H2>Contact</H2>
           <P>
-            Stories come from a fixed list of newsrooms: local papers, independent outlets and non-profit investigative
-            publications. The list is chosen by hand and published below. Apart from Editor&apos;s Picks, it is the only editorial
-            decision the site makes.
+            Spotted a mistake, a broken link or a newsroom we should add? Email{" "}
+            <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
           </P>
           <P>
-            Every reader sees the Toronto, Ontario and Canada newsrooms. Your local tab adds the newsroom that covers
-            your town{homeLabel ? <> (currently <Strong>{homeLabel}</Strong>)</> : null}. If your town has no newsroom on the list, it shows the one covering your region.
-          </P>
-          {/* The full list is long, so it lives at the bottom of the page. */}
-          <P>
-            <a href="#publications" onClick={(e) => { e.preventDefault(); document.getElementById("publications")?.scrollIntoView({ behavior: "smooth" }); }}
-              style={{ color: c.title, fontWeight: 700, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>
-              Scroll down to see which publications are covered <span aria-hidden="true">↓</span>
-            </a>
-          </P>
-        </section>
-
-        <Divider />
-
-        <section>
-          <H2>How stories are sorted</H2>
-          <P>
-            <Strong>Places.</Strong> Each story is filed under one or more places: your town, Toronto, Ontario or Canada.
-            The place is based on where the newsroom reports from and what the story is about. A federal story from a
-            Toronto newsroom, for example, appears under both Toronto and Canada.
-          </P>
-          <P>
-            <Strong>Topics.</Strong> Topics are assigned to each story individually, regardless of where it comes from.
-            A story is tagged when the publisher files it in a matching section, or when its headline uses a clear term
-            for the subject. A story can carry more than one topic, but it appears only once when several of its topics
-            are selected.
-          </P>
-          {topics.map((tp) => (
-            <div key={tp.name}>
-              <Divider thin />
-              <H3 icon={tp.icon}>{tp.name}</H3>
-              <P>{tp.text}</P>
-            </div>
-          ))}
-        </section>
-
-        <Divider />
-
-        <section>
-          <H2>What is filtered out</H2>
-          <P>
-            We remove stories that local papers republish from national news agencies, such as The Canadian Press,
-            when they are not about Ontario. We also remove the following: sports, entertainment, weather, obituaries, press
-            releases, sponsored content, event listings and round-ups, lottery jackpots and winners, and columns syndicated across newspaper chains. Filtering is based on the type
-            of item, never on its subject or viewpoint.
-          </P>
-          <H3>Labels</H3>
-          <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
-            <li style={{ marginBottom: 6 }}><Strong>Subscription</Strong> marks stories the publisher lists as subscriber-only.</li>
-            <li style={{ marginBottom: 6 }}><Strong>Opinion</Strong> marks commentary.</li>
-            <li style={{ marginBottom: 6 }}>
-              <Strong>Republished from</Strong> marks a story one newsroom carries from another, such as a Be Giant
-              feature on a Village Media local site. It names the newsroom that wrote it and links to the original
-              when we have it.
-            </li>
-            <li>
-              <Strong>Also covered by</Strong> appears when several newsrooms report the same story. The story is shown
-              once, from the most local newsroom; where two are equally local, from the one that published first. The
-              other newsrooms are named beneath it.
-            </li>
-          </ul>
-        </section>
-
-        <Divider />
-
-        <section>
-          <H2>Council agendas</H2>
-          <P>
-            For towns with an online meeting portal, the local tab lists upcoming council and committee meetings, with a
-            link to each agenda. These are official municipal records and are kept separate from news stories.
-          </P>
-        </section>
-
-        <Divider />
-
-        <section>
-          <H2>Publishers and contact</H2>
-          <P>
-            Every story belongs to the newsroom that published it. Publishers who would like to be removed can
-            email <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
+            <Strong>For publishers:</Strong> each listing shows your headline, summary and photo, and links to the story on
+            your site. To have your newsroom removed or listed differently, email us at the same address.
           </P>
           <P>
             Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
-            part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>. Its goal is to help
-            Ontarians find local and independent news, free and in one place.
+            part of the BUILD program with <a href="https://www.apathyisboring.com/" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Apathy is Boring</a>.
           </P>
         </section>
 
@@ -743,7 +771,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
 
         <section id="publications" style={{ scrollMarginTop: 16 }}>
           <H2>Publications we cover</H2>
-          <P muted>Newsrooms marked <Sub /> publish some or all of their stories for subscribers only.</P>
+          <P muted>Newsrooms marked <Sub /> keep some or all of their stories for subscribers.</P>
 
           {["Toronto", "Ontario", "Canada"].map((place) => (
             <div key={place}>
@@ -956,7 +984,7 @@ export default function Home({ pageTown = null } = {}) {
     setCouncil({ town: null, meetings: [], pending: true });
     fetch(`/api/council?town=${encodeURIComponent(townSlug)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!cancelled) setCouncil(j ? { town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null } : { town: null, meetings: [] }); })
+      .then((j) => { if (!cancelled) setCouncil(j ? { town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null, note: j.note || null } : { town: null, meetings: [] }); })
       .catch(() => { if (!cancelled) setCouncil({ town: null, meetings: [] }); });
     return () => { cancelled = true; };
   }, [townSlug, hydrated]);
@@ -969,7 +997,7 @@ export default function Home({ pageTown = null } = {}) {
     if (!hydrated || !wantToronto || torontoCouncil) return;
     fetch("/api/council?town=toronto")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available, checkedAt: j.error ? null : j.checkedAt || null }); })
+      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available, checkedAt: j.error ? null : j.checkedAt || null, note: j.note || null }); })
       .catch(() => {});
   }, [hydrated, wantToronto, torontoCouncil]);
   const CATEGORIES = buildCategories(home.label);
@@ -1530,7 +1558,8 @@ export default function Home({ pageTown = null } = {}) {
           const homeBoxWanted = activeCats.length === 0 || activeCats.includes(home.label);
           const homePortal = home.townName === "Toronto" ? TORONTO_PORTAL : councilPortal(home.townName);
           if (council.pending && homePortal && homeBoxWanted) boxes.push({ town: home.townName, portal: homePortal, meetings: [], pending: true });
-          else if ((council.meetings.length > 0 || council.checkedAt) && homeBoxWanted) boxes.push({ ...council, showEmpty: false });
+          // A calendar that says why it has nothing (council.note) is shown too.
+          else if ((council.meetings.length > 0 || council.checkedAt || council.note) && homeBoxWanted) boxes.push({ ...council, showEmpty: false });
           if (wantToronto && torontoCouncil?.available && homeTown !== "Toronto") boxes.push({ ...torontoCouncil, showEmpty: true });
           else if (wantToronto && homeTown === "Toronto" && council.meetings.length === 0 && torontoCouncil?.available) boxes.push({ ...torontoCouncil, showEmpty: true });
           return boxes.map((box) => (
@@ -1552,7 +1581,7 @@ export default function Home({ pageTown = null } = {}) {
                     <span style={{ fontSize: 13 }}>{checkedNote(box.checkedAt)}</span>
                   </p>
                 ) : (
-                  <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>The meeting calendar didn&apos;t load just now.</p>
+                  <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>{box.note || "The meeting calendar didn\u2019t load just now."}</p>
                 )
               ) : (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>

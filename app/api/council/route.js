@@ -1,6 +1,6 @@
 import { resolveTown } from "../../lib/towns";
 import { councilPortal } from "../../lib/councils";
-import { torontoMeetings, TORONTO_PORTAL } from "../../lib/toronto-council";
+import { torontoMeetings, torontoSourceCheck, TORONTO_PORTAL } from "../../lib/toronto-council";
 import { notOverYet, withoutRepeats } from "../../lib/meetings";
 
 /* ---- Coming up at council ----
@@ -51,12 +51,18 @@ export async function GET(request) {
 
   /* Toronto runs its own system (TMMIS) rather than eSCRIBE. */
   if (town.townName === "Toronto") {
+    // ?check=1: what the City's Open Data portal holds (read-only)
+    if (searchParams.get("check") === "1") {
+      const report = await torontoSourceCheck().catch((err) => ({ error: err?.message }));
+      return Response.json(report, { headers: { "Cache-Control": "no-store" } });
+    }
     try {
       const meetings = await torontoMeetings({ daysAhead: DAYS_AHEAD, max: MAX_MEETINGS });
       return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings, checkedAt: new Date().toISOString() },
         { headers: { "Cache-Control": "public, max-age=0", "Vercel-CDN-Cache-Control": CDN_CACHE } });
     } catch (err) {
-      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings: [], error: err?.message },
+      // `note` is shown to readers in place of the meetings (see page.js)
+      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings: [], error: err?.message, ...(err?.stale ? { note: err.message } : {}) },
         { headers: { "Cache-Control": "no-store" } });
     }
   }

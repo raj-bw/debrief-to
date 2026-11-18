@@ -44,28 +44,35 @@ jobs:
           sparse-checkout: scripts
           persist-credentials: false
 
-      - name: Run the collector
+      # In two parts, one after the other, each with the collector's full
+      # four minutes: one run had stopped being enough for every publication
+      # (see partOf in app/lib/collect-jobs.js). A part that fails doesn't
+      # stop the other.
+      - name: Run the collector, part 1 of 2
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          auth=()
-          if [ -n "$CRON_SECRET" ]; then auth=(-H "Authorization: Bearer $CRON_SECRET"); fi
-          code=$(curl -sS --max-time 320 -o out.json -w "%{http_code}" "${auth[@]}" "https://debrief.to/api/collect")
-          head -c 3000 out.json; echo
-          echo "collector answered HTTP $code"
-          if [ "$code" = "401" ]; then echo "::error::CRON_SECRET in GitHub doesn't match the one in Vercel"; exit 1; fi
-          if [ "$code" != "200" ]; then echo "::error::collector did not finish (HTTP $code)"; exit 1; fi
+        run: bash scripts/collect-part.sh 1 out1.json
+
+      - name: Run the collector, part 2 of 2
+        if: always()
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: bash scripts/collect-part.sh 2 out2.json
 
       # Never fails the run: a second chance, not the main road.
       - name: Ask refused Metroland/Torstar papers again, from GitHub's network
+        if: always()
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: node scripts/second-network.mjs out.json || echo "second network skipped"
+        run: |
+          node scripts/second-network.mjs out1.json || echo "second network skipped (part 1)"
+          node scripts/second-network.mjs out2.json || echo "second network skipped (part 2)"
 
       # limit=0 asks no publisher at all, only the archive, so this report
       # neither knocks on every newsroom at once (the burst that trips
       # Metroland's 429s) nor waits its turn behind a full check.
       - name: Report the archive's state
+        if: always()
         run: |
           curl -sS --max-time 60 "https://debrief.to/api/health?limit=0" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('archive'), indent=1))"
 
@@ -73,6 +80,7 @@ jobs:
       # API resets the 60-day inactivity clock. (The popular keepalive action
       # this used to call is blocked by GitHub.) Never fails the run.
       - name: Stop GitHub pausing this schedule
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

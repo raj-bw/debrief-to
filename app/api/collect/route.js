@@ -99,7 +99,13 @@ export async function GET(request) {
   // Room first, so a full database never makes the run's writes fail.
   const room = await makeRoom().catch(() => null);
 
-  const { jobs, towns } = await buildJobs();
+  // ?part=1&of=2: this run's share of the publications (see partOf)
+  const url = new URL(request.url);
+  // Without CRON_SECRET only one run per 20 minutes is allowed, so part 2
+  // would always be turned away: there, a run is always everything.
+  const of = secret ? Number(url.searchParams.get("of")) || 1 : 1;
+  const part = Number(url.searchParams.get("part")) || 1;
+  const { jobs, towns } = await buildJobs({ part, of });
   const results = [];
   const notReached = [];
   const fetchOnce = fetcherForRun();
@@ -141,6 +147,7 @@ export async function GET(request) {
   const failed = results.filter((r) => !r.ok);
   const summary = {
     finishedAt: new Date().toISOString(),
+    ...(of > 1 ? { part: `${part} of ${of}` } : {}),
     seconds: Math.round((Date.now() - started) / 1000),
     towns,
     publications: jobs.length,
