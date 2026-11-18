@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef, useMemo, startTransition } from "react";
+import { useRouter } from "next/navigation";
 import { townOptions, DEFAULT_TOWN, resolveTown, localNewsrooms } from "./lib/towns";
 import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions";
 import { currentPicks, pastPicks, PICKS_LABEL, PICKS_DAYS } from "./lib/picks";
@@ -904,6 +905,7 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
 export default function Home({ pageTown = null } = {}) {
   // Where the feed lives in the address bar: "/" or the town's page
   const base = pageTown ? `/${pageTown}` : "/";
+  const router = useRouter();
   // --- Persisted state: preferences and saved articles live in localStorage (this browser only) ---
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -944,7 +946,8 @@ export default function Home({ pageTown = null } = {}) {
     // site is opened from the Home Screen, the town and theme the reader had in
     // their browser (?town=...&dark=1, see app/web-app-manifest/route.js).
     const params = new URLSearchParams(window.location.search);
-    try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (v) setActiveCategories(v); } catch {}
+    let savedCats = [];
+    try { const v = JSON.parse(localStorage.getItem("cp_categories")); if (Array.isArray(v)) { savedCats = v; setActiveCategories(v); } } catch {}
     // On a computer the Sources panel starts open on a first visit, so a new
     // reader sees the places and topics they can pick. On a phone it starts
     // closed, where it would push the stories below the fold. (641px is the
@@ -970,10 +973,16 @@ export default function Home({ pageTown = null } = {}) {
         // and sees this town's news, selected, while they're here.
         setTownSlug(pageTown); setTownChosen(true);
         if (!saved) { localStorage.setItem("cp_town", pageTown); localStorage.setItem("cp_townAsked", "1"); }
-        if (saved !== pageTown) { const label = resolveTown(pageTown).label; setActiveCategories(label ? [label] : []); }
-        // Only visiting: the filters picked here aren't saved over the
-        // reader's own, which their town's feed needs when they go back.
-        visitingRef.current = Boolean(saved) && saved !== pageTown;
+        // The town's tab is always selected on arrival, even for the reader's
+        // own town when they last left the main feed on Toronto: the page is
+        // headed "Kingston news", so it shows Kingston's.
+        const label = resolveTown(pageTown).label;
+        const showsTown = saved === pageTown && (label ? savedCats.includes(label) : savedCats.length === 0);
+        if (!showsTown) setActiveCategories(label ? [label] : []);
+        // Only visiting, or the town selected for this page: the filters
+        // picked here aren't saved over the reader's own, which the main
+        // feed needs when they go back.
+        visitingRef.current = Boolean(saved) && !showsTown;
       }
       else if (saved) { setTownSlug(saved); setTownChosen(true); }
       else if (fromApp && /^[a-z0-9-]{1,60}$/.test(fromApp)) {
@@ -1072,8 +1081,9 @@ export default function Home({ pageTown = null } = {}) {
     try { localStorage.setItem("cp_categories", JSON.stringify(next.label ? [next.label] : [])); } catch {}
     setTownSlug(slug);
     setShowPicker(false);
-    // On a town's page, picking another town goes to that town's page
-    if (pageTown && slug !== pageTown) window.location.assign(`/${slug}`);
+    // On a town's page, picking another town goes to the main feed, where
+    // the new town is home and selected
+    if (pageTown && slug !== pageTown) router.push("/");
   };
   const skipTown = () => {
     try { localStorage.setItem("cp_townAsked", "1"); } catch {}
@@ -1162,14 +1172,31 @@ export default function Home({ pageTown = null } = {}) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
+  /* A town's page shows that town. Picking another place (Toronto, Ontario,
+     Canada), a topic from everywhere, or clearing the town's tab belongs to
+     the main feed, so it goes there with that choice selected: the heading
+     never says "Kingston news" over Toronto's stories. Topics picked here come
+     along. The reader's own town stays remembered; it just isn't selected. */
+  const setFilters = (next) => {
+    if (pageTown && !(home.label && next.includes(home.label))) {
+      try { localStorage.setItem("cp_categories", JSON.stringify(next)); } catch {}
+      router.push("/");
+      return;
+    }
+    setActiveCategories(next);
+  };
   const toggleCategory = (catLabel) => {
-    setActiveCategories((prev) => {
-      if (prev.includes(catLabel)) return prev.filter((c) => c !== catLabel);
-      return [...prev, catLabel];
-    });
+    const isPlace = CATEGORIES.some((c) => c.label === catLabel && c.kind === "place");
+    if (pageTown && isPlace && catLabel !== home.label && !activeCategories.includes(catLabel)) {
+      const topics = activeCategories.filter((l) => CATEGORIES.some((c) => c.label === l && c.kind === "topic"));
+      return setFilters([catLabel, ...topics]);
+    }
+    setFilters(activeCategories.includes(catLabel)
+      ? activeCategories.filter((c) => c !== catLabel)
+      : [...activeCategories, catLabel]);
   };
 
-  const clearAllFilters = () => setActiveCategories([]);
+  const clearAllFilters = () => setFilters([]);
 
   const toggleBookmark = (article) => {
     setBookmarks((prev) => {
@@ -1674,18 +1701,18 @@ export default function Home({ pageTown = null } = {}) {
               {showPicks
                 ? "New picks are added from time to time. Check back soon."
                 : activePlaces.length > 0 && activeTopics.length > 0
-                ? `No ${activeTopics.join(" or ")} stories from ${activePlaces.join(" or ")} right now. A story only gets a topic when the newsroom's own section or headline makes it clear, so smaller places have fewer.`
+                ? `No ${activeTopics.join(" or ")} stories from ${activePlaces.join(" or ")} right now.`
                 : activeCats.length > 0
                 ? "Nothing matches these filters yet. Topic tabs fill up more slowly than place tabs, because a story only earns a topic when the publisher's own section or headline makes it clear."
                 : "Try a different search term."}
             </p>
             {!showPicks && activePlaces.length > 0 && activeTopics.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 18 }}>
-                <button onClick={() => setActiveCategories(activePlaces)}
+                <button onClick={() => setFilters(activePlaces)}
                   style={{ padding: "10px 18px", borderRadius: 22, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "none" }}>
                   Show all {activePlaces.join(" and ")} stories
                 </button>
-                <button onClick={() => setActiveCategories(activeTopics)}
+                <button onClick={() => setFilters(activeTopics)}
                   style={{ padding: "10px 18px", borderRadius: 22, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "transparent", color: dm ? "#7FD3A8" : "#2D6A4F", border: `1.5px solid ${dm ? "#7FD3A8" : "#2D6A4F"}` }}>
                   Show {activeTopics.join(" and ")} from everywhere
                 </button>

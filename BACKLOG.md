@@ -26,7 +26,8 @@ Last updated November 18, 2026.
    - A preview image per town ("Kingston news — Debrief.TO") so shared links look local.
    - Almost all visitors type the address, so word of mouth is how the site grows. Small to medium.
 4. **Owners for the 39 local newsrooms without one.** The About page shows who owns or funds each newsroom; these 39 show nothing until their owner is confirmed.
-5. **A feed for each town for news reader apps** (`/kingston/feed.xml`). Parked by Raj: nice to have, not a priority.
+5. **Council meetings for towns not on eSCRIBE**, like Ajax and Brock. They publish their agendas some other way, so they have no council box. Each needs its own reader, one portal type at a time.
+6. **A feed for each town for news reader apps** (`/kingston/feed.xml`). Parked by Raj: nice to have, not a priority.
 
 ## Watching
 

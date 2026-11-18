@@ -216,6 +216,25 @@ async function run({ name, width, height, phone }) {
     if (kept[1] !== JSON.stringify(["Aurora"])) return `own filters became ${kept[1]}`;
   });
 
+  await check("on a town's page, a filter without the town goes to the main feed", async () => {
+    const chip = (pressed, name) => page.locator(`button[aria-pressed="${pressed}"]`, { hasText: name });
+    // The reader's own town is Newmarket, and they last left the main feed on Toronto
+    await page.evaluate(() => { localStorage.setItem("cp_town", "newmarket"); localStorage.setItem("cp_categories", JSON.stringify(["Toronto"])); });
+    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    // The town's page still opens on the town
+    await chip("true", "Newmarket").first().waitFor({ timeout: 15000 });
+    await chip("false", "Canada").first().click();
+    await page.waitForURL((u) => new URL(u).pathname === "/", { timeout: 10000 });
+    await chip("true", "Canada").first().waitFor({ timeout: 10000 });
+    if (await page.getByRole("heading", { name: "Newmarket news" }).count()) return "still headed Newmarket news";
+    // Newmarket is still the reader's town, just not selected
+    if (!(await chip("false", "Newmarket").count())) return "Newmarket's tab is gone or still selected";
+    const kept = await page.evaluate(() => [localStorage.getItem("cp_town"), localStorage.getItem("cp_categories")]);
+    await page.evaluate(() => localStorage.setItem("cp_categories", "[]"));
+    if (kept[0] !== "newmarket") return `own town became ${kept[0]}`;
+    if (kept[1] !== JSON.stringify(["Canada"])) return `filters saved as ${kept[1]}`;
+  });
+
   await check("every town's page is in the sitemap, and names its own town", async () => {
     const xml = await (await page.request.get(BASE + "/sitemap.xml")).text();
     const n = (xml.match(/<loc>https:\/\/debrief\.to\/[a-z0-9-]+<\/loc>/g) || []).length;
@@ -283,7 +302,7 @@ async function run({ name, width, height, phone }) {
 
   await check("stories come 24 at a time, and the footer can be reached", async () => {
     await page.evaluate(() => { localStorage.setItem("cp_categories", "[]"); localStorage.setItem("cp_timeFilter", "This Month"); });
-    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    await page.goto(BASE + "/", { waitUntil: "load" });
     await page.locator(storySel).first().waitFor({ timeout: 15000 });
     const count = () => page.locator(storySel).count();
     if ((await count()) !== 24) return `${await count()} stories at first`;
