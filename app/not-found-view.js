@@ -36,6 +36,8 @@ export default function NotFoundView() {
         </a>
         <p style={{ marginTop: 18, fontSize: 14 }}>
           <a href="/?view=about" style={{ color: c.link, fontWeight: 600 }}>About Debrief.TO</a>
+          <span aria-hidden="true" style={{ margin: "0 10px", opacity: 0.5 }}>·</span>
+          <a href="/privacy" style={{ color: c.link, fontWeight: 600 }}>Privacy</a>
         </p>
       </main>
     </div>
