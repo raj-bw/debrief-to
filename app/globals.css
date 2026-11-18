@@ -53,3 +53,16 @@ body {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
+
+/* The width the header and the feed share, so the logo, search box and
+   stories line up on any screen. From 1600px wide (1080p monitors and up)
+   there is room for a fourth column of stories. */
+.page-width {
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+@media (min-width: 1600px) {
+  .page-width { max-width: 1480px; }
+}

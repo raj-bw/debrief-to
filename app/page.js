@@ -600,7 +600,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: c.bg, color: c.text }}>
       <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="about" savedCount={savedCount} onToggleDark={onToggleDark} onGo={onGo} />
           <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", order: 3 }}>
@@ -759,11 +759,16 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             Spotted a mistake, a broken link or a newsroom we should add? Email{" "}
             <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>, or post it
             as an <a href={FEEDBACK_URL} target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>issue on GitHub</a> (posts
-            there are public).
+            are public).
           </P>
           <P>
             <Strong>For publishers:</Strong> each listing shows your headline, summary and photo, and links to the story on
             your site. To have your newsroom removed or listed differently, email us at the same address.
+          </P>
+          <P>
+            Debrief.TO carries no advertising and earns no referral or affiliate revenue. Every story opens on the
+            publisher&apos;s own website, so the visit, and any advertising or subscription revenue that comes with it,
+            stays with the newsroom.
           </P>
           <P>
             Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
@@ -817,7 +822,7 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: dm ? "#1A1A1A" : "#FAF8F5", color: dm ? "#E8E5E0" : "#2C2C2C" }}>
       <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="bookmarks" savedCount={bookmarks.length} onToggleDark={onToggleDark} onGo={onGo} />
           <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, order: 3 }}>
@@ -1379,7 +1384,7 @@ export default function Home({ pageTown = null } = {}) {
       {showInstallSheet && <InstallSheet dm={dm} onClose={() => setShowInstallSheet(false)} />}
       {/* ===== HEADER ===== */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px" }}>
+        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px" }}>
 
           {/* Top row: wordmark - capsules - search. The capsules sit in the middle
               with even space on both sides, and in the same spot on every page. */}
@@ -1538,7 +1543,7 @@ export default function Home({ pageTown = null } = {}) {
       {/* At least a screen tall, so the footer starts below the fold: while
           the stories load, the short loading cards left the footer on screen,
           and it jumped away when the stories arrived (a layout shift). */}
-      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
+      <main className="page-width" style={{ padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
         {pageTown && !showPicks && (
           <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: t.text }}>{resolveTown(pageTown).townName} news</h2>
         )}
