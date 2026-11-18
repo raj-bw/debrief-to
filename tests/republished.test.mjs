@@ -41,3 +41,14 @@ test("the label rides along on the story", () => {
   }]);
   assert.equal(a.republishedFrom, "Be Giant");
 });
+
+test("only web links and photos reach a card", () => {
+  const items = [
+    { title: "A tampered story", link: "javascript:alert(1)", isoDate: new Date().toISOString() },
+    { title: "A data link", link: "data:text/html,hi", isoDate: new Date().toISOString() },
+    { title: "A real story", link: "https://www.newmarkettoday.ca/local-news/x-1", isoDate: new Date().toISOString(), enclosure: { url: "javascript:alert(1).png" } },
+  ];
+  const out = buildArticles(newmarket, items);
+  assert.deepEqual(out.map((a) => a.title), ["A real story"]);
+  assert.equal(out[0].image, null);
+});

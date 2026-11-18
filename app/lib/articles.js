@@ -29,6 +29,15 @@ export function stripHtml(html) {
     .trim();
 }
 
+/* Only ordinary web addresses are used, for links and photos alike. A feed
+   is someone else's file: if one were ever tampered with, a "javascript:"
+   or "data:" link would otherwise end up on a card for readers to tap. */
+const WEB = /^https?:\/\//i;
+export function webOnly(url) {
+  const u = String(url || "").trim();
+  return WEB.test(u) ? u : "";
+}
+
 export function extractImage(item) {
   if (item.image) return item.image;   // WordPress API items carry it directly
   if (item.enclosure?.url && /\.(jpg|jpeg|png|webp|gif)/i.test(item.enclosure.url)) {
@@ -54,7 +63,7 @@ export function buildArticles(src, items, { limit = 40, undatedAs } = {}) {
     const raw = item.contentSnippet || item.content || item.description || "";
     const base = {
       title: stripHtml(item.title || ""),
-      link: item.link || "",
+      link: webOnly(item.link),
       description: stripHtml(raw).slice(0, 320),
       pubDate: item.isoDate || item.pubDate || undatedAs || new Date().toISOString(),
       undated: !(item.isoDate || item.pubDate),
@@ -62,7 +71,7 @@ export function buildArticles(src, items, { limit = 40, undatedAs } = {}) {
       sourceColor: src.color,
       sourcePlace: src.place,
       paywall: isPaywalled(src, item.link || ""),
-      image: extractImage(item),
+      image: webOnly(extractImage(item)) || null,
     };
     // Another newsroom's story, carried under this one's name
     const from = republishedFrom(src, item);
