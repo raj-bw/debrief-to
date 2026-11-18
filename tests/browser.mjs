@@ -225,6 +225,25 @@ async function run({ name, width, height, phone }) {
     if (!html.includes('href="https://debrief.to/greater-napanee"')) return "Greater Napanee's page has another canonical address";
   });
 
+  await check("a town whose tab falls back to its region stays selected", async () => {
+    await page.evaluate(() => {
+      localStorage.setItem("cp_town", "east-gwillimbury");
+      localStorage.setItem("cp_townAsked", "1");
+      localStorage.setItem("cp_categories", JSON.stringify(["East Gwillimbury"]));
+      localStorage.setItem("cp_timeFilter", "This Week");
+    });
+    await page.goto(BASE + "/", { waitUntil: "load" });
+    const chip = page.getByRole("button", { name: /York Region/, pressed: true });
+    await chip.first().waitFor({ timeout: 15000 });
+    await page.locator(storySel).first().waitFor({ timeout: 15000 });
+    // Only the region's local stories, not the whole feed
+    for (const name of ["CBC Toronto", "Toronto Star", "National Observer"]) {
+      if (await page.getByText(name, { exact: true }).count()) return `${name} is showing, so the whole feed is`;
+    }
+    if (!(await page.getByText("Newmarket Today", { exact: true }).count())) return "the region's newsroom isn't showing";
+    await page.evaluate(() => { localStorage.setItem("cp_town", "newmarket"); localStorage.setItem("cp_categories", "[]"); });
+  });
+
   await check("a first visit opens on This Week", async () => {
     await page.evaluate(() => localStorage.removeItem("cp_timeFilter"));
     const asked = page.waitForRequest((r) => r.url().includes("/api/feed?") && r.url().includes("range=week"), { timeout: 15000 });

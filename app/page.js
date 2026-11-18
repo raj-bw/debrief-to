@@ -980,6 +980,22 @@ export default function Home({ pageTown = null } = {}) {
   const localGuess = resolveTown(townSlug);
   const home = serverTown && serverTown.slug === townSlug ? serverTown : localGuess;
 
+  /* When the town's own newsroom has nothing in the chosen range, the local
+     tab takes the region's name ("East Gwillimbury" becomes "York Region"),
+     and back again when it has. A reader who had the tab selected keeps it
+     selected: the old name in their filters is swapped for the new one.
+     Without this the selection pointed at a tab that no longer existed, so
+     nothing showed as selected and the whole feed appeared. */
+  const homeLabelRef = useRef(null);
+  useEffect(() => {
+    const before = homeLabelRef.current;
+    homeLabelRef.current = { slug: townSlug, label: home.label };
+    if (!before || before.slug !== townSlug || !before.label || !home.label || before.label === home.label) return;
+    setActiveCategories((cats) => (cats.includes(before.label)
+      ? cats.map((c) => (c === before.label ? home.label : c)).filter((c, i, all) => all.indexOf(c) === i)
+      : cats));
+  }, [townSlug, home.label]);
+
   /* The reader's own council: the next few meetings and their agendas, read
      from the town's official portal. Its own small box, never mixed into the
      story feed — a meeting next Tuesday isn't news from today. */
