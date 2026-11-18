@@ -54,6 +54,15 @@ for (const [name, title] of twice) {
   const nt = town.feeds[0];
   added += (await storeArticles(bucketFor(nt), nt.name, buildArticles({ ...nt, place: "home" }, [{ title, link: "https://www.newmarkettoday.ca/local-news/water-bomber-test-story", isoDate: new Date(Date.now() - 3 * HOUR).toISOString(), contentSnippet: dek, creator: "Be Giant", enclosure: { url: "https://images.test/photo-2.png" } }], { limit: 60 }))).added;
 }
+// East Gwillimbury: its own newsroom section has nothing this week (one
+// story from three weeks ago), so its local tab falls back to the region
+// and is named "York Region"
+{
+  const eg = resolveTown("east-gwillimbury");
+  const old = [{ title: "An older East Gwillimbury story", link: "https://www.yorkregion.com/news/east-gwillimbury-old-test-story", isoDate: new Date(Date.now() - 20 * 24 * HOUR).toISOString(), contentSnippet: "A made-up story outside this week." }];
+  added += (await storeArticles(bucketFor(eg.feeds[0]), eg.feeds[0].name, buildArticles({ ...eg.feeds[0], place: "home" }, old, { limit: 60 }))).added;
+  await activateTown("east-gwillimbury");
+}
 // Picked before, so the feed reads the archive rather than asking Newmarket Today
 await activateTown("newmarket");
 console.log(`seeded ${added} stories`);
