@@ -235,7 +235,7 @@ async function run({ name, width, height, phone }) {
     await privacy.click();
     await page.getByRole("heading", { name: "Privacy", level: 1 }).waitFor({ timeout: 10000 });
     if (!/^Privacy/.test(await page.title())) return `title "${await page.title()}"`;
-    for (const h of ["What we know about your visit", "Cookies", "What's saved on your phone or computer", "Who else can see your visit", "Questions"]) {
+    for (const h of ["What we collect", "Cookies", "Third parties", "Contact"]) {
       if (!(await page.getByRole("heading", { name: h }).count())) return `no "${h}" section`;
     }
     const xml = await (await page.request.get(BASE + "/sitemap.xml")).text();

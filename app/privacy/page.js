@@ -5,9 +5,9 @@ import PrivacyView from "./privacy-view";
    (debrief.to/privacy) rather than a section of About, so it can be linked
    to directly and kept up to date in one place. When anything here changes,
    change UPDATED too. */
-export const UPDATED = "November 18, 2026";
+export const UPDATED = "November 2026";
 
-const description = "Debrief.TO doesn't ask who you are, doesn't use cookies and doesn't track what you read. Here's what we do see, in plain English.";
+const description = "What Debrief.TO collects (very little), cookies (none), and who else sees your visit.";
 
 export const metadata = {
   title: "Privacy — Debrief.TO",
