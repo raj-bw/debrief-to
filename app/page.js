@@ -357,7 +357,7 @@ function TownPicker({ dm, onPick, onSkip }) {
         <div style={{ padding: "26px 24px 16px" }}>
           <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, color: c.text, margin: "0 0 8px" }}>Where do you live?</h2>
           <p style={{ fontSize: 14.5, lineHeight: 1.6, color: c.body, margin: "0 0 16px" }}>
-            Debrief.TO will show your community&apos;s news first — from your town&apos;s own newsroom where there is one, otherwise from the newsroom covering your region. Your choice stays in this browser; there&apos;s no account and nothing is sent to us.
+            We&apos;ll show news from your town first. If we don&apos;t carry a newsroom for your town, you&apos;ll see the one that covers your area. Your choice is saved on this device, so there&apos;s no account to make.
           </p>
           <input
             autoFocus
@@ -889,7 +889,9 @@ export default function Home({ pageTown = null } = {}) {
   const [showSources, setShowSources] = useState(false);
   // Editor's Picks view: the hand-chosen list instead of the feed.
   const [showPicks, setShowPicks] = useState(false);
-  const [timeFilter, setTimeFilter] = useState("This Month");
+  // A first visit opens on This Week; a reader's own choice is remembered
+  // after that (cp_timeFilter).
+  const [timeFilter, setTimeFilter] = useState("This Week");
   const [darkMode, setDarkMode] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
   const [page, setPage] = useState("feed");
