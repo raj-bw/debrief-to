@@ -691,7 +691,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <P>
             <Strong>Filters.</Strong> Each story is filed under the places it concerns: your town, Toronto, Ontario or
             Canada. A story is also filed under a topic when the newsroom&apos;s section or the headline makes the subject
-            clear:
+            clear. Pick a place and a topic to see stories that match both, such as Toronto stories about transit. Pick
+            two places, or two topics, to see stories from either. The topics are:
           </P>
           <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
             {topics.map((tp) => (
@@ -1186,15 +1187,17 @@ export default function Home({ pageTown = null } = {}) {
      matching two of them still appears once, because this is a filter over a
      list that was deduplicated by link before it ever got here. */
   const activeCats = activeCategories.filter((l) => CATEGORIES.some((c) => c.label === l));
-  const matchesCategory = (a) =>
-    activeCats.length === 0 ||
-    activeCats.some((label) => {
-      const cat = CATEGORIES.find((c) => c.label === label);
-      if (!cat) return false;
-      return cat.kind === "place"
-        ? (a.places || []).includes(label)
-        : (a.topics || []).includes(label);
-    });
+  /* A place and a topic together narrow: Toronto + Urbanism & Transit is
+     Toronto's transit stories, not every Toronto story plus every transit
+     story. Two places, or two topics, still widen: Toronto + Ontario is
+     stories from either. All of this runs in the reader's browser, on the
+     stories already loaded, so it costs the server nothing. */
+  const kindOf = (label) => CATEGORIES.find((c) => c.label === label)?.kind;
+  const activePlaces = activeCats.filter((l) => kindOf(l) === "place");
+  const activeTopics = activeCats.filter((l) => kindOf(l) === "topic");
+  const inPlaces = (a) => activePlaces.length === 0 || activePlaces.some((l) => (a.places || []).includes(l));
+  const inTopics = (a) => activeTopics.length === 0 || activeTopics.some((l) => (a.topics || []).includes(l));
+  const matchesCategory = (a) => inPlaces(a) && inTopics(a);
 
   // Editor's Picks, shaped like feed articles so the same cards show them.
   const pickColor = (name) => PUBLISHERS.find((p) => p.name === name)?.color || "#6B665F";
@@ -1670,10 +1673,24 @@ export default function Home({ pageTown = null } = {}) {
             <p style={{ fontSize: 14, color: t.textSec, marginTop: 6, maxWidth: 440, lineHeight: 1.6 }}>
               {showPicks
                 ? "New picks are added from time to time. Check back soon."
+                : activePlaces.length > 0 && activeTopics.length > 0
+                ? `No ${activeTopics.join(" or ")} stories from ${activePlaces.join(" or ")} right now. A story only gets a topic when the newsroom's own section or headline makes it clear, so smaller places have fewer.`
                 : activeCats.length > 0
                 ? "Nothing matches these filters yet. Topic tabs fill up more slowly than place tabs, because a story only earns a topic when the publisher's own section or headline makes it clear."
                 : "Try a different search term."}
             </p>
+            {!showPicks && activePlaces.length > 0 && activeTopics.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 18 }}>
+                <button onClick={() => setActiveCategories(activePlaces)}
+                  style={{ padding: "10px 18px", borderRadius: 22, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "none" }}>
+                  Show all {activePlaces.join(" and ")} stories
+                </button>
+                <button onClick={() => setActiveCategories(activeTopics)}
+                  style={{ padding: "10px 18px", borderRadius: 22, fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "transparent", color: dm ? "#7FD3A8" : "#2D6A4F", border: `1.5px solid ${dm ? "#7FD3A8" : "#2D6A4F"}` }}>
+                  Show {activeTopics.join(" and ")} from everywhere
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <>

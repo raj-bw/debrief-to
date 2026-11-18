@@ -244,6 +244,36 @@ async function run({ name, width, height, phone }) {
     await page.evaluate(() => { localStorage.setItem("cp_town", "newmarket"); localStorage.setItem("cp_categories", "[]"); });
   });
 
+  await check("a place and a topic narrow the feed; two places widen it", async () => {
+    const cards = () => page.locator(storySel).evaluateAll((els) => els.map((b) => {
+      let el = b; while (el && !(el.style && el.style.borderRadius === "14px")) el = el.parentElement;
+      return (el || b).innerText;
+    }));
+    const open = async (cats) => {
+      await page.evaluate((c) => { localStorage.setItem("cp_town", "newmarket"); localStorage.setItem("cp_categories", JSON.stringify(c)); localStorage.setItem("cp_timeFilter", "This Month"); }, cats);
+      await page.goto(BASE + "/", { waitUntil: "load" });
+      await page.waitForTimeout(1500);
+    };
+    // Newmarket + Urbanism & Transit: only Newmarket's transit stories
+    await open(["Newmarket", "Urbanism & Transit"]);
+    const both = await cards();
+    if (!both.length) return "no Newmarket transit stories";
+    const off = both.find((t) => !t.includes("Urbanism & Transit") || !/NEWMARKET TODAY|Newmarket Today/i.test(t));
+    if (off) return `a story outside Newmarket transit: ${off.slice(0, 80)}`;
+    // Toronto + Canada: stories from either
+    await open(["Toronto", "Canada"]);
+    const either = (await cards()).join("\n");
+    if (!/CBC Toronto/i.test(either) || !/National Observer/i.test(either)) return "two places didn't widen to both";
+    // A combination with nothing: the way out shows the town's stories
+    await open(["Newmarket", "Investigative"]);
+    if ((await cards()).length) return "expected no Newmarket investigative stories in the test data";
+    await page.getByRole("button", { name: "Show all Newmarket stories" }).click();
+    await page.locator(storySel).first().waitFor({ timeout: 5000 });
+    const pressed = (await page.locator('button[aria-pressed="true"]').allInnerTexts()).join(" ");
+    if (!/Newmarket/.test(pressed) || /Investigative/.test(pressed)) return `filters after the way out: ${pressed}`;
+    await page.evaluate(() => localStorage.setItem("cp_categories", "[]"));
+  });
+
   await check("a first visit opens on This Week", async () => {
     await page.evaluate(() => localStorage.removeItem("cp_timeFilter"));
     const asked = page.waitForRequest((r) => r.url().includes("/api/feed?") && r.url().includes("range=week"), { timeout: 15000 });
