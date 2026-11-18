@@ -28,17 +28,36 @@ const PUBLISHERS = [
   { name: "Spacing Toronto", color: "#0F2E4A", url: "https://spacing.ca/toronto", place: "Toronto", funding: "commercial" },
   { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true, funding: "commercial", owner: "Torstar, owned by NordStar Capital" },
   { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true, funding: "commercial", owner: "Village Media" },
-  { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader" },
+  { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader", nonprofit: true },
   { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "Canada", funding: "reader" },
   { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "Canada", funding: "reader" },
-  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader" },
+  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader", nonprofit: true },
   { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "Canada", funding: "reader" },
   { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "Canada", funding: "reader" },
-  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader" },
-  { name: "Be Giant", color: "#9C2F6B", url: "https://www.begiant.ca", place: "Canada", funding: "private", owner: "Weston family (Wittington Investments)", note: "funded by the Weston family" },
+  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader", nonprofit: true },
+  { name: "Be Giant", color: "#9C2F6B", url: "https://www.begiant.ca", place: "Canada", funding: "private", owner: "Weston family (Wittington Investments)", note: "non-profit, funded by the Weston family" },
 ];
 
 const FUNDING_LABEL = { reader: "Reader-funded", public: "Publicly funded", commercial: "Commercially owned", private: "Funded by one private donor" };
+
+/* The short note after each newsroom's name on the About page: who owns or
+   funds it. Facts we can check (ownership, funding model), never a judgment
+   of politics or bias. A local newsroom whose owner we haven't confirmed gets
+   no note rather than a guess. */
+const OWNER_NOTE = {
+  "CBC/Radio-Canada": "public broadcaster",
+  "Metroland Media (Torstar)": "Metroland, part of Torstar",
+  "Torstar (NordStar Capital)": "Torstar, owned by NordStar Capital",
+};
+function fundingNote(n) {
+  if (n.note) return n.note;
+  if (OWNER_NOTE[n.owner]) return OWNER_NOTE[n.owner];
+  if (n.funding === "public") return "public broadcaster";
+  if (n.owner) return n.owner;
+  if (n.funding === "reader") return n.nonprofit ? "non-profit, reader-funded" : "reader-funded";
+  if (n.funding === "commercial") return "independent, commercially owned";
+  return null;
+}
 
 /* Two kinds of filter, shown as two rows in the Sources panel: WHERE the news
    is from, and WHAT it covers.
@@ -562,15 +581,15 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
      separated by dots (dots end up at the start of wrapped lines). Every
      name goes to the newsroom's own site. */
   const Newsrooms = ({ list }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 4, columnGap: 20, fontSize: 15, lineHeight: 1.8, color: c.body }}>
+    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6, fontSize: 15, lineHeight: 1.6, color: c.body }}>
       {list.map((n) => (
-        <span key={n.name} style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        <li key={n.name} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 6, rowGap: 2 }}>
           <a href={n.url} target="_blank" rel="noopener" style={{ color: c.body, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>{n.label || n.name}</a>
           {n.paywall && <Sub />}
-          {n.note && <span style={{ marginLeft: 6, fontSize: 13, color: c.muted }}>({n.note})</span>}
-        </span>
+          {fundingNote(n) && <span style={{ fontSize: 13, color: c.muted }}>({fundingNote(n)})</span>}
+        </li>
       ))}
-    </div>
+    </ul>
   );
 
   // Toronto, Ontario and Canada: the newsrooms every reader sees.
@@ -600,7 +619,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: c.bg, color: c.text }}>
       <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="about" savedCount={savedCount} onToggleDark={onToggleDark} onGo={onGo} />
           <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", order: 3 }}>
@@ -759,11 +778,16 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
             Spotted a mistake, a broken link or a newsroom we should add? Email{" "}
             <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>, or post it
             as an <a href={FEEDBACK_URL} target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>issue on GitHub</a> (posts
-            there are public).
+            are public).
           </P>
           <P>
             <Strong>For publishers:</Strong> each listing shows your headline, summary and photo, and links to the story on
             your site. To have your newsroom removed or listed differently, email us at the same address.
+          </P>
+          <P>
+            Debrief.TO carries no advertising and earns no referral or affiliate revenue. Every story opens on the
+            publisher&apos;s own website, so the visit, and any advertising or subscription revenue that comes with it,
+            stays with the newsroom.
           </P>
           <P>
             Debrief.TO was built by <a href="https://www.linkedin.com/in/rajveer-bawa" target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>Raj</a> as
@@ -775,7 +799,10 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
 
         <section id="publications" style={{ scrollMarginTop: 16 }}>
           <H2>Publications we cover</H2>
-          <P muted>Newsrooms marked <Sub /> keep some or all of their stories for subscribers.</P>
+          <P muted>
+            The note after each name says who owns or funds the newsroom. Newsrooms marked <Sub /> keep some or all of
+            their stories for subscribers.
+          </P>
 
           {["Toronto", "Ontario", "Canada"].map((place) => (
             <div key={place}>
@@ -817,7 +844,7 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
   return (
     <div style={{ fontFamily: "inherit", minHeight: "100vh", background: dm ? "#1A1A1A" : "#FAF8F5", color: dm ? "#E8E5E0" : "#2C2C2C" }}>
       <header style={{ background: dm ? "#1E1E1E" : "#FFF", borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="bookmarks" savedCount={bookmarks.length} onToggleDark={onToggleDark} onGo={onGo} />
           <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, order: 3 }}>
@@ -1379,7 +1406,7 @@ export default function Home({ pageTown = null } = {}) {
       {showInstallSheet && <InstallSheet dm={dm} onClose={() => setShowInstallSheet(false)} />}
       {/* ===== HEADER ===== */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div style={{ padding: "20px clamp(16px, 5vw, 120px) 16px" }}>
+        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px" }}>
 
           {/* Top row: wordmark - capsules - search. The capsules sit in the middle
               with even space on both sides, and in the same spot on every page. */}
@@ -1538,7 +1565,7 @@ export default function Home({ pageTown = null } = {}) {
       {/* At least a screen tall, so the footer starts below the fold: while
           the stories load, the short loading cards left the footer on screen,
           and it jumped away when the stories arrived (a layout shift). */}
-      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
+      <main className="page-width" style={{ padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
         {pageTown && !showPicks && (
           <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: t.text }}>{resolveTown(pageTown).townName} news</h2>
         )}

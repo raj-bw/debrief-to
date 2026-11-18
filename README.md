@@ -37,8 +37,6 @@ The full list of newsrooms, and what's left out of the feed and why, are on the 
 
 **The newsrooms.** Every story on Debrief.TO belongs to the newsroom that reported it. If a story is useful to you, read it on the newsroom's site and subscribe if you can. Newsrooms that would rather not appear can email hello@debrief.to.
 
-**Apathy is Boring.** Debrief.TO was built in Newmarket, Ontario, as part of the [Apathy is Boring](https://www.apathyisboring.com) BUILD program.
-
 **Public data.**
 - Council schedules come from each town's official eSCRIBE meeting portal, and from the [City of Toronto Open Data](https://open.toronto.ca/dataset/city-council-and-committees-meeting-schedule-reports/) portal (Open Government Licence – Toronto).
 - Regions follow [Statistics Canada's economic regions](https://www23.statcan.gc.ca/imdb/p3VD.pl?Function=getVDStruct&TVD=131938&CVD=138862&CPV=35&CST=01012006&CLV=1&MLV=4) for Ontario.
@@ -50,7 +48,7 @@ The full list of newsrooms, and what's left out of the feed and why, are on the 
 ## Contact and feedback
 
 - Email: hello@debrief.to
-- Feedback, bugs or a newsroom we should add: [open an issue](https://github.com/raj-bw/debrief-to/issues/new). Issues are public, so use email for anything private.
+- Feedback, bugs or a newsroom we should add: [open an issue](https://github.com/raj-bw/debrief-to/issues/new). Issues are public, so please use email for anything private.
 
 ---
 

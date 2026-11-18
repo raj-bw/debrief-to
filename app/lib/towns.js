@@ -488,7 +488,7 @@ export function localNewsrooms() {
   const home = (f) => {
     try { return new URL((f.urls || [])[0] || f.api).origin; } catch { return null; }
   };
-  const collect = (f) => { if (!byName.has(f.name)) byName.set(f.name, { name: f.name, url: home(f), paywall: Boolean(f.paywall) }); };
+  const collect = (f) => { if (!byName.has(f.name)) byName.set(f.name, { name: f.name, url: home(f), paywall: Boolean(f.paywall), owner: f.owner || null }); };
   for (const [name, list] of Object.entries(TOWN_FEEDS)) if (name !== "Toronto") list.forEach(collect);
   for (const list of Object.values(TOWN_EXTRA)) list.forEach(collect);
   for (const a of Object.values(AREA_FEEDS)) a.feeds.forEach(collect);
