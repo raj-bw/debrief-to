@@ -5,6 +5,7 @@ import { REGION_ORDER, NEWSROOM_REGION, HOMEPAGE_OVERRIDE } from "./lib/regions"
 import { currentPicks, pastPicks, PICKS_LABEL, PICKS_DAYS } from "./lib/picks";
 import { councilPortal } from "./lib/councils";
 import { TORONTO_PORTAL } from "./lib/toronto-council";
+import { FEEDBACK_URL } from "./lib/links";
 
 /* The newsrooms Debrief.TO carries. This list is the credit roll on the About
    page — it is no longer what drives the filters, because categories now
@@ -684,8 +685,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Editor&apos;s Picks</H2>
           <P>
-            Editor&apos;s Picks are stories chosen by hand for the strength of their reporting or their importance to
-            Ontarians, often investigations and explainers from independent newsrooms. Each pick stays at the top for
+            Editor&apos;s Picks are stories we chose by hand because the reporting is strong or the subject matters to
+            Ontarians. Many are investigations and explainers from independent newsrooms. Each pick stays at the top for
             {" "}{PICKS_DAYS} days, then moves to Past picks.
           </P>
         </section>
@@ -717,15 +718,15 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <H2>What we leave out</H2>
           <P>To keep the feed focused on local reporting, Debrief.TO leaves out:</P>
           <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
-            <li>national and international wire stories that aren&apos;t about Ontario</li>
+            <li>news agency stories (such as The Canadian Press) that aren&apos;t about Ontario</li>
             <li>sports, entertainment and weather</li>
             <li>obituaries</li>
             <li>press releases and sponsored content</li>
             <li>event listings and round-ups</li>
             <li>lottery results</li>
-            <li>columns syndicated across newspaper chains</li>
+            <li>columns that run in many papers at once</li>
           </ul>
-          <P>These rules are based on the type of item, never on its subject or point of view.</P>
+          <P>We filter by the kind of item, never by what a story is about or which side it takes.</P>
         </section>
 
         <Divider />
@@ -733,8 +734,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Council meetings</H2>
           <P>
-            Where a town posts its meetings online, the local tab lists upcoming council and committee meetings, with a
-            link to each agenda. These come from the municipality, not a newsroom, and are shown separately from the news.
+            If your town posts its meetings online, the local tab lists upcoming council and committee meetings, with a
+            link to each agenda. These come from the town itself, not a newsroom, so they&apos;re kept apart from the news.
           </P>
         </section>
 
@@ -743,9 +744,9 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Privacy</H2>
           <P>
-            There are no accounts and no ads. Your town, saved stories and settings stay in your own browser. Debrief.TO
-            does not track what you read. It counts visits, without cookies or anything that identifies you, to know how
-            many people use the site.
+            No accounts, no ads and no cookies. Your town, saved stories and settings stay in your own browser, and
+            Debrief.TO doesn&apos;t track what you read.{" "}
+            <a href="/privacy" style={{ color: c.accent, fontWeight: 600 }}>Read the privacy page</a>.
           </P>
         </section>
 
@@ -755,7 +756,9 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <H2>Contact</H2>
           <P>
             Spotted a mistake, a broken link or a newsroom we should add? Email{" "}
-            <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>.
+            <a href="mailto:hello@debrief.to" style={{ color: c.accent, fontWeight: 600 }}>hello@debrief.to</a>, or post it
+            as an <a href={FEEDBACK_URL} target="_blank" rel="noopener" style={{ color: c.accent, fontWeight: 600 }}>issue on GitHub</a> (posts
+            there are public).
           </P>
           <P>
             <Strong>For publishers:</Strong> each listing shows your headline, summary and photo, and links to the story on
@@ -1802,6 +1805,13 @@ export default function Home({ pageTown = null } = {}) {
           <button onClick={() => goTo("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
             About Debrief.TO
           </button>
+          <a href="/privacy" style={{ fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F", textDecoration: "none" }}>
+            Privacy
+          </a>
+          <a href={FEEDBACK_URL} target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F", textDecoration: "none" }}>
+            Feedback
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          </a>
           {install.platform && (
             <button onClick={startInstall} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
               Add to Home Screen

@@ -225,6 +225,23 @@ async function run({ name, width, height, phone }) {
     if (!html.includes('href="https://debrief.to/greater-napanee"')) return "Greater Napanee's page has another canonical address";
   });
 
+  await check("the Privacy page opens from the footer, and Feedback goes to GitHub", async () => {
+    await page.goto(BASE + "/", { waitUntil: "load" });
+    const privacy = page.locator("footer").getByRole("link", { name: "Privacy" });
+    await privacy.waitFor({ timeout: 10000 });
+    const feedback = page.locator("footer").getByRole("link", { name: /Feedback/ });
+    if (!/^https:\/\/github\.com\/raj-bw\/debrief-to\/issues/.test(await feedback.getAttribute("href"))) return `feedback goes to ${await feedback.getAttribute("href")}`;
+    if ((await feedback.getAttribute("target")) !== "_blank") return "feedback doesn't open in a new tab";
+    await privacy.click();
+    await page.getByRole("heading", { name: "Privacy", level: 1 }).waitFor({ timeout: 10000 });
+    if (!/^Privacy/.test(await page.title())) return `title "${await page.title()}"`;
+    for (const h of ["What we know about your visit", "Cookies", "What's saved on your phone or computer", "Who else can see your visit", "Questions"]) {
+      if (!(await page.getByRole("heading", { name: h }).count())) return `no "${h}" section`;
+    }
+    const xml = await (await page.request.get(BASE + "/sitemap.xml")).text();
+    if (!xml.includes("<loc>https://debrief.to/privacy</loc>")) return "not in the sitemap";
+  });
+
   await check("a missing page answers 404 with a way back", async () => {
     const res = await page.goto(BASE + "/no-such-page", { waitUntil: "load" });
     if (res.status() !== 404) return `status ${res.status()}`;
