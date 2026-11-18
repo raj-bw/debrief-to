@@ -225,6 +225,23 @@ async function run({ name, width, height, phone }) {
     if (!html.includes('href="https://debrief.to/greater-napanee"')) return "Greater Napanee's page has another canonical address";
   });
 
+  await check("stories come 24 at a time, and the footer can be reached", async () => {
+    await page.evaluate(() => { localStorage.setItem("cp_categories", "[]"); localStorage.setItem("cp_timeFilter", "This Month"); });
+    await page.goto(BASE + "/newmarket", { waitUntil: "load" });
+    await page.locator(storySel).first().waitFor({ timeout: 15000 });
+    const count = () => page.locator(storySel).count();
+    if ((await count()) !== 24) return `${await count()} stories at first`;
+    // Scrolling to the bottom doesn't load more by itself
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(800);
+    if ((await count()) !== 24) return `${await count()} after scrolling to the bottom`;
+    if (!(await page.locator("footer").isVisible())) return "footer not reachable";
+    const more = page.getByRole("button", { name: /^Show \d+ more stories$/ });
+    await more.click();
+    await page.waitForTimeout(300);
+    if ((await count()) !== 48) return `${await count()} after Show more`;
+  });
+
   await check("the Privacy page opens from the footer, and Feedback goes to GitHub", async () => {
     await page.goto(BASE + "/", { waitUntil: "load" });
     const privacy = page.locator("footer").getByRole("link", { name: "Privacy" });
