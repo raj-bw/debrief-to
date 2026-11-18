@@ -16,6 +16,9 @@
      location, so it can't be made to ask.
    - Cross-Origin-Opener-Policy: a story opened in a new tab can't reach back
      into this one.
+   - Strict-Transport-Security: browsers use https for debrief.to and every
+     subdomain for two years, so a connection can't be quietly downgraded.
+     (Vercel sent the header already, without subdomains.)
 
    Vercel's preview toolbar loads from vercel.live, so previews allow that
    too; the live site doesn't. ---- */
@@ -51,6 +54,7 @@ const nextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
         ],
       },
     ];

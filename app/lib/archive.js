@@ -335,13 +335,27 @@ function activeFrom(now = Date.now()) {
 }
 const RENEW_MS = 60 * 60 * 1000;
 const renewedAt = new Map();
+/* At most this many towns join collection in any one hour. Each town adds
+   publications to every collector run, and a script asking for all 412
+   town pages (a browser's name is easy to fake, so the crawler check
+   doesn't stop it) would otherwise put every one of them into hourly
+   collection at once: runs too long to finish and a database filling up.
+   A reader whose town is over the limit still gets its news (asked
+   directly, as on any first visit); the town joins on a later visit. */
+export const NEW_TOWNS_PER_HOUR = 25;
 export async function activateTown(slug, now = Date.now()) {
   if (!archiveEnabled() || !slug) return false;
   if (now - (renewedAt.get(slug) || 0) < RENEW_MS) return false;
   try {
-    const [last] = await pipeline([["ZSCORE", "archive:active", slug], ["ZADD", "archive:active", now, slug]]);
-    renewedAt.set(slug, now);
+    const [last] = await pipeline([["ZSCORE", "archive:active", slug]]);
     const wasActive = last !== null && last !== undefined && (activeFrom(now) === "-inf" || Number(last) > now - ACTIVE_DAYS * DAY);
+    if (!wasActive) {
+      const hourKey = `archive:newtowns:${Math.floor(now / 3600000)}`;
+      const [joined] = await pipeline([["INCR", hourKey], ["EXPIRE", hourKey, 7200]]);
+      if (Number(joined) > NEW_TOWNS_PER_HOUR) return false;
+    }
+    await pipeline([["ZADD", "archive:active", now, slug]]);
+    renewedAt.set(slug, now);
     return !wasActive;
   } catch {
     return false;

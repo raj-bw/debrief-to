@@ -4,10 +4,11 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createClient } from "redis";
-import { activateTown, activeTowns, archiveEnabled, ACTIVE_DAYS } from "../app/lib/archive.js";
+import { activateTown, activeTowns, archiveEnabled, ACTIVE_DAYS, NEW_TOWNS_PER_HOUR } from "../app/lib/archive.js";
 
 const skip = !process.env.REDIS_URL || !archiveEnabled() ? "no REDIS_URL" : false;
 const DAY = 86400000;
+const BURST_AT = Date.parse("2026-12-21T15:30:00Z");
 let client;
 async function redis() {
   if (!client) client = await createClient({ url: process.env.REDIS_URL, RESP: 2 }).connect();
@@ -16,7 +17,8 @@ async function redis() {
 after(async () => {
   if (skip) return;
   const r = await redis();
-  await r.zRem("archive:active", ["test-new", "test-lapsed", "test-recent", "test-old"]);
+  await r.zRem("archive:active", ["test-new", "test-lapsed", "test-recent", "test-old", ...Array.from({ length: NEW_TOWNS_PER_HOUR + 2 }, (_, i) => `test-burst-${i}`)]);
+  await r.del(`archive:newtowns:${Math.floor(BURST_AT / 3600000)}`);
   await r.quit();
   setTimeout(() => process.exit(0), 50).unref();   // the site's own connection stays open
 });
@@ -47,4 +49,17 @@ test("towns opened before the change keep 30 days from it", { skip }, async () =
   await r.zAdd("archive:active", [{ score: Date.parse("2026-10-01T12:00:00Z"), value: "test-old" }]);
   assert.ok((await activeTowns(Date.parse("2026-11-05T18:00:00Z"))).includes("test-old"), "dropped before its 30 days");
   assert.ok(!(await activeTowns(Date.parse("2026-12-05T18:00:00Z"))).includes("test-old"), "still collected after them");
+});
+
+test(`no more than ${NEW_TOWNS_PER_HOUR} towns join collection in one hour`, { skip }, async () => {
+  const r = await redis();
+  await r.del(`archive:newtowns:${Math.floor(BURST_AT / 3600000)}`);
+  const joined = [];
+  for (let i = 0; i < NEW_TOWNS_PER_HOUR + 2; i++) joined.push(await activateTown(`test-burst-${i}`, BURST_AT));
+  assert.equal(joined.filter(Boolean).length, NEW_TOWNS_PER_HOUR);
+  const active = await activeTowns(BURST_AT);
+  assert.ok(active.includes("test-burst-0"));
+  assert.ok(!active.includes(`test-burst-${NEW_TOWNS_PER_HOUR + 1}`), "a town over the limit joined anyway");
+  // An hour later it can join
+  assert.equal(await activateTown(`test-burst-${NEW_TOWNS_PER_HOUR + 1}`, BURST_AT + 3600000), true);
 });
