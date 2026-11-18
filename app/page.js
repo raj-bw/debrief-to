@@ -532,8 +532,9 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
     cardBorder: dm ? "#3A3A3A" : "#E8E5E0",
     text: dm ? "#E8E5E0" : "#2C2C2C",
     title: dm ? "#F0EDE8" : "#1A1A1A",
-    body: dm ? "#C8C4BE" : "#3C3A37",
-    muted: dm ? "#9A958E" : "#6B665F",
+    // Body text: black on light, near-white on dark, for reading comfort
+    body: dm ? "#ECE8E2" : "#000000",
+    muted: dm ? "#B8B3AC" : "#5A5550",
     accent: dm ? "#7FD3A8" : "#2D6A4F",
   };
   /* Type and spacing. Section headings are large and bold; a thin rule
