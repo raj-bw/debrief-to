@@ -878,8 +878,12 @@ export default function Home({ pageTown = null } = {}) {
   // --- Persisted state: preferences and saved articles live in localStorage (this browser only) ---
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(21);
-  const loaderRef = useRef(null);
+  /* Stories come 24 at a time, with a "Show more" button rather than more
+     loading on their own as you scroll: with a month of a busy town's news
+     the bottom of the page (About, Privacy, Feedback) was otherwise out of
+     reach. 24 fills whole rows at one, two or three columns. */
+  const PAGE_SIZE = 24;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [activeCategories, setActiveCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSources, setShowSources] = useState(false);
@@ -1184,24 +1188,8 @@ export default function Home({ pageTown = null } = {}) {
      too would only make them compete with it on a phone connection. */
   const firstRow = typeof window !== "undefined" && window.matchMedia("(min-width: 712px)").matches ? 3 : 1;
 
-  // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(21); }, [activeCategories, timeFilter, searchQuery, townSlug]);
-
-  // Infinite scroll: load 21 more when sentinel comes into view
-  useEffect(() => {
-    const node = loaderRef.current;
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setVisibleCount((prev) => prev + 21);
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [hasMore]);
+  // Back to the first page of stories when the filters change
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [activeCategories, timeFilter, searchQuery, townSlug]);
 
   // Add to Home Screen. The card in the feed shows on phones from the second
   // visit on (the first already asks for a town), until the reader adds the
@@ -1762,13 +1750,19 @@ export default function Home({ pageTown = null } = {}) {
           </>
         )}
 
-        {/* Infinite scroll sentinel + loading indicator */}
+        {/* More stories, on request (see PAGE_SIZE) */}
         {!loading && hasMore && (
-          <div ref={loaderRef} style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}>
-            <span style={{ fontSize: 13, color: t.textMuted }}>Loading more articles...</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "28px 0 8px" }}>
+            <button onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+              style={{ padding: "12px 24px", borderRadius: 24, fontSize: 15, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: dm ? "#2D6A4F" : "#2D6A4F", color: "#FFF", border: "none" }}>
+              Show {Math.min(PAGE_SIZE, filtered.length - visibleCount)} more stories
+            </button>
+            <span style={{ fontSize: 13, color: t.textMuted }}>
+              Showing {visibleCount} of {filtered.length}
+            </span>
           </div>
         )}
-        {!loading && !hasMore && filtered.length > 21 && (
+        {!loading && !hasMore && filtered.length > PAGE_SIZE && (
           <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}>
             <span style={{ fontSize: 13, color: t.textMuted }}>You&apos;re all caught up ✓</span>
           </div>

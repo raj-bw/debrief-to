@@ -26,7 +26,6 @@ export default function PrivacyView({ updated }) {
   const A = ({ href, children }) => (
     <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener" style={{ color: c.link, fontWeight: 600, textUnderlineOffset: 3 }}>{children}</a>
   );
-  const li = { marginBottom: 6 };
 
   return (
     <div style={{ minHeight: "100vh", background: c.bg, color: c.title }}>
@@ -37,70 +36,33 @@ export default function PrivacyView({ updated }) {
       </header>
       <main style={{ maxWidth: 720, margin: "0 auto", padding: "36px clamp(16px, 4vw, 24px) 80px" }}>
         <h1 style={{ fontFamily: "'Georgia', serif", fontSize: "clamp(28px, 6vw, 34px)", fontWeight: 700, margin: "0 0 6px" }}>Privacy</h1>
-        <p style={{ fontSize: 14, color: c.muted, margin: "0 0 24px" }}>Last updated {updated}</p>
+        <p style={{ fontSize: 14, color: c.muted, margin: "0 0 24px" }}>Last updated: {updated}</p>
 
+        <H2>What we collect</H2>
         <P>
-          <strong style={{ color: c.title }}>The short version:</strong> Debrief.TO doesn&apos;t ask who you are,
-          doesn&apos;t use cookies and doesn&apos;t keep track of the stories you read.
-        </P>
-
-        <H2>What we know about your visit</H2>
-        <P>
-          We count how many people visit. For each visit we see which page was opened, which website sent you here, and
-          the general type of device: the country, the browser (like Safari or Chrome), and whether it&apos;s a phone or
-          a computer.
-        </P>
-        <P>
-          We can&apos;t tell who you are. The tool that does the counting, Vercel Web Analytics, doesn&apos;t use cookies
-          and forgets you after a day. It can&apos;t recognize you next time or follow you to other websites.
-        </P>
-        <P>
-          Our printed flyers and stickers have QR codes. When someone scans one, we add one to that day&apos;s count.
-          That&apos;s all we record.
+          Very little. Debrief.TO has no accounts and no forms. We count visits with Vercel Web Analytics, which
+          records the page you opened, the website that sent you, and your type of device (country, browser, phone or
+          computer). It uses no cookies and can&apos;t tell who you are.
         </P>
 
         <H2>Cookies</H2>
-        <P>We don&apos;t use any.</P>
+        <P>
+          None. The site saves your town, filters, saved stories and dark mode setting in your own browser so it
+          remembers them. That stays on your device and is never used for tracking.
+        </P>
 
-        <H2>What&apos;s saved on your phone or computer</H2>
+        <H2>Third parties</H2>
         <P>
-          To remember your choices, the site saves a few things in your browser. They stay on your device and are
-          never sent to us:
+          Debrief.TO is hosted by Vercel, and story photos load straight from each newsroom&apos;s website. Like any
+          website, they see basic information about the request: your internet address (IP address), your browser, and
+          that you came from debrief.to. When you open a story, you&apos;re on the newsroom&apos;s own site, and its
+          privacy policy applies. See <A href="https://vercel.com/legal/privacy-policy">Vercel&apos;s privacy policy</A>.
         </P>
-        <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
-          <li style={li}>your town and the filters you picked</li>
-          <li style={li}>stories you saved for later</li>
-          <li style={li}>whether you turned on dark mode</li>
-          <li style={li}>
-            how many times you&apos;ve visited, and whether you said &ldquo;Not now&rdquo; to adding the site to your home
-            screen (we only use this to decide when to ask again)
-          </li>
-        </ul>
-        <P>To erase them, clear your browser&apos;s data for debrief.to.</P>
 
-        <H2>Who else can see your visit</H2>
+        <H2>Contact</H2>
         <P>
-          <strong style={{ color: c.title }}>The company that runs our website.</strong> Debrief.TO runs on Vercel. Like
-          any website host, Vercel needs a few basic details to show you the page, such as your internet address (called
-          an IP address) and the browser you use. It also uses them to block attacks on the site.{" "}
-          <A href="https://vercel.com/legal/privacy-policy">Vercel&apos;s privacy policy</A> explains more.
-        </P>
-        <P>
-          <strong style={{ color: c.title }}>The newsrooms.</strong> The photos on story cards come straight from each
-          newsroom&apos;s website. So the newsroom can see your internet address, and that you came from debrief.to. It
-          can&apos;t see which page you were on.
-        </P>
-        <P>
-          When you tap a story, you leave Debrief.TO and go to the newsroom&apos;s website. Their privacy policy applies
-          there.
-        </P>
-        <P>Nothing else comes from other companies. Even the fonts come from Debrief.TO.</P>
-
-        <H2>Questions</H2>
-        <P>
-          Email us at <A href="mailto:hello@debrief.to">hello@debrief.to</A>. You can also post on{" "}
-          <A href={FEEDBACK_URL}>GitHub</A>, but anything you write there is public and shows your GitHub username. Use
-          email for anything private.
+          Questions or feedback can be sent to <A href="mailto:hello@debrief.to">hello@debrief.to</A> or posted as
+          an <A href={FEEDBACK_URL}>issue on GitHub</A>. Posts on GitHub are public.
         </P>
 
         <p style={{ marginTop: 36, fontSize: 14 }}>
