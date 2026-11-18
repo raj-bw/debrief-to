@@ -28,17 +28,36 @@ const PUBLISHERS = [
   { name: "Spacing Toronto", color: "#0F2E4A", url: "https://spacing.ca/toronto", place: "Toronto", funding: "commercial" },
   { name: "Toronto Star", color: "#003DA5", url: "https://www.thestar.com", place: "Toronto", paywall: true, funding: "commercial", owner: "Torstar, owned by NordStar Capital" },
   { name: "The Trillium", color: "#7B2D8E", url: "https://www.thetrillium.ca", place: "Ontario", paywall: true, funding: "commercial", owner: "Village Media" },
-  { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader" },
+  { name: "The Narwhal", color: "#2D6A4F", url: "https://thenarwhal.ca", place: "Ontario", funding: "reader", nonprofit: true },
   { name: "National Observer", color: "#0B7285", url: "https://www.nationalobserver.com", place: "Canada", funding: "reader" },
   { name: "The Breach", color: "#1565C0", url: "https://breachmedia.ca", place: "Canada", funding: "reader" },
-  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader" },
+  { name: "IJF", color: "#8B5E00", url: "https://theijf.org", place: "Canada", funding: "reader", nonprofit: true },
   { name: "Ricochet", color: "#B3261E", url: "https://ricochet.media", place: "Canada", funding: "reader" },
   { name: "The Maple", color: "#A8324A", url: "https://www.readthemaple.com", place: "Canada", funding: "reader" },
-  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader" },
-  { name: "Be Giant", color: "#9C2F6B", url: "https://www.begiant.ca", place: "Canada", funding: "private", owner: "Weston family (Wittington Investments)", note: "funded by the Weston family" },
+  { name: "The Walrus", color: "#D4872C", url: "https://thewalrus.ca", place: "Canada", funding: "reader", nonprofit: true },
+  { name: "Be Giant", color: "#9C2F6B", url: "https://www.begiant.ca", place: "Canada", funding: "private", owner: "Weston family (Wittington Investments)", note: "non-profit, funded by the Weston family" },
 ];
 
 const FUNDING_LABEL = { reader: "Reader-funded", public: "Publicly funded", commercial: "Commercially owned", private: "Funded by one private donor" };
+
+/* The short note after each newsroom's name on the About page: who owns or
+   funds it. Facts we can check (ownership, funding model), never a judgment
+   of politics or bias. A local newsroom whose owner we haven't confirmed gets
+   no note rather than a guess. */
+const OWNER_NOTE = {
+  "CBC/Radio-Canada": "public broadcaster",
+  "Metroland Media (Torstar)": "Metroland, part of Torstar",
+  "Torstar (NordStar Capital)": "Torstar, owned by NordStar Capital",
+};
+function fundingNote(n) {
+  if (n.note) return n.note;
+  if (OWNER_NOTE[n.owner]) return OWNER_NOTE[n.owner];
+  if (n.funding === "public") return "public broadcaster";
+  if (n.owner) return n.owner;
+  if (n.funding === "reader") return n.nonprofit ? "non-profit, reader-funded" : "reader-funded";
+  if (n.funding === "commercial") return "independent, commercially owned";
+  return null;
+}
 
 /* Two kinds of filter, shown as two rows in the Sources panel: WHERE the news
    is from, and WHAT it covers.
@@ -562,15 +581,15 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
      separated by dots (dots end up at the start of wrapped lines). Every
      name goes to the newsroom's own site. */
   const Newsrooms = ({ list }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 4, columnGap: 20, fontSize: 15, lineHeight: 1.8, color: c.body }}>
+    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6, fontSize: 15, lineHeight: 1.6, color: c.body }}>
       {list.map((n) => (
-        <span key={n.name} style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        <li key={n.name} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 6, rowGap: 2 }}>
           <a href={n.url} target="_blank" rel="noopener" style={{ color: c.body, textDecorationColor: dm ? "#555" : "#CFCAC2", textUnderlineOffset: 3 }}>{n.label || n.name}</a>
           {n.paywall && <Sub />}
-          {n.note && <span style={{ marginLeft: 6, fontSize: 13, color: c.muted }}>({n.note})</span>}
-        </span>
+          {fundingNote(n) && <span style={{ fontSize: 13, color: c.muted }}>({fundingNote(n)})</span>}
+        </li>
       ))}
-    </div>
+    </ul>
   );
 
   // Toronto, Ontario and Canada: the newsrooms every reader sees.
@@ -780,7 +799,10 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
 
         <section id="publications" style={{ scrollMarginTop: 16 }}>
           <H2>Publications we cover</H2>
-          <P muted>Newsrooms marked <Sub /> keep some or all of their stories for subscribers.</P>
+          <P muted>
+            The note after each name says who owns or funds the newsroom. Newsrooms marked <Sub /> keep some or all of
+            their stories for subscribers.
+          </P>
 
           {["Toronto", "Ontario", "Canada"].map((place) => (
             <div key={place}>
