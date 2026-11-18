@@ -984,7 +984,7 @@ export default function Home({ pageTown = null } = {}) {
     setCouncil({ town: null, meetings: [], pending: true });
     fetch(`/api/council?town=${encodeURIComponent(townSlug)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!cancelled) setCouncil(j ? { town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null } : { town: null, meetings: [] }); })
+      .then((j) => { if (!cancelled) setCouncil(j ? { town: j.town, portal: j.portal, meetings: j.meetings || [], checkedAt: j.error ? null : j.checkedAt || null, note: j.note || null } : { town: null, meetings: [] }); })
       .catch(() => { if (!cancelled) setCouncil({ town: null, meetings: [] }); });
     return () => { cancelled = true; };
   }, [townSlug, hydrated]);
@@ -997,7 +997,7 @@ export default function Home({ pageTown = null } = {}) {
     if (!hydrated || !wantToronto || torontoCouncil) return;
     fetch("/api/council?town=toronto")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available, checkedAt: j.error ? null : j.checkedAt || null }); })
+      .then((j) => { if (j) setTorontoCouncil({ town: j.town, portal: j.portal, meetings: j.meetings || [], available: j.available, checkedAt: j.error ? null : j.checkedAt || null, note: j.note || null }); })
       .catch(() => {});
   }, [hydrated, wantToronto, torontoCouncil]);
   const CATEGORIES = buildCategories(home.label);
@@ -1558,7 +1558,8 @@ export default function Home({ pageTown = null } = {}) {
           const homeBoxWanted = activeCats.length === 0 || activeCats.includes(home.label);
           const homePortal = home.townName === "Toronto" ? TORONTO_PORTAL : councilPortal(home.townName);
           if (council.pending && homePortal && homeBoxWanted) boxes.push({ town: home.townName, portal: homePortal, meetings: [], pending: true });
-          else if ((council.meetings.length > 0 || council.checkedAt) && homeBoxWanted) boxes.push({ ...council, showEmpty: false });
+          // A calendar that says why it has nothing (council.note) is shown too.
+          else if ((council.meetings.length > 0 || council.checkedAt || council.note) && homeBoxWanted) boxes.push({ ...council, showEmpty: false });
           if (wantToronto && torontoCouncil?.available && homeTown !== "Toronto") boxes.push({ ...torontoCouncil, showEmpty: true });
           else if (wantToronto && homeTown === "Toronto" && council.meetings.length === 0 && torontoCouncil?.available) boxes.push({ ...torontoCouncil, showEmpty: true });
           return boxes.map((box) => (
@@ -1580,7 +1581,7 @@ export default function Home({ pageTown = null } = {}) {
                     <span style={{ fontSize: 13 }}>{checkedNote(box.checkedAt)}</span>
                   </p>
                 ) : (
-                  <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>The meeting calendar didn&apos;t load just now.</p>
+                  <p style={{ margin: 0, fontSize: 14, color: t.textSec }}>{box.note || "The meeting calendar didn\u2019t load just now."}</p>
                 )
               ) : (
                 <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>

@@ -61,7 +61,8 @@ export async function GET(request) {
       return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings, checkedAt: new Date().toISOString() },
         { headers: { "Cache-Control": "public, max-age=0", "Vercel-CDN-Cache-Control": CDN_CACHE } });
     } catch (err) {
-      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings: [], error: err?.message },
+      // `note` is shown to readers in place of the meetings (see page.js)
+      return Response.json({ town: "Toronto", available: true, portal: TORONTO_PORTAL, meetings: [], error: err?.message, ...(err?.stale ? { note: err.message } : {}) },
         { headers: { "Cache-Control": "no-store" } });
     }
   }

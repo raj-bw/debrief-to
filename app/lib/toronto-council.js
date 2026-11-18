@@ -105,6 +105,17 @@ function clock(t) {
   return { h, min: Number(m[2]) };
 }
 
+/* A schedule whose last meeting is already past is out of date, not empty.
+   Each term of council is a new file on the portal, and between a term's
+   end and the City publishing the next one (Nov 2026: the 2022–2026 file
+   ended Nov 10, the new council met Nov 18), the old file has nothing
+   ahead, and "no meetings" would be untrue. */
+export const STALE = "Toronto hasn't published the new council's meeting schedule as open data yet.";
+export function scheduleIsStale(dates, today) {
+  const latest = dates.filter(Boolean).map((d) => String(d).slice(0, 10)).sort().pop();
+  return !latest || latest < today;
+}
+
 async function fromOpenData({ daysAhead }) {
   const resources = await termResources();
   if (!resources.length) throw new Error("no schedule resource on the Open Data portal");
@@ -115,6 +126,12 @@ async function fromOpenData({ daysAhead }) {
   const rows = (await Promise.all(resources.map((r) =>
     getJson(`${CKAN}/datastore_search?resource_id=${r.id}&limit=150&sort=${encodeURIComponent("Date desc")}`)
       .then((j) => j.result?.records || []).catch(() => [])))).flat();
+
+  if (scheduleIsStale(rows.map((r) => r.Date), today)) {
+    const err = new Error(STALE);
+    err.stale = true;
+    throw err;
+  }
 
   const seen = new Set();
   return rows
@@ -164,15 +181,21 @@ export async function torontoMeetings({ daysAhead = 21, max = 6 } = {}) {
     .slice(0, max)
     .map(({ localStart, ...m }) => m);
   if (memo && Date.now() - memo.at < MEMO_MS) return serve(memo.value);
+  let openDataStale = false;
   try {
     const value = await fromOpenData({ daysAhead });
     memo = { at: Date.now(), value };
     return serve(value);
   } catch (err) {
+    openDataStale = Boolean(err?.stale);
     console.warn("[debrief.to] Toronto Open Data schedule failed, trying TMMIS:", err?.message);
   }
   const bodies = await currentBodies();
-  if (!bodies.length) throw new Error("no council bodies listed");
+  if (!bodies.length) {
+    const err = new Error(openDataStale ? STALE : "no council bodies listed");
+    err.stale = openDataStale;
+    throw err;
+  }
   // Compare calendar days in Toronto, so a meeting dated today still counts
   // this afternoon even when TMMIS stored it as midnight.
   const day = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
