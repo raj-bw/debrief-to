@@ -11,7 +11,7 @@ Last updated November 18, 2026.
   - Bing: use "Import from Google Search Console".
 - **Account security.** Two-factor login on Porkbun, GitHub, Vercel, the Redis host and the email behind them; auto-renew and Domain Lock on at Porkbun; a rule for `main` in GitHub (pull requests and passing checks required); Dependabot alerts on.
 - **The Walrus and The Napanee Beaver** are on the newsroom list but show nothing: The Walrus has refused us since October 6 (on purpose), the Napanee Beaver has been down since October 16 and its last stored stories expired November 18. Remove them, or keep them listed?
-- **The cron-job.org token** expires November 18, 2027. Renew it a week before (GitHub → Settings → Developer settings → Fine-grained tokens), and paste the new one into the cron-job.org job's Authorization header.
+- **The cron-job.org token** needs renewing by November 2, 2027 (GitHub → Settings → Developer settings → Fine-grained tokens), and paste the new one into the cron-job.org job's Authorization header.
 
 ## Ready when Raj says go
 
