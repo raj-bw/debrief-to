@@ -7,7 +7,7 @@ import PrivacyView from "./privacy-view";
    change UPDATED too. */
 export const UPDATED = "November 18, 2026";
 
-const description = "What Debrief.TO collects (very little), what it stores in your browser, and who else sees your visit.";
+const description = "Debrief.TO doesn't ask who you are, doesn't use cookies and doesn't track what you read. Here's what we do see, in plain English.";
 
 export const metadata = {
   title: "Privacy — Debrief.TO",

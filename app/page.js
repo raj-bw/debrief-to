@@ -685,8 +685,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Editor&apos;s Picks</H2>
           <P>
-            Editor&apos;s Picks are stories chosen by hand for the strength of their reporting or their importance to
-            Ontarians, often investigations and explainers from independent newsrooms. Each pick stays at the top for
+            Editor&apos;s Picks are stories we chose by hand because the reporting is strong or the subject matters to
+            Ontarians. Many are investigations and explainers from independent newsrooms. Each pick stays at the top for
             {" "}{PICKS_DAYS} days, then moves to Past picks.
           </P>
         </section>
@@ -718,15 +718,15 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
           <H2>What we leave out</H2>
           <P>To keep the feed focused on local reporting, Debrief.TO leaves out:</P>
           <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 15.5, lineHeight: 1.75, color: c.body }}>
-            <li>national and international wire stories that aren&apos;t about Ontario</li>
+            <li>news agency stories (such as The Canadian Press) that aren&apos;t about Ontario</li>
             <li>sports, entertainment and weather</li>
             <li>obituaries</li>
             <li>press releases and sponsored content</li>
             <li>event listings and round-ups</li>
             <li>lottery results</li>
-            <li>columns syndicated across newspaper chains</li>
+            <li>columns that run in many papers at once</li>
           </ul>
-          <P>These rules are based on the type of item, never on its subject or point of view.</P>
+          <P>We filter by the kind of item, never by what a story is about or which side it takes.</P>
         </section>
 
         <Divider />
@@ -734,8 +734,8 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <section>
           <H2>Council meetings</H2>
           <P>
-            Where a town posts its meetings online, the local tab lists upcoming council and committee meetings, with a
-            link to each agenda. These come from the municipality, not a newsroom, and are shown separately from the news.
+            If your town posts its meetings online, the local tab lists upcoming council and committee meetings, with a
+            link to each agenda. These come from the town itself, not a newsroom, so they&apos;re kept apart from the news.
           </P>
         </section>
 
