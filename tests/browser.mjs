@@ -145,6 +145,27 @@ async function run({ name, width, height, phone }) {
   });
 
   if (phone) {
+    await check("on a phone, the first headline shows without scrolling, and Back to top works", async () => {
+      // A reader who keeps the Sources panel closed, as phones start
+      const sources = await page.evaluate(() => localStorage.getItem("cp_showSources"));
+      await page.evaluate(() => { localStorage.setItem("cp_town", "newmarket"); localStorage.setItem("cp_categories", JSON.stringify(["Newmarket"])); localStorage.setItem("cp_showSources", "false"); });
+      await page.goto(BASE + "/", { waitUntil: "load" });
+      const first = page.locator(storySel).first();
+      await first.waitFor({ timeout: 15000 });
+      const box = await first.boundingBox();
+      const vh = page.viewportSize().height;
+      if (box.y + box.height > vh) return `first headline ends at ${Math.round(box.y + box.height)}px, below the ${vh}px screen`;
+      // Dark, Saved and About fit beside the logo, on one row
+      const tops = await page.locator(".nav-capsules > button").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+      if (new Set(tops).size !== 1) return `the three buttons are on ${new Set(tops).size} rows`;
+      await page.evaluate(() => window.scrollTo(0, innerHeight * 3));
+      const top = page.getByRole("button", { name: "Back to top" });
+      await top.waitFor({ timeout: 3000 });
+      await top.click();
+      await page.waitForFunction(() => window.scrollY < 5, null, { timeout: 5000 });
+      await page.evaluate((v) => { localStorage.setItem("cp_categories", "[]"); if (v === null) localStorage.removeItem("cp_showSources"); else localStorage.setItem("cp_showSources", v); }, sources);
+    });
+
     await check("no sideways scrolling on a 320px screen", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
       await sleep(300);

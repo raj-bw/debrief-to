@@ -40,12 +40,47 @@ body {
   outline-offset: 2px;
 }
 
-/* On the narrowest phones (320px, the width WCAG's reflow rule tests at) the
-   three capsules sat 3px wider than the screen and the page scrolled
-   sideways. A little less padding and gap fits them. */
+/* ---- Phones ----
+   Most readers are on a phone, where the menu used to take half the screen
+   before the first story. Here Dark, Saved and About become round icon
+   buttons beside the logo (their names are still read aloud), the header
+   sits tighter, and with one filter on, its own x stands in for "Clear". */
+@media (max-width: 640px) {
+  .header-inner { padding-top: 14px !important; padding-bottom: 12px !important; }
+  .header-top { margin-bottom: 12px !important; gap: 12px !important; }
+  .nav-capsules { margin: 0 0 0 auto !important; gap: 8px !important; }
+  .nav-capsules > button {
+    position: relative;
+    min-width: 44px !important; width: 44px; height: 44px;
+    padding: 0 !important; border-radius: 22px !important;
+  }
+  .nav-label {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .nav-capsules .saved-count { position: absolute; top: -5px; right: -5px; }
+  .pill-divider { display: none; }
+  .clear-one { display: none !important; }
+  .feed-main { padding-top: 18px !important; }
+  /* About's own heading says "About Debrief.TO" just below */
+  .page-title { display: none !important; }
+  /* Town picker: the newsroom goes under the town, not squeezed beside it */
+  .town-row { flex-direction: column; align-items: flex-start !important; gap: 2px !important; }
+  .town-row-source { text-align: left !important; max-width: none !important; flex-shrink: 1 !important; }
+}
+/* The narrowest phones (320px): slightly smaller round buttons, so they
+   still fit beside the logo */
 @media (max-width: 360px) {
   .nav-capsules { gap: 6px !important; }
-  .nav-capsules > button { padding-left: 10px !important; padding-right: 10px !important; }
+  .nav-capsules > button { min-width: 40px !important; width: 40px; height: 40px; }
+  .header-top { gap: 10px !important; }
+}
+
+/* Footer links: a thumb-sized target around each one, about 44px tall,
+   without changing how they look */
+.footer-links > a, .footer-links > button {
+  min-height: 44px; padding: 12px 8px !important;
+  display: inline-flex !important; align-items: center;
 }
 
 /* Read by screen readers, not shown on screen */
