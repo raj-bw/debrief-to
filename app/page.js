@@ -1536,7 +1536,7 @@ export default function Home({ pageTown = null } = {}) {
                 color: showPicks ? "#FFF" : (dm ? "#F2788C" : "#C0354A"),
                 border: `1.5px solid ${showPicks ? "#C0354A" : (dm ? "#6A3345" : "#D9A1AC")}` }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill={showPicks ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              {PICKS_LABEL}
+              {PICKS_LABEL.startsWith("Editor's ") ? (<><span className="picks-prefix">Editor&apos;s </span>{PICKS_LABEL.slice(9)}</>) : PICKS_LABEL}
             </button>
           </div>
 
@@ -1546,7 +1546,7 @@ export default function Home({ pageTown = null } = {}) {
               rather than publications they were misleading too. The full list
               of newsrooms lives on the About page. */}
           {showSources && (
-            <div style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <div className="sources-panel" style={{ padding: "20px 0 8px", marginTop: 12, borderTop: `1px solid ${dm ? t.desc : t.border}`, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8 }}>
               {/* When there is no local tab there is no chip to hang the Change
                   control off, and the reader would be stuck with a town they
                   can't change. So it stands on its own instead. */}
@@ -1570,18 +1570,18 @@ export default function Home({ pageTown = null } = {}) {
                   <React.Fragment key={cat.label}>
                     {showDivider && <div className="cat-divider" style={{ width: 1.5, height: 26, background: dm ? t.desc : t.border, margin: "0 6px", borderRadius: 1 }} />}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} style={{ padding: "10px 14px", borderRadius: 22, fontSize: 15, whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1, fontWeight: isActive ? 600 : 500,
+                      <button onClick={() => toggleCategory(cat.label)} aria-pressed={isActive} className="cat-chip" style={{ padding: "10px 14px", borderRadius: 22, fontSize: 15, whiteSpace: "nowrap", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s ease", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1, fontWeight: isActive ? 600 : 500,
                         background: isActive ? (dm ? cat.color : getCatTint(cat.color, 0.12)) : "transparent",
                         color: isActive ? (dm ? "#FFF" : readableInk(cat.color, 0.12)) : (dm ? "#D0CCC6" : t.textSec),
                         border: `1.5px solid ${isActive ? (dm ? cat.color : getCatTint(cat.color, 0.3)) : (dm ? "#3C3C3C" : t.border)}` }}>
-                        <span style={{ fontSize: 15, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
+                        <span className={cat.home ? undefined : "cat-icon"} aria-hidden="true" style={{ fontSize: 15, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>{cat.icon}</span>
                         <span>{cat.label}</span>
                         {isActive && <span style={{ fontSize: 13, opacity: 0.6, marginLeft: 2 }}>{"×"}</span>}
                       </button>
                       {/* The local tab is the only one that can be changed — this is
                           where a reader swaps Newmarket for their own town. */}
                       {cat.home && (
-                        <button onClick={() => setShowPicker(true)} title="Change your town"
+                        <button onClick={() => setShowPicker(true)} title="Change your town" className="change-town"
                           aria-label={`Change your town, currently ${home.label}`}
                           /* Amber, so it reads as an action rather than as one more
                              category to filter by. It borrows the same warm palette
@@ -1898,7 +1898,7 @@ export default function Home({ pageTown = null } = {}) {
       {/* ===== FOOTER ===== */}
       {showTop && !showPicker && (
         <button onClick={backToTop} aria-label="Back to top" title="Back to top" className="back-to-top"
-          style={{ position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "max(16px, env(safe-area-inset-bottom))", zIndex: 50, width: 48, height: 48, borderRadius: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: dm ? "#2D6A4F" : "#FFF", color: dm ? "#FFF" : "#2D6A4F", border: `1.5px solid ${dm ? "#2D6A4F" : "#B9D3C4"}`, boxShadow: dm ? "0 4px 14px rgba(0,0,0,0.5)" : "0 4px 14px rgba(0,0,0,0.15)" }}>
+          style={{ position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "max(16px, env(safe-area-inset-bottom))", zIndex: 50, width: 48, height: 48, borderRadius: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#2D6A4F", color: "#FFF", border: "1.5px solid #2D6A4F", boxShadow: dm ? "0 4px 14px rgba(0,0,0,0.5)" : "0 4px 14px rgba(0,0,0,0.15)" }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></svg>
         </button>
       )}

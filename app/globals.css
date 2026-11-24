@@ -68,8 +68,36 @@ body {
   .town-row { flex-direction: column; align-items: flex-start !important; gap: 2px !important; }
   .town-row-source { text-align: left !important; max-width: none !important; flex-shrink: 1 !important; }
 }
+/* Most phones: a little less padding in the Sources / dates row, no
+   divider line, and Editor's Picks reads "Picks" (screen readers still hear
+   "Editor's Picks"), so it fits beside Month instead of taking a line of its
+   own on screens 390px and wider */
+@media (max-width: 430px) {
+  .filter-divider { display: none; }
+  .picks-prefix {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .filter-row > button { padding-left: 9px !important; padding-right: 9px !important; }
+}
 /* The narrowest phones (320px): slightly smaller round buttons, so they
    still fit beside the logo */
+/* Phones zoom in on any text box under 16px when it's tapped, and don't
+   always zoom back out: the page then feels stuck zoomed in. At 16px they
+   don't zoom at all, and pinch-zoom still works as usual. */
+@media (max-width: 640px) {
+  .search-box { font-size: 16px !important; }
+  /* Sources: smaller chips without their emoji (your town keeps its pin),
+     packed from the left, so all of them fit in about three rows */
+  .sources-panel {
+    padding: 12px 0 2px !important; margin-top: 10px !important;
+    gap: 6px !important; justify-content: flex-start !important;
+  }
+  .sources-panel > span { gap: 6px !important; }
+  .cat-chip { padding: 9px 11px !important; font-size: 14px !important; gap: 5px !important; }
+  .change-town { padding: 9px 10px !important; }
+  .cat-icon { display: none !important; }
+}
 @media (max-width: 360px) {
   .nav-capsules { gap: 6px !important; }
   .nav-capsules > button { min-width: 40px !important; width: 40px; height: 40px; }
