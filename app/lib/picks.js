@@ -26,6 +26,76 @@ export const PICKS_LABEL = "Editor's Picks";
 export const PICKS_DAYS = 90;
 
 export const PICKS = [
+  // Added Nov 24 2026
+  {
+    url: "https://www.nationalobserver.com/2026/11/23/news/ford-smith-double-down-oil-pipeline-ontario",
+    title: "Ford and Smith double down on oil pipeline to Ontario",
+    source: "National Observer",
+    published: "2026-11-23T22:39:33Z",
+    description: "Ontario Premier Doug Ford is continuing to push his vision for a new crude oil pipeline between Alberta and Ontario, which he says would bring “national security” to Canada.",
+  },
+  {
+    url: "https://www.thetrillium.ca/news/health/premier-says-drugmakers-are-refusing-to-seek-approval-in-canada-as-he-defends-us-cancer-treatment-denials-13050325",
+    title: "Premier says drugmakers are refusing to seek approval in Canada as he defends U.S. cancer treatment denials",
+    source: "The Trillium",
+    published: "2026-11-23T20:34:00Z",
+    description: "‘My heart breaks for them,’ Ford said of patients fighting for access to treatment, as his government rejected a call to review and approve denied cases",
+    image: "https://www.vmcdn.ca/f/files/trillium/whatsapp-image-2026-11-23-at-124335.jpeg;w=960",
+  },
+  {
+    url: "https://theijf.org/brief/telesat-lobbied-feds-every-other-business-day-prior-to-2-3-billion-contract-award",
+    title: "Telesat lobbied feds every other business day prior to $2.3-billion contract award",
+    source: "IJF",
+    published: "2026-11-23T03:20:41Z",
+    description: "Federal Conservatives criticized the deal saying the PM had a conflict of interest due to his friendship with Telesat’s CEO. Carney has since implemented a formal ethics “screen”",
+    image: "https://storage.ghost.io/c/f9/62/f9622874-fed0-4058-bf3d-67605eb66d47/content/images/2026/11/CP2895355--1-.jpg",
+  },
+  {
+    url: "https://thegreenline.to/stories/thorncliffe-park-rent-hikes/",
+    title: "400 Thorncliffe Park tenants are saying no to one landlord’s rent hike",
+    source: "The Green Line",
+    published: "2026-11-20T20:42:40Z",
+    description: "Tenants at 47 Thorncliffe Park Dr. are challenging rent increases in a building they say has barely been maintained by the landlord.",
+    image: "https://thegreenline.to/wp-content/uploads/2026/11/2-1024x576.png",
+  },
+  {
+    url: "https://www.torontotoday.ca/local/city-hall/ttc-investigation-consultant-billed-4k-per-day-ceo-13031433",
+    title: "Meet the TTC’s ‘deputy CEO’: Consultant billed $4K per day to cash-strapped agency",
+    source: "TorontoToday",
+    published: "2026-11-18T18:15:00Z",
+    description: "A consulting firm incorporated six days before Mandeep Lali took over as TTC CEO has since received at least two single-source contracts from the transit agency",
+    image: "https://www.vmcdn.ca/f/files/torontotoday/images/transit/satpal-mandeep.png;w=960",
+  },
+  {
+    url: "https://projects.thenarwhal.ca/breathing-lands/",
+    title: "Deep in the breathing lands: a 1,700-km paddle to the centre of Ontario’s mining ambitions",
+    source: "The Narwhal",
+    published: "2026-11-18T16:51:13Z",
+    description: "The mineral-rich region of northern Ontario is known also as the breathing lands — a massive carbon-storing peatland traversed by First Nations for millennia. Mining and roads could change that",
+    image: "https://thenarwhal.ca/wp-content/uploads/2026/11/breathing-lands-header-site-1400x725.jpg",
+  },
+  {
+    url: "https://www.nationalobserver.com/2026/11/18/news/rcmp-agent-embedded-major-projects-office-indigenous-policing",
+    title: "Documents reveal RCMP agent embedded in the Major Projects Office",
+    source: "National Observer",
+    published: "2026-11-18T16:17:23Z",
+    description: "An RCMP agent specializing in Indigenous policing is working in the federal government's Major Projects Office.",
+  },
+  {
+    url: "https://www.cbc.ca/news/canada/toronto/ontario-government-legislation-osap-pause-9.7426005",
+    title: "Part of new bill would prevent lawsuits against Ontario government over OSAP pause",
+    source: "CBC Toronto",
+    published: "2026-11-18T02:03:35Z",
+    description: "The Ontario government is taking steps to protect itself from lawsuits related to its provincewide pause on financial assistance payments to students at private post-secondary institutions.",
+  },
+  {
+    url: "https://www.thetrillium.ca/news/education-and-training/education-minister-defends-60m-digital-learning-platform-after-concerns-about-outdated-inappropriate-material-13028736",
+    title: "Education minister defends $60M digital learning platform after concerns about outdated, inappropriate material",
+    source: "The Trillium",
+    published: "2026-11-17T21:18:23Z",
+    description: "Paul Calandra says platform is 'updated as required,' after educators questioned whether the $60-million investment was adequately vetted",
+    image: "https://www.vmcdn.ca/f/files/trillium/screenshot-2026-11-17-at-34601-pm.png;w=960",
+  },
   // Added for launch, Nov 18 2026
   {
     url: "https://www.thetrillium.ca/news/the-trillium-investigations/ford-gov-pledged-175m-for-horse-racing-after-minister-raised-20k-of-political-donations-from-industry-13027672",
