@@ -56,8 +56,11 @@ const parser = new Parser({
 async function probe(candidate) {
   const base = candidate.url.replace(/\/+$/, "");
   const tried = [];
-  for (const path of FEED_PATHS) {
-    const url = base + path;
+  // A candidate can name its feed outright (CBC's local stations, The
+  // Conversation): that address is tried first, then the usual paths.
+  const urls = [...(candidate.feed ? [candidate.feed] : []), ...FEED_PATHS.map((path) => base + path)];
+  for (const url of urls) {
+    const path = url.startsWith(base) ? url.slice(base.length) || "/" : url;
     try {
       const feed = await parser.parseURL(url);
       const items = feed.items || [];
@@ -95,7 +98,8 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0);
   const limit = Math.min(20, Math.max(1, parseInt(searchParams.get("limit") || "10", 10) || 10));
-  const scope = searchParams.get("scope");           // "town" | "regional" | omit for both
+  // "town" | "regional" | "independent" | "cbc" | omit for all
+  const scope = searchParams.get("scope");
 
   const pool = scope ? CANDIDATES.filter((c) => c.scope === scope) : CANDIDATES;
   const batch = pool.slice(offset, offset + limit);
