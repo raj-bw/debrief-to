@@ -421,6 +421,33 @@ export async function memoryUsage() {
   }
 }
 
+/* What the database says about its own memory beyond the current figure:
+   the highest it has reached since it last restarted, how much the server
+   process really holds (rss), what it does when full (policy), and whether
+   it has ever had to throw stories away to make room (evicted keys). A
+   dashboard can show a spike that the current figure no longer does; the
+   peak shows whether the database itself saw it. For /api/health only. */
+export async function memoryDetails() {
+  if (!archiveEnabled()) return null;
+  try {
+    const [mem, stats, clients] = await pipeline([["INFO", "memory"], ["INFO", "stats"], ["INFO", "clients"]]);
+    const text = `${mem || ""}\n${stats || ""}\n${clients || ""}`;
+    const num = (name) => { const m = text.match(new RegExp(`^${name}:(\\d+)`, "m")); return m ? Number(m[1]) : null; };
+    const str = (name) => { const m = text.match(new RegExp(`^${name}:(\\S+)`, "m")); return m ? m[1] : null; };
+    const mb = (n) => (n === null ? null : +(n / 1048576).toFixed(2));
+    return {
+      peakMB: mb(num("used_memory_peak")),
+      rssMB: mb(num("used_memory_rss")),
+      policy: str("maxmemory_policy"),
+      evictedKeys: num("evicted_keys"),
+      connectedClients: num("connected_clients"),
+      rejectedConnections: num("rejected_connections"),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /* If the database is past 85% full, drop the oldest days three at a time
    until it is under 75%, stopping at three weeks. Stories from the last
    21 days are never touched, whatever happens. */
@@ -595,6 +622,7 @@ export async function archiveStats() {
   if (!archiveEnabled()) return { enabled: false, backend: archiveBackend() };
   try {
     const memory = await memoryUsage();
+    const details = await memoryDetails();
     const [bucketMap, active, state] = await pipeline([
       ["HGETALL", "archive:buckets"],
       ["ZCOUNT", "archive:active", activeFrom(), "+inf"],
@@ -621,7 +649,7 @@ export async function archiveStats() {
       publications: buckets.length,
       storiesStored: sizes.reduce((n, x) => n + (Number(x) || 0), 0),
       oldestStoryDaysAgo: Number.isFinite(oldestMs) ? Math.floor((Date.now() - oldestMs) / DAY) : null,
-      memory: memory ? { ...memory, warning: memory.percent >= FULL ? "nearly full — oldest days are being trimmed early" : undefined } : null,
+      memory: memory ? { ...memory, ...(details || {}), warning: memory.percent >= FULL ? "nearly full — oldest days are being trimmed early" : undefined } : null,
       retentionInForce: Number(st.retentionInForce) || RETENTION_DAYS,
       lastCollectorRun: lastRun,
       // Metroland/Torstar papers last filed via GitHub's network (/api/deliver).
