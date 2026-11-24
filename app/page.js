@@ -273,16 +273,16 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
         ) : (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         )}
-        {dm ? "Light" : "Dark"}
+        <span className="nav-label">{dm ? "Light" : "Dark"}</span>
       </button>
 
       <button onClick={() => onGo(savedOpen ? "feed" : "bookmarks")} aria-pressed={savedOpen}
         aria-label={savedOpen ? "Close saved articles and go back to the feed" : "Open saved articles"}
         style={{ ...base, fontWeight: savedOpen ? 600 : 500, background: savedOpen ? "#C0354A" : "transparent", border: `1.5px solid ${savedOpen ? "#C0354A" : (dm ? "#5A3040" : "#E8D0D6")}`, color: savedOpen ? "#FFF" : (dm ? "#F2788C" : "#C0354A") }}>
         {savedOpen ? <X /> : <svg width="15" height="15" viewBox="0 0 24 24" fill="#E63956" stroke="#2B2D5B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>}
-        Saved
+        <span className="nav-label">Saved</span>
         {savedCount > 0 && !savedOpen && (
-          <span style={{ fontSize: 10, fontWeight: 700, background: "#C0354A", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{savedCount}</span>
+          <span className="saved-count" style={{ fontSize: 10, fontWeight: 700, background: "#C0354A", color: "#FFF", padding: "1px 6px", borderRadius: 8, lineHeight: "16px" }}>{savedCount}</span>
         )}
       </button>
 
@@ -290,7 +290,7 @@ function NavCapsules({ dm, page, savedCount, onToggleDark, onGo }) {
         aria-label={aboutOpen ? "Close About and go back to the feed" : "Open About"}
         style={{ ...base, fontWeight: aboutOpen ? 600 : 500, background: aboutOpen ? "#2D6A4F" : "transparent", border: `1.5px solid ${aboutOpen ? "#2D6A4F" : (dm ? "#2E5A47" : "#CDE3D7")}`, color: aboutOpen ? "#FFF" : (dm ? "#7FD3A8" : "#2D6A4F") }}>
         {aboutOpen ? <X /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}
-        About
+        <span className="nav-label">About</span>
       </button>
     </div>
   );
@@ -402,12 +402,12 @@ function TownPicker({ dm, onPick, onSkip }) {
             </p>
           ) : (
             shown.map((t) => (
-              <button key={t.slug} onClick={() => onPick(t.slug)}
+              <button key={t.slug} onClick={() => onPick(t.slug)} className="town-row"
                 style={{ display: "flex", width: "100%", alignItems: "baseline", justifyContent: "space-between", gap: 10, textAlign: "left", background: "transparent", border: "none", borderRadius: 10, padding: "12px 12px", cursor: "pointer", fontFamily: "inherit", color: c.text, contentVisibility: "auto", containIntrinsicSize: "auto 46px" }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = c.rowHover; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
                 <span style={{ fontSize: 15.5, fontWeight: t.tier === "town" ? 600 : 500, color: t.tier === "province" ? c.muted : c.text }}>{t.name}</span>
-                <span style={{ fontSize: 12, color: c.muted, textAlign: "right", flexShrink: 0, maxWidth: "58%" }}>
+                <span className="town-row-source" style={{ fontSize: 12, color: c.muted, textAlign: "right", flexShrink: 0, maxWidth: "58%" }}>
                   {t.tier === "town"
                     ? t.sourceName
                     : t.tier === "region"
@@ -623,7 +623,7 @@ function AboutPage({ onBack, darkMode, onToggleDark, onGo, savedCount, homeLabel
         <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
           <Wordmark dm={dm} size={22} tagline={false} onClick={onBack} />
           <NavCapsules dm={dm} page="about" savedCount={savedCount} onToggleDark={onToggleDark} onGo={onGo} />
-          <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", order: 3 }}>
+          <div className="page-title" style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", alignItems: "center", justifyContent: "flex-end", order: 3 }}>
             <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10, color: c.title }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               About
@@ -876,8 +876,8 @@ function BookmarksPage({ bookmarks, onBack, onRemove, darkMode, onToggleDark, on
                     <div style={{ padding: "14px 18px", flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: article.sourceColor, display: "inline-block" }} />
-                        <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : readableInk(article.sourceColor), textTransform: "uppercase", letterSpacing: "0.3px" }}>{article.source}</span>
-                        <span style={{ fontSize: 11, color: dm ? "#9A958E" : "#6B665F" }}>{"\u00B7"} {timeAgo(article.pubDate)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : readableInk(article.sourceColor), textTransform: "uppercase", letterSpacing: "0.3px" }}>{article.source}</span>
+                        <span style={{ fontSize: 12, color: dm ? "#9A958E" : "#6B665F" }}>{"\u00B7"} {timeAgo(article.pubDate)}</span>
                       </div>
                       <a href={article.link} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>
                         <h4 style={{ fontFamily: "'Georgia', serif", fontSize: 16, fontWeight: 600, color: dm ? "#F0EDE8" : "#1A1A1A", margin: "0 0 6px", lineHeight: 1.35 }}>{article.title}</h4>
@@ -915,6 +915,20 @@ export default function Home({ pageTown = null } = {}) {
      reach. 24 fills whole rows at one, two or three columns. */
   const PAGE_SIZE = 24;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  /* A "Back to top" button, once the reader has scrolled a couple of screens
+     down: on a phone the town, the dates and the topics are otherwise a long
+     swipe away. */
+  const [showTop, setShowTop] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > window.innerHeight * 1.5);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const backToTop = () => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  };
   const [activeCategories, setActiveCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSources, setShowSources] = useState(false);
@@ -1436,11 +1450,11 @@ export default function Home({ pageTown = null } = {}) {
       {showInstallSheet && <InstallSheet dm={dm} onClose={() => setShowInstallSheet(false)} />}
       {/* ===== HEADER ===== */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, zIndex: 100 }}>
-        <div className="page-width" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px" }}>
+        <div className="page-width header-inner" style={{ padding: "20px clamp(16px, 4vw, 24px) 16px" }}>
 
           {/* Top row: wordmark - capsules - search. The capsules sit in the middle
               with even space on both sides, and in the same spot on every page. */}
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
+          <div className="header-top" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 14, marginBottom: 14 }}>
             <Wordmark dm={dm} />
             <NavCapsules dm={dm} page="feed" savedCount={bookmarks.length} onToggleDark={() => setDarkMode(!dm)} onGo={onGo} />
             <div style={{ flex: "0 1 480px", minWidth: "min(240px, 100%)", display: "flex", justifyContent: "flex-end", order: 3 }}>
@@ -1487,7 +1501,7 @@ export default function Home({ pageTown = null } = {}) {
             {/* Active category pills with x */}
             {activeCats.length > 0 && (
               <>
-                <div style={{ width: 1, height: 22, background: t.border, margin: "0 4px" }} />
+                <div className="pill-divider" style={{ width: 1, height: 22, background: t.border, margin: "0 4px" }} />
                 {activeCats.map((catLabel) => {
                   const cat = CATEGORIES.find((c) => c.label === catLabel);
                   const color = cat?.color || "#2D6A4F";
@@ -1495,13 +1509,15 @@ export default function Home({ pageTown = null } = {}) {
                     <span key={catLabel} style={{ fontSize: 14, fontWeight: 600, padding: "6px 10px 6px 14px", borderRadius: 16, display: "inline-flex", alignItems: "center", gap: 5, ...(dm ? { color: "#FFF", background: color } : { color: readableInk(color, 0.12), background: getCatTint(color, 0.12) }) }}>
                       <span style={{ fontSize: 15 }}>{cat?.icon}</span>
                       {catLabel}
-                      <button onClick={() => toggleCategory(catLabel)} aria-label={`Remove the ${catLabel} filter`} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: dm ? "rgba(255,255,255,0.7)" : readableInk(color, 0.12), padding: "0 2px", lineHeight: 1, display: "flex", alignItems: "center", opacity: 0.7 }}>{"×"}</button>
+                      {/* The padding makes the x easy to hit with a thumb; the
+                          negative margin keeps the pill the size it was. */}
+                      <button onClick={() => toggleCategory(catLabel)} aria-label={`Remove the ${catLabel} filter`} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: dm ? "rgba(255,255,255,0.7)" : readableInk(color, 0.12), padding: "12px 14px 12px 10px", margin: "-12px -12px -12px -8px", minWidth: 40, justifyContent: "center", lineHeight: 1, display: "flex", alignItems: "center", opacity: 0.7 }}>{"×"}</button>
                     </span>
                   );
                 })}
                 {/* Clear pill: "Clear" for one filter, "Clear all" for several */}
                 {activeCats.length > 0 && (
-                  <button onClick={clearAllFilters} aria-label={activeCats.length > 1 ? "Clear all filters" : `Clear the ${activeCats[0]} filter`} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#555" : "#D4D0CA"}`, color: t.textSec }}
+                  <button onClick={clearAllFilters} className={activeCats.length === 1 ? "clear-one" : undefined} aria-label={activeCats.length > 1 ? "Clear all filters" : `Clear the ${activeCats[0]} filter`} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20, fontSize: 14, fontWeight: 500, fontFamily: "inherit", cursor: "pointer", transition: "all 0.2s ease", background: "transparent", border: `1.5px solid ${dm ? "#555" : "#D4D0CA"}`, color: t.textSec }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = dm ? "#333" : "#F0EDE8"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
@@ -1595,7 +1611,7 @@ export default function Home({ pageTown = null } = {}) {
       {/* At least a screen tall, so the footer starts below the fold: while
           the stories load, the short loading cards left the footer on screen,
           and it jumped away when the stories arrived (a layout shift). */}
-      <main className="page-width" style={{ padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
+      <main className="page-width feed-main" style={{ padding: "28px clamp(16px, 4vw, 24px) 64px", minHeight: "100vh" }}>
         {pageTown && !showPicks && (
           <h2 style={{ fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: t.text }}>{resolveTown(pageTown).townName} news</h2>
         )}
@@ -1763,31 +1779,31 @@ export default function Home({ pageTown = null } = {}) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", marginBottom: 10, flex: 1 }}>
                       <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: dm ? lightenForDark(article.sourceColor) : article.sourceColor, marginRight: 7 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : readableInk(article.sourceColor), textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: dm ? lightenForDark(article.sourceColor) : readableInk(article.sourceColor), textTransform: "uppercase", letterSpacing: "0.5px" }}>{article.source}</span>
                       {/* Up to two, because an article genuinely can be both —
                           a highway's environmental assessment is Environment
                           and Urbanism & Transit. Showing only the first made
                           the tagging look wrong when it wasn't. */}
                       {(article.topics || []).slice(0, 2).map((tp) => (
                         <React.Fragment key={tp}>
-                          <span style={{ margin: "0 6px", color: t.textMuted, fontSize: 10 }}>{"·"}</span>
-                          <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 400 }}>{tp}</span>
+                          <span style={{ margin: "0 6px", color: t.textMuted, fontSize: 12 }}>{"·"}</span>
+                          <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 400 }}>{tp}</span>
                         </React.Fragment>
                       ))}
                       {article.opinion && (
-                        <span title="Commentary, not straight reporting" style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#A9B7D0" : "#44506B", background: dm ? "#252B36" : "#EDF0F6", border: `1px solid ${dm ? "#3A4454" : "#D6DDE9"}` }}>
+                        <span title="Commentary, not straight reporting" style={{ marginLeft: 8, fontSize: 12, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#A9B7D0" : "#44506B", background: dm ? "#252B36" : "#EDF0F6", border: `1px solid ${dm ? "#3A4454" : "#D6DDE9"}` }}>
                           Opinion
                         </span>
                       )}
                       {article.republishedFrom && (() => {
-                        const style = { marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#C9C3BA" : "#5F5A54", background: dm ? "#2A2826" : "#F2F0EC", border: `1px solid ${dm ? "#45413C" : "#DEDAD3"}`, textDecoration: "none" };
+                        const style = { marginLeft: 8, fontSize: 12, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#C9C3BA" : "#5F5A54", background: dm ? "#2A2826" : "#F2F0EC", border: `1px solid ${dm ? "#45413C" : "#DEDAD3"}`, textDecoration: "none" };
                         const text = `Republished from ${article.republishedFrom}`;
                         return article.republishedLink
                           ? <a href={article.republishedLink} target="_blank" rel="noopener" title={`Written by ${article.republishedFrom}. Open the original`} style={style}>{text}</a>
                           : <span title={`Written by ${article.republishedFrom}, carried by ${article.source}`} style={style}>{text}</span>;
                       })()}
                       {article.paywall && (
-                        <span title="This article needs a subscription" style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#E0B978" : "#8A5A12", background: dm ? "#3A2E1C" : "#F6ECD9", border: `1px solid ${dm ? "#5A4526" : "#E8D5B0"}` }}>
+                        <span title="This article needs a subscription" style={{ marginLeft: 8, fontSize: 12, fontWeight: 600, letterSpacing: "0.3px", textTransform: "uppercase", padding: "2px 7px", borderRadius: 10, color: dm ? "#E0B978" : "#8A5A12", background: dm ? "#3A2E1C" : "#F6ECD9", border: `1px solid ${dm ? "#5A4526" : "#E8D5B0"}` }}>
                           Subscription
                         </span>
                       )}
@@ -1880,12 +1896,18 @@ export default function Home({ pageTown = null } = {}) {
       </main>
 
       {/* ===== FOOTER ===== */}
+      {showTop && !showPicker && (
+        <button onClick={backToTop} aria-label="Back to top" title="Back to top" className="back-to-top"
+          style={{ position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "max(16px, env(safe-area-inset-bottom))", zIndex: 50, width: 48, height: 48, borderRadius: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: dm ? "#2D6A4F" : "#FFF", color: dm ? "#FFF" : "#2D6A4F", border: `1.5px solid ${dm ? "#2D6A4F" : "#B9D3C4"}`, boxShadow: dm ? "0 4px 14px rgba(0,0,0,0.5)" : "0 4px 14px rgba(0,0,0,0.15)" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></svg>
+        </button>
+      )}
       <footer style={{ borderTop: `1px solid ${dm ? "#2A2A2A" : "#E8E5E0"}`, padding: "36px 24px", textAlign: "center", background: t.headerBg }}>
         <p style={{ fontSize: 12, color: t.textMuted, maxWidth: 560, margin: "0 auto 12px", lineHeight: 1.7, letterSpacing: "0.1px" }}>
           Debrief.TO gathers headlines from independent and local newsrooms and links straight back to them.
           All content belongs to the newsroom that reported it — click through to read it there, and subscribe if you can.
         </p>
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "8px 24px" }}>
+        <div className="footer-links" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "0 16px" }}>
           <button onClick={() => goTo("about")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: dm ? "#7FD3A8" : "#2D6A4F" }}>
             About Debrief.TO
           </button>
